@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+dist/
+node_modules/
+
+# Secrets & local config
+.env
+*.user
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
