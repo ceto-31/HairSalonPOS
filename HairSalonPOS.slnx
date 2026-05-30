@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="HairSalonPOS.Wpf/HairSalonPOS.Wpf.vbproj" />
+  <Project Path="HairSalonPOS/HairSalonPOS.csproj" />
+</Solution>
