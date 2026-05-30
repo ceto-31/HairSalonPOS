@@ -1,0 +1,89 @@
+<UserControl x:Class="Views.DiscountsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="700">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="0,0,0,12"
+                Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <TextBlock Text="New promo" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <UniformGrid Columns="2" Margin="0,0,0,12">
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Code" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditCode}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="Type" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox ItemsSource="{Binding DiscountTypes}" SelectedItem="{Binding EditType}" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Value" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditValue}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Description" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditDescription}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                </UniformGrid>
+                <CheckBox Content="Senior / PWD (BIR compliant)" IsChecked="{Binding EditSeniorPwd}" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Save promo" Style="{StaticResource PrimaryButton}" Command="{Binding SavePromoCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelEditCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <TextBlock Text="Active discounts" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Button Content="+ New promo" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
+                            Command="{Binding NewPromoCommand}"/>
+                </DockPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}"/>
+                <ItemsControl ItemsSource="{Binding Discounts}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource CardMutedBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Code}" FontWeight="Bold" FontSize="15"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="12" Padding="10,4" Margin="0,0,8,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#DCFCE7"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding StatusLabel}" Value="Expiring">
+                                                        <Setter Property="Background" Value="#FEF3C7"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding StatusLabel}" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Button Grid.Column="2" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                            Command="{Binding DataContext.DeleteDiscountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
