@@ -1,0 +1,159 @@
+<UserControl x:Class="Views.CashierView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="640" d:DesignWidth="1100">
+    <Grid Margin="0,8,0,0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.35*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,16">
+                    <Button Content="Services" Command="{Binding ShowServicesCommand}"
+                            Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
+                    <Button Content="Products" Command="{Binding ShowProductsCommand}"
+                            Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
+                    <Button Content="Packages" Command="{Binding ShowPackagesCommand}"
+                            Style="{StaticResource PillTabButton}"/>
+                </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding CatalogTiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource CatalogTileButton}"
+                                        Command="{Binding DataContext.AddTileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding Icon}" FontSize="28" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="110"/>
+                                        <TextBlock Text="{Binding Price, StringFormat=₱{0:N0}}" Foreground="{StaticResource AccentBrush}"
+                                                   FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Transaction Cart" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Customer" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox ItemsSource="{Binding CustomerNames}" Text="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEditable="True" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Stylist" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox ItemsSource="{Binding Stylists}" SelectedItem="{Binding SelectedStylist}"
+                                  DisplayMemberPath="Name" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <Grid Margin="0,0,0,6">
+                        <TextBlock Text="Subtotal"/>
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding SubTotal, StringFormat=₱{0:N2}}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6">
+                        <TextBlock Text="Discount (Senior/PWD)"/>
+                        <TextBlock HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}"
+                                   Text="{Binding DiscountAmount, StringFormat=-₱{0:N2}}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6">
+                        <TextBlock Text="VATable sales"/>
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding VatableSales, StringFormat=₱{0:N2}}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6">
+                        <TextBlock Text="VAT (12%)"/>
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding Tax, StringFormat=₱{0:N2}}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,12">
+                        <TextBlock Text="Total" FontWeight="Bold" FontSize="18"/>
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding Total, StringFormat=₱{0:N2}}" FontWeight="Bold" FontSize="18"/>
+                    </Grid>
+
+                    <TextBlock Text="Promo code" Style="{StaticResource SectionHeader}"/>
+                    <Grid Margin="0,0,0,12">
+                        <TextBox Text="{Binding PromoCode, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"
+                                 Tag="Enter code..." Margin="0,0,8,0"/>
+                        <Button Content="Apply" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Right" Width="80"
+                                Command="{Binding ApplyPromoCommand}"/>
+                    </Grid>
+
+                    <TextBlock Text="Payment method" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="💵 Cash" Command="{Binding SelectCashCommand}" Style="{StaticResource PaymentButton}" Margin="0,0,8,0"/>
+                        <Button Content="📱 GCash" Command="{Binding SelectGcashCommand}" Style="{StaticResource PaymentButton}" Margin="0,0,8,0"/>
+                        <Button Content="💳 Card" Command="{Binding SelectCardCommand}" Style="{StaticResource PaymentButton}"/>
+                    </StackPanel>
+
+                    <Border Background="#ECFDF5" CornerRadius="10" Padding="12" Margin="0,0,0,12"
+                            Visibility="{Binding ShowChangeCalculator, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Amount tendered" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding AmountTendered, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Change" Style="{StaticResource SectionHeader}"/>
+                                <TextBlock Text="{Binding ChangeAmount, StringFormat=₱{0:N2}}" FontSize="22" FontWeight="Bold"
+                                           Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Button Content="✓ Checkout &amp; Print Receipt" Style="{StaticResource PrimaryButton}"
+                            Command="{Binding CheckoutCommand}" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="↺ Reprint Last Receipt" Style="{StaticResource SecondaryButton}" Command="{Binding ReprintLastReceiptCommand}" Margin="0,0,8,0"/>
+                        <Button Content="✉ Send receipt" Style="{StaticResource SecondaryButton}" Command="{Binding EmailReceiptCommand}" Margin="0,0,8,0"/>
+                        <Button Content="🗑 Clear" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCartCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <DataGrid ItemsSource="{Binding Cart}" Style="{StaticResource DataGridStyle}" MaxHeight="220">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Item" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="45"/>
+                        <DataGridTextColumn Header="Price" Binding="{Binding UnitPrice, StringFormat=₱{0:N2}}" Width="75"/>
+                        <DataGridTextColumn Header="Total" Binding="{Binding LineTotal, StringFormat=₱{0:N2}}" Width="80"/>
+                        <DataGridTemplateColumn Header="" Width="40">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="✕" Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                            Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
