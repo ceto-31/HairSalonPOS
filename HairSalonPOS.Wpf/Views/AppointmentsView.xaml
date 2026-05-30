@@ -1,0 +1,87 @@
+<UserControl x:Class="Views.AppointmentsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="700">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="0,0,0,12"
+                Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <TextBlock Text="Book appointment" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <UniformGrid Columns="2" Margin="0,0,0,12">
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Customer" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditCustomer}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="Service" Style="{StaticResource SectionHeader}"/>
+                        <ComboBox ItemsSource="{Binding ServiceNames}" SelectedItem="{Binding EditService}" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Time (HH:mm)" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditTime}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Duration (mins)" Style="{StaticResource SectionHeader}"/>
+                        <TextBox Text="{Binding EditDuration}" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                </UniformGrid>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveAppointmentCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelEditCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="{Binding DateLabel}" FontSize="20" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding StaffList}" SelectedItem="{Binding SelectedStaff}"
+                                  DisplayMemberPath="Name" Width="200" Margin="0,8,0,0" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                        <Button Content="◀" Style="{StaticResource SecondaryButton}" Width="44" Command="{Binding PrevDayCommand}" Margin="0,0,4,0"/>
+                        <Button Content="▶" Style="{StaticResource SecondaryButton}" Width="44" Command="{Binding NextDayCommand}" Margin="0,0,12,0"/>
+                        <Button Content="+ Book" Style="{StaticResource PrimaryButton}" Command="{Binding BookCommand}"/>
+                    </StackPanel>
+                </DockPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}"/>
+                <ItemsControl ItemsSource="{Binding Appointments}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding TimeLabel}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#ECFDF5" CornerRadius="10" Padding="14,10">
+                                    <TextBlock>
+                                        <Run Text="{Binding CustomerName}" FontWeight="SemiBold"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ServiceName}"/>
+                                        <Run Text=" ("/>
+                                        <Run Text="{Binding DurationMinutes}"/>
+                                        <Run Text=" mins)"/>
+                                    </TextBlock>
+                                </Border>
+                                <Button Grid.Column="2" Content="→ Cashier" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                        Command="{Binding DataContext.ConvertToTransactionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
