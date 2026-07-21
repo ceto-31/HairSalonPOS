@@ -1,6 +1,9 @@
-﻿Class Application
+﻿Imports System.Windows
+Imports HairSalonPOS.Wpf.Services
 
-    ' Application-level events, such as Startup, Exit, and DispatcherUnhandledException
-    ' can be handled in this file.
-
+Class Application
+    Protected Overrides Sub OnStartup(e As StartupEventArgs)
+        MyBase.OnStartup(e)
+        ThemeService.Apply(AppSettingsService.Instance.Settings.IsDarkMode)
+    End Sub
 End Class

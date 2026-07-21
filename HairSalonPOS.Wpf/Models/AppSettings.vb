@@ -2,10 +2,11 @@ Namespace Models
     Public Class AppSettings
         Public Property PrinterType As String = "Standard"
         Public Property ThermalPrinterName As String = String.Empty
-        Public Property SalonName As String = "Cindy Hair Salon"
+        Public Property SalonName As String = "Fix Republic"
         Public Property SalonAddress As String = "123 Beauty Street, Quezon City, Metro Manila"
         Public Property SalonTelephone As String = "(02) 8123-4567"
         Public Property SalonTin As String = "123-456-789-00000"
+        Public Property IsDarkMode As Boolean
     End Class
 
     Public Class IssuedReceiptRecord

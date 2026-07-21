@@ -7,6 +7,9 @@ Namespace Models
         Public Property Password As String = String.Empty
         Public Property FullName As String = String.Empty
         Public Property Role As String = String.Empty
+        Public Property FavNumber As String = String.Empty
+        Public Property FavColor As String = String.Empty
+        Public Property FavAnimal As String = String.Empty
     End Class
 
     Public Class ServiceItem
@@ -15,6 +18,8 @@ Namespace Models
         Public Property Price As Decimal
         Public Property DurationMinutes As Integer
         Public Property Icon As String = "✂️"
+        Public Property Category As String = String.Empty
+        Public Property SubCategory As String = String.Empty
     End Class
 
     Public Class ProductItem
@@ -28,6 +33,8 @@ Namespace Models
         Public Property Price As Decimal
         Public Property Cost As Decimal
         Public Property ReorderLevel As Integer = 10
+        Public Property Category As String = String.Empty
+        Public Property SubCategory As String = String.Empty
 
         Public Property StockOnHand As Integer
             Get

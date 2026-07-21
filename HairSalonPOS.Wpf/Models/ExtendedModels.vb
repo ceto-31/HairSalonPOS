@@ -102,6 +102,30 @@ Namespace Models
         Public Property Price As Decimal
         Public Property Icon As String = "•"
         Public Property TileType As String = "Service"
+        Public Property Category As String = String.Empty
+        Public Property SubCategory As String = String.Empty
+    End Class
+
+    Public Class CatalogCategoryNode
+        Public Property Name As String = String.Empty
+        Public Property SubCategories As New List(Of String)
+    End Class
+
+    Public Class SelectableChip
+        Inherits ObservableObject
+
+        Private _isSelected As Boolean
+
+        Public Property Name As String = String.Empty
+
+        Public Property IsSelected As Boolean
+            Get
+                Return _isSelected
+            End Get
+            Set(value As Boolean)
+                SetProperty(_isSelected, value)
+            End Set
+        End Property
     End Class
 
     Public Class RevenueBarItem

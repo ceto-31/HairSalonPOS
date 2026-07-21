@@ -49,7 +49,6 @@ public class AuthService
             var defaultPassword = user.Username.ToLowerInvariant() switch
             {
                 "admin" => "Admin@123",
-                "manager" => "Manager@123",
                 "cashier" => "Cashier@123",
                 _ => "Admin@123"
             };

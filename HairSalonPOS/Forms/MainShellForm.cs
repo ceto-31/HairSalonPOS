@@ -5,7 +5,6 @@ namespace HairSalonPOS.Forms;
 
 public class MainShellForm : Form
 {
-    private readonly Label _lblUser = new() { AutoSize = true };
     private readonly Label _lblLowStock = new()
     {
         AutoSize = true,
@@ -19,7 +18,7 @@ public class MainShellForm : Form
 
     public MainShellForm()
     {
-        Text = "Hair Salon POS";
+        Text = "Fix Republic POS";
         WindowState = FormWindowState.Maximized;
         StartPosition = FormStartPosition.CenterScreen;
 
@@ -42,15 +41,13 @@ public class MainShellForm : Form
 
         menu.Items.AddRange(new ToolStripItem[] { mPos, mProducts, mInventory, mReports, mUsers, mBackup, mLogout });
 
-        if (!SessionContext.HasRole("Admin", "Manager"))
+        if (!SessionContext.HasRole("Admin"))
             mProducts.Visible = mInventory.Visible = false;
         if (!SessionContext.HasRole("Admin"))
             mUsers.Visible = mBackup.Visible = false;
 
         var status = new StatusStrip();
-        _lblUser.Text = $"Logged in: {SessionContext.CurrentUser?.FullName} ({SessionContext.CurrentUser?.RoleName})";
         _lblLowStock.Click += (_, _) => ShowChild(new InventoryForm(showLowStockOnly: true));
-        status.Items.Add(new ToolStripStatusLabel { Text = _lblUser.Text });
         status.Items.Add(new ToolStripStatusLabel { Spring = true });
         status.Items.Add(new ToolStripStatusLabel { Text = "Low stock: " });
         status.Items.Add(new ToolStripStatusLabel { Text = "", DisplayStyle = ToolStripItemDisplayStyle.Text });

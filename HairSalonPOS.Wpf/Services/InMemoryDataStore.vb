@@ -27,37 +27,48 @@ Namespace Services
 
         Public Event SaleCompleted As EventHandler
         Public Event InventoryChanged As EventHandler
+        Public Event StaffChanged As EventHandler
+        Public Event CustomersChanged As EventHandler
 
         Private Sub New()
             SeedData()
         End Sub
 
         Private Sub SeedData()
-            Users.AddRange({
-                New UserAccount With {.UserId = 1, .Username = "admin", .Password = "Admin@123", .FullName = "Ana Reyes", .Role = "Admin"},
-                New UserAccount With {.UserId = 2, .Username = "cashier", .Password = "Cashier@123", .FullName = "Ana Reyes", .Role = "Cashier"}
-            })
+            Dim persistedUsers = UserPersistenceService.Instance.LoadUsers()
+            If persistedUsers IsNot Nothing Then
+                Users.AddRange(persistedUsers)
+                EnsureSecurityAnswers()
+                PersistUsers()
+            Else
+                Users.AddRange({
+                    New UserAccount With {.UserId = 1, .Username = "admin", .Password = "Admin@123", .FullName = "Ana Reyes", .Role = "Admin", .FavNumber = "7", .FavColor = "blue", .FavAnimal = "dog"},
+                    New UserAccount With {.UserId = 2, .Username = "cashier", .Password = "Cashier@123", .FullName = "Ana Reyes", .Role = "Cashier", .FavNumber = "3", .FavColor = "pink", .FavAnimal = "cat"}
+                })
+                PersistUsers()
+            End If
 
-            Services.AddRange({
-                New ServiceItem With {.Sku = "S001", .Name = "Haircut", .Price = 150D, .DurationMinutes = 30, .Icon = "✂️"},
-                New ServiceItem With {.Sku = "S002", .Name = "Hair Coloring", .Price = 800D, .DurationMinutes = 120, .Icon = "🎨"},
-                New ServiceItem With {.Sku = "S003", .Name = "Hair Rebond", .Price = 2500D, .DurationMinutes = 240, .Icon = "💫"},
-                New ServiceItem With {.Sku = "S004", .Name = "Hair Treatment", .Price = 500D, .DurationMinutes = 60, .Icon = "💧"},
-                New ServiceItem With {.Sku = "S005", .Name = "Hair Spa", .Price = 600D, .DurationMinutes = 60, .Icon = "🌿"}
-            })
+            Dim catalog = CatalogPersistenceService.Instance.Load()
+            If catalog IsNot Nothing Then
+                If catalog.Services IsNot Nothing Then Services.AddRange(catalog.Services)
+                If catalog.Products IsNot Nothing Then Products.AddRange(catalog.Products)
+            End If
 
-            Products.AddRange({
+            ' Retail inventory products (Category blank = inventory-only). Only seed SKUs missing after load.
+            Dim retailDefaults = {
                 New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10},
                 New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10},
                 New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8},
                 New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8},
                 New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10}
-            })
+            }
+            For Each p In retailDefaults
+                If Not Products.Any(Function(x) x.Sku.Equals(p.Sku, StringComparison.OrdinalIgnoreCase)) Then
+                    Products.Add(p)
+                End If
+            Next
 
-            Packages.AddRange({
-                New PackageItem With {.Sku = "PKG01", .Name = "Cut + Spa", .Price = 700D, .Icon = "🎁", .IncludedSkus = New List(Of String) From {"S001", "S005"}},
-                New PackageItem With {.Sku = "PKG02", .Name = "Color Package", .Price = 1500D, .Icon = "🎁", .IncludedSkus = New List(Of String) From {"S002", "S004"}}
-            })
+            PersistCatalog()
 
             Customers.AddRange({
                 New CustomerItem With {.CustomerId = 1, .Name = "Walk-in", .Phone = "", .VisitCount = 0, .LoyaltyPoints = 0},
@@ -85,6 +96,36 @@ Namespace Services
             })
 
             SeedSampleSales()
+        End Sub
+
+        Public Sub PersistUsers()
+            UserPersistenceService.Instance.SaveUsers(Users)
+        End Sub
+
+        Public Sub PersistCatalog()
+            CatalogPersistenceService.Instance.Save(Services, Products)
+        End Sub
+
+        Private Sub EnsureSecurityAnswers()
+            For Each user In Users
+                If String.IsNullOrWhiteSpace(user.FavNumber) OrElse
+                   String.IsNullOrWhiteSpace(user.FavColor) OrElse
+                   String.IsNullOrWhiteSpace(user.FavAnimal) Then
+                    If user.Username.Equals("admin", StringComparison.OrdinalIgnoreCase) Then
+                        user.FavNumber = "7"
+                        user.FavColor = "blue"
+                        user.FavAnimal = "dog"
+                    ElseIf user.Username.Equals("cashier", StringComparison.OrdinalIgnoreCase) Then
+                        user.FavNumber = "3"
+                        user.FavColor = "pink"
+                        user.FavAnimal = "cat"
+                    Else
+                        If String.IsNullOrWhiteSpace(user.FavNumber) Then user.FavNumber = "1"
+                        If String.IsNullOrWhiteSpace(user.FavColor) Then user.FavColor = "blue"
+                        If String.IsNullOrWhiteSpace(user.FavAnimal) Then user.FavAnimal = "dog"
+                    End If
+                End If
+            Next
         End Sub
 
         Private Sub SeedSampleSales()
@@ -155,6 +196,14 @@ Namespace Services
 
         Public Sub RaiseSaleCompleted()
             RaiseEvent SaleCompleted(Me, EventArgs.Empty)
+        End Sub
+
+        Public Sub RaiseStaffChanged()
+            RaiseEvent StaffChanged(Me, EventArgs.Empty)
+        End Sub
+
+        Public Sub RaiseCustomersChanged()
+            RaiseEvent CustomersChanged(Me, EventArgs.Empty)
         End Sub
     End Class
 End Namespace

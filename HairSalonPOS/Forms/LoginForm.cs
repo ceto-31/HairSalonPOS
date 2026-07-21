@@ -11,7 +11,7 @@ public class LoginForm : Form
 
     public LoginForm()
     {
-        Text = "Hair Salon POS - Login";
+        Text = "Fix Republic POS - Login";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -20,7 +20,7 @@ public class LoginForm : Form
 
         var lblTitle = new Label
         {
-            Text = "Cindy Hair Salon POS",
+            Text = "Fix Republic POS",
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             AutoSize = true,
             Location = new Point(60, 20)

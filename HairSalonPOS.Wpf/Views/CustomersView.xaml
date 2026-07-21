@@ -6,15 +6,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              d:DesignHeight="600" d:DesignWidth="700">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12"
+        <Border Style="{StaticResource CardBorder}"
                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
             <StackPanel>
-                <TextBlock Text="Add customer" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <DockPanel Margin="0,0,0,16">
+                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                            Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </DockPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                     <StackPanel Width="220" Margin="0,0,12,0">
                         <TextBlock Text="Name" Style="{StaticResource SectionHeader}"/>
@@ -25,14 +25,12 @@
                         <TextBox Text="{Binding EditPhone}" Style="{StaticResource ModernTextBox}"/>
                     </StackPanel>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCustomerCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelEditCommand}"/>
-                </StackPanel>
+                <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCustomerCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVis}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
                     <TextBlock Text="All customers" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -52,6 +50,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Width="44" Height="44" CornerRadius="22" Background="#ECFDF5" Margin="0,0,14,0">
                                         <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"
@@ -66,12 +66,18 @@
                                             <Run Text=" visits"/>
                                         </TextBlock>
                                     </StackPanel>
-                                    <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="14" Padding="12,6" VerticalAlignment="Center">
+                                    <Border Grid.Column="2" Background="#FEF3C7" CornerRadius="14" Padding="12,6" VerticalAlignment="Center" Margin="0,0,8,0">
                                         <TextBlock FontWeight="SemiBold">
                                             <Run Text="{Binding LoyaltyPoints}"/>
                                             <Run Text=" pts"/>
                                         </TextBlock>
                                     </Border>
+                                    <Button Grid.Column="3" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                            Command="{Binding DataContext.EditCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Grid.Column="4" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                            Command="{Binding DataContext.DeleteCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>

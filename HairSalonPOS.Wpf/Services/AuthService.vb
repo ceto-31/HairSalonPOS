@@ -8,6 +8,28 @@ Namespace Services
             Return _store.Users.FirstOrDefault(
                 Function(u) u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) AndAlso u.Password = password)
         End Function
+
+        Public Function FindUser(username As String) As UserAccount
+            If String.IsNullOrWhiteSpace(username) Then Return Nothing
+            Return _store.Users.FirstOrDefault(
+                Function(u) u.Username.Equals(username.Trim(), StringComparison.OrdinalIgnoreCase))
+        End Function
+
+        Public Function VerifySecurityAnswers(username As String, favNumber As String, favColor As String, favAnimal As String) As Boolean
+            Dim user = FindUser(username)
+            If user Is Nothing Then Return False
+            Return String.Equals(user.FavNumber?.Trim(), favNumber?.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso
+                   String.Equals(user.FavColor?.Trim(), favColor?.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso
+                   String.Equals(user.FavAnimal?.Trim(), favAnimal?.Trim(), StringComparison.OrdinalIgnoreCase)
+        End Function
+
+        Public Function ResetPassword(username As String, newPassword As String) As Boolean
+            Dim user = FindUser(username)
+            If user Is Nothing OrElse String.IsNullOrWhiteSpace(newPassword) Then Return False
+            user.Password = newPassword
+            _store.PersistUsers()
+            Return True
+        End Function
     End Class
 
     Public Class SessionContext

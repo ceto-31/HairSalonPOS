@@ -18,7 +18,8 @@ public class UserService
     public IEnumerable<Role> GetRoles()
     {
         using var conn = SqlConnectionFactory.CreateConnection();
-        return conn.Query<Role>("SELECT RoleId, RoleName FROM Roles ORDER BY RoleId");
+        return conn.Query<Role>(
+            "SELECT RoleId, RoleName FROM Roles WHERE RoleName IN ('Admin', 'Cashier') ORDER BY RoleId");
     }
 
     public void SaveUser(UserAccount user, string? newPassword)

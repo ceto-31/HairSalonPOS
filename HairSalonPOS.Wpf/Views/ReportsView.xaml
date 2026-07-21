@@ -13,8 +13,7 @@
                 <Button Content="Monthly" Command="{Binding SetMonthlyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,16,0"/>
                 <DatePicker SelectedDate="{Binding SelectedDate}" Width="160" VerticalAlignment="Center"/>
                 <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
-                <Button Content="Export PDF" Style="{StaticResource PrimaryButton}" Command="{Binding ExportPdfCommand}" Margin="12,0,8,0"/>
-                <Button Content="Export Excel" Style="{StaticResource SecondaryButton}" Command="{Binding ExportExcelCommand}"/>
+                <Button Content="Export" Style="{StaticResource PrimaryButton}" Command="{Binding ExportCommand}" Margin="12,0,0,0"/>
             </StackPanel>
 
             <UniformGrid Columns="4" Margin="0,0,0,16">

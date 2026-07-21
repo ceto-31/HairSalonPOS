@@ -6,15 +6,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              d:DesignHeight="640" d:DesignWidth="1000">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12"
+        <Border Style="{StaticResource CardBorder}"
                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
             <StackPanel>
-                <TextBlock Text="Add / Edit Product" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <DockPanel Margin="0,0,0,16">
+                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                            Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </DockPanel>
                 <UniformGrid Columns="3" Margin="0,0,0,12">
                     <StackPanel Margin="0,0,8,8">
                         <TextBlock Text="SKU" Style="{StaticResource SectionHeader}"/>
@@ -45,14 +45,12 @@
                         <TextBox Text="{Binding EditReorder}" Style="{StaticResource ModernTextBox}"/>
                     </StackPanel>
                 </UniformGrid>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Save product" Style="{StaticResource PrimaryButton}" Command="{Binding SaveProductCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelEditCommand}"/>
-                </StackPanel>
+                <Button Content="Save product" Style="{StaticResource PrimaryButton}" Command="{Binding SaveProductCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVis}}">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
                     <DockPanel Margin="0,0,0,12">
@@ -107,12 +105,17 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Action" Width="70">
+                        <DataGridTemplateColumn Header="Action" Width="140">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Edit" Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}" Cursor="Hand"
-                                            Command="{Binding DataContext.EditProductRowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Edit" Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}" Cursor="Hand"
+                                                Command="{Binding DataContext.EditProductRowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Margin="0,0,8,0"/>
+                                        <Button Content="Delete" Background="Transparent" BorderThickness="0" Foreground="#DC2626" Cursor="Hand"
+                                                Command="{Binding DataContext.DeleteProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

@@ -2,8 +2,6 @@ Imports System.Collections.ObjectModel
 Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
-Imports Microsoft.Win32
-
 Namespace ViewModels
     Public Class InventoryViewModel
         Inherits ViewModelBase
@@ -36,6 +34,7 @@ Namespace ViewModels
             EditProductRowCommand = New RelayCommand(Of ProductItem)(AddressOf BeginEditFromRow)
             SaveProductCommand = New RelayCommand(AddressOf SaveProduct)
             CancelEditCommand = New RelayCommand(AddressOf CancelEdit)
+            DeleteProductCommand = New RelayCommand(Of ProductItem)(AddressOf DeleteProduct)
             ExportCommand = New RelayCommand(AddressOf ExportInventory)
             UpdateQtyCommand = New RelayCommand(Of ProductItem)(AddressOf PromptQtyUpdate)
 
@@ -90,6 +89,12 @@ Namespace ViewModels
             Set(value As Boolean)
                 SetProperty(_isEditMode, value)
             End Set
+        End Property
+
+        Public ReadOnly Property FormTitle As String
+            Get
+                Return If(SelectedProduct Is Nothing, "Add product", "Edit product")
+            End Get
         End Property
 
         Public Property EditSku As String
@@ -172,11 +177,12 @@ Namespace ViewModels
         Public Property EditProductRowCommand As RelayCommand(Of ProductItem)
         Public Property SaveProductCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
+        Public Property DeleteProductCommand As RelayCommand(Of ProductItem)
         Public Property ExportCommand As RelayCommand
         Public Property UpdateQtyCommand As RelayCommand(Of ProductItem)
 
         Public Sub LoadProducts()
-            Dim query = _store.Products.AsEnumerable()
+            Dim query = _store.Products.Where(Function(p) String.IsNullOrWhiteSpace(p.Category))
             If Not String.IsNullOrWhiteSpace(SearchText) Then
                 query = query.Where(Function(p) p.Name.ToLower().Contains(SearchText.ToLower()) OrElse p.Sku.ToLower().Contains(SearchText.ToLower()))
             End If
@@ -204,6 +210,7 @@ Namespace ViewModels
         End Sub
 
         Private Sub BeginAddProduct()
+            SelectedProduct = Nothing
             IsEditMode = True
             EditSku = $"P{(_store.Products.Count + 1):D3}"
             EditName = String.Empty
@@ -212,7 +219,7 @@ Namespace ViewModels
             EditCost = 0D
             EditQty = 0
             EditReorder = 10
-            SelectedProduct = Nothing
+            OnPropertyChanged(NameOf(FormTitle))
         End Sub
 
         Private Sub BeginEditFromRow(product As ProductItem)
@@ -230,6 +237,7 @@ Namespace ViewModels
             EditCost = SelectedProduct.Cost
             EditQty = SelectedProduct.StockOnHand
             EditReorder = SelectedProduct.ReorderLevel
+            OnPropertyChanged(NameOf(FormTitle))
         End Sub
 
         Private Sub SaveProduct()
@@ -257,12 +265,33 @@ Namespace ViewModels
             IsEditMode = False
         End Sub
 
+        Private Sub DeleteProduct(product As ProductItem)
+            If product Is Nothing Then Return
+            If Not SessionContext.IsAdmin Then
+                StatusMessage = "Only Admin can manage inventory."
+                Return
+            End If
+            Dim confirm = System.Windows.MessageBox.Show(
+                $"Delete product '{product.Name}'?",
+                "Confirm delete",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning)
+            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+
+            Try
+                _inventory.DeleteProduct(product)
+                StatusMessage = $"{product.Name} deleted."
+                LoadAll()
+            Catch ex As Exception
+                StatusMessage = ex.Message
+            End Try
+        End Sub
+
         Private Sub ExportInventory()
-            Dim dlg As New SaveFileDialog With {.Filter = "CSV files|*.csv", .FileName = "inventory.csv"}
-            If dlg.ShowDialog() <> True Then Return
-            Dim lines = _store.Products.Select(Function(p) $"{p.Sku},{p.Name},{p.Brand},{p.Price},{p.Cost},{p.StockOnHand},{p.ReorderLevel}")
-            IO.File.WriteAllLines(dlg.FileName, {"SKU,Name,Brand,Price,Cost,Qty,Reorder"}.Concat(lines))
-            StatusMessage = "Inventory exported."
+            Dim salonName = AppSettingsService.Instance.Settings.SalonName
+            If ExportService.ExportInventoryPdf(_store.Products, $"{salonName} Inventory") Then
+                StatusMessage = "Inventory exported as PDF."
+            End If
         End Sub
 
         Private Sub PromptQtyUpdate(product As ProductItem)

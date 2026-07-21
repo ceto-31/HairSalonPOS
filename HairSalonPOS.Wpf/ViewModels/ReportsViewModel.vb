@@ -2,7 +2,6 @@ Imports System.Collections.ObjectModel
 Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
-Imports Microsoft.Win32
 
 Namespace ViewModels
     Public Class ReportsViewModel
@@ -27,8 +26,7 @@ Namespace ViewModels
             SetDailyCommand = New RelayCommand(Sub() Period = "Daily")
             SetWeeklyCommand = New RelayCommand(Sub() Period = "Weekly")
             SetMonthlyCommand = New RelayCommand(Sub() Period = "Monthly")
-            ExportPdfCommand = New RelayCommand(AddressOf ExportPdf)
-            ExportExcelCommand = New RelayCommand(AddressOf ExportExcel)
+            ExportCommand = New RelayCommand(AddressOf ExportReport)
 
             AddHandler _store.SaleCompleted, Sub() LoadReports()
             LoadReports()
@@ -128,8 +126,7 @@ Namespace ViewModels
         Public Property SetDailyCommand As RelayCommand
         Public Property SetWeeklyCommand As RelayCommand
         Public Property SetMonthlyCommand As RelayCommand
-        Public Property ExportPdfCommand As RelayCommand
-        Public Property ExportExcelCommand As RelayCommand
+        Public Property ExportCommand As RelayCommand
 
         Public Sub LoadReports()
             Dim filtered = FilterSales().OrderByDescending(Function(s) s.SaleDate).ToList()
@@ -180,17 +177,19 @@ Namespace ViewModels
             End Select
         End Function
 
-        Private Sub ExportPdf()
-            Dim summary = $"Cindy Hair Salon Report ({Period}){Environment.NewLine}Transactions: {TransactionCount}{Environment.NewLine}Total: {TotalSales:N2}"
-            ExportService.ExportSalesPdf(Sales, summary)
-            StatusMessage = "PDF report exported."
-        End Sub
-
-        Private Sub ExportExcel()
-            Dim dlg As New SaveFileDialog With {.Filter = "CSV files|*.csv", .FileName = "sales_report.csv"}
-            If dlg.ShowDialog() <> True Then Return
-            ExportService.ExportSalesCsv(Sales, dlg.FileName)
-            StatusMessage = "Excel/CSV report exported."
+        Private Sub ExportReport()
+            Dim salonName = AppSettingsService.Instance.Settings.SalonName
+            Dim title = $"{salonName} Sales Report ({Period})"
+            Dim summary = New String() {
+                $"Period date: {SelectedDate:yyyy-MM-dd}",
+                $"Transactions: {TransactionCount}",
+                $"Total sales: ₱{TotalSales:N2}",
+                $"Average sale: ₱{AverageSale:N2}",
+                $"Top service: {TopService}"
+            }
+            If ExportService.ExportSalesPdf(Sales, title, summary) Then
+                StatusMessage = "PDF report exported."
+            End If
         End Sub
     End Class
 End Namespace

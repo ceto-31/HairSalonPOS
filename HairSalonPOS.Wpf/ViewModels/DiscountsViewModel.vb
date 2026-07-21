@@ -14,12 +14,15 @@ Namespace ViewModels
         Private _editValue As Decimal
         Private _editSeniorPwd As Boolean
         Private _isEditMode As Boolean
+        Private _isAdding As Boolean = True
+        Private _originalCode As String = String.Empty
         Private _statusMessage As String = String.Empty
 
         Public Sub New()
             Discounts = New ObservableCollection(Of DiscountItem)(_store.Discounts)
             DiscountTypes = New ObservableCollection(Of String) From {"Percent", "Fixed"}
             NewPromoCommand = New RelayCommand(AddressOf BeginAdd)
+            EditDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf BeginEdit)
             SavePromoCommand = New RelayCommand(AddressOf SavePromo)
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
             DeleteDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf DeleteDiscount)
@@ -35,6 +38,12 @@ Namespace ViewModels
             Set(value As Boolean)
                 SetProperty(_isEditMode, value)
             End Set
+        End Property
+
+        Public ReadOnly Property FormTitle As String
+            Get
+                Return If(_isAdding, "New promo", "Edit promo")
+            End Get
         End Property
 
         Public Property EditCode As String
@@ -92,17 +101,34 @@ Namespace ViewModels
         End Property
 
         Public Property NewPromoCommand As RelayCommand
+        Public Property EditDiscountCommand As RelayCommand(Of DiscountItem)
         Public Property SavePromoCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
         Public Property DeleteDiscountCommand As RelayCommand(Of DiscountItem)
 
         Private Sub BeginAdd()
-            IsEditMode = True
+            _isAdding = True
+            _originalCode = String.Empty
             EditCode = String.Empty
             EditDescription = String.Empty
             EditType = "Percent"
             EditValue = 0D
             EditSeniorPwd = False
+            OnPropertyChanged(NameOf(FormTitle))
+            IsEditMode = True
+        End Sub
+
+        Private Sub BeginEdit(item As DiscountItem)
+            If item Is Nothing Then Return
+            _isAdding = False
+            _originalCode = item.Code
+            EditCode = item.Code
+            EditDescription = item.Description
+            EditType = item.DiscountType
+            EditValue = item.Value
+            EditSeniorPwd = item.IsSeniorPwd
+            OnPropertyChanged(NameOf(FormTitle))
+            IsEditMode = True
         End Sub
 
         Private Sub SavePromo()
@@ -110,18 +136,46 @@ Namespace ViewModels
                 StatusMessage = "Promo code is required."
                 Return
             End If
-            Dim item As New DiscountItem With {
-                .Code = EditCode.Trim().ToUpper(),
-                .Description = EditDescription.Trim(),
-                .DiscountType = EditType,
-                .Value = EditValue,
-                .IsSeniorPwd = EditSeniorPwd,
-                .IsActive = True
-            }
-            _store.Discounts.Add(item)
-            Discounts.Add(item)
+
+            Dim code = EditCode.Trim().ToUpper()
+            If _isAdding Then
+                If _store.Discounts.Any(Function(d) d.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) Then
+                    StatusMessage = "Promo code already exists."
+                    Return
+                End If
+                Dim item As New DiscountItem With {
+                    .Code = code,
+                    .Description = EditDescription.Trim(),
+                    .DiscountType = EditType,
+                    .Value = EditValue,
+                    .IsSeniorPwd = EditSeniorPwd,
+                    .IsActive = True
+                }
+                _store.Discounts.Add(item)
+                Discounts.Add(item)
+                StatusMessage = "Promo created."
+            Else
+                Dim existing = _store.Discounts.FirstOrDefault(Function(d) d.Code = _originalCode)
+                If existing Is Nothing Then
+                    StatusMessage = "Promo not found."
+                    Return
+                End If
+                If Not code.Equals(_originalCode, StringComparison.OrdinalIgnoreCase) AndAlso
+                   _store.Discounts.Any(Function(d) d.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) Then
+                    StatusMessage = "Promo code already exists."
+                    Return
+                End If
+                existing.Code = code
+                existing.Description = EditDescription.Trim()
+                existing.DiscountType = EditType
+                existing.Value = EditValue
+                existing.IsSeniorPwd = EditSeniorPwd
+                Discounts = New ObservableCollection(Of DiscountItem)(_store.Discounts)
+                OnPropertyChanged(NameOf(Discounts))
+                StatusMessage = "Promo updated."
+            End If
+
             IsEditMode = False
-            StatusMessage = "Promo created."
         End Sub
 
         Private Sub DeleteDiscount(item As DiscountItem)

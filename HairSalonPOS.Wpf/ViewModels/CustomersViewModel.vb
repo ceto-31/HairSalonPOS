@@ -13,13 +13,17 @@ Namespace ViewModels
         Private _editName As String = String.Empty
         Private _editPhone As String = String.Empty
         Private _isEditMode As Boolean
+        Private _isAdding As Boolean = True
+        Private _editingCustomerId As Integer
         Private _statusMessage As String = String.Empty
 
         Public Sub New()
             Customers = New ObservableCollection(Of CustomerItem)()
             AddCustomerCommand = New RelayCommand(AddressOf BeginAdd)
+            EditCustomerCommand = New RelayCommand(Of CustomerItem)(AddressOf BeginEdit)
             SaveCustomerCommand = New RelayCommand(AddressOf SaveCustomer)
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
+            DeleteCustomerCommand = New RelayCommand(Of CustomerItem)(AddressOf DeleteCustomer)
             LoadCustomers()
         End Sub
 
@@ -53,6 +57,12 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public ReadOnly Property FormTitle As String
+            Get
+                Return If(_isAdding, "Add customer", "Edit customer")
+            End Get
+        End Property
+
         Public Property EditName As String
             Get
                 Return _editName
@@ -81,8 +91,10 @@ Namespace ViewModels
         End Property
 
         Public Property AddCustomerCommand As RelayCommand
+        Public Property EditCustomerCommand As RelayCommand(Of CustomerItem)
         Public Property SaveCustomerCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
+        Public Property DeleteCustomerCommand As RelayCommand(Of CustomerItem)
 
         Public Sub LoadCustomers()
             Dim query = _store.Customers.Where(Function(c) c.Name <> "Walk-in")
@@ -94,9 +106,22 @@ Namespace ViewModels
         End Sub
 
         Private Sub BeginAdd()
-            IsEditMode = True
+            _isAdding = True
+            _editingCustomerId = 0
             EditName = String.Empty
             EditPhone = String.Empty
+            OnPropertyChanged(NameOf(FormTitle))
+            IsEditMode = True
+        End Sub
+
+        Private Sub BeginEdit(customer As CustomerItem)
+            If customer Is Nothing Then Return
+            _isAdding = False
+            _editingCustomerId = customer.CustomerId
+            EditName = customer.Name
+            EditPhone = customer.Phone
+            OnPropertyChanged(NameOf(FormTitle))
+            IsEditMode = True
         End Sub
 
         Private Sub SaveCustomer()
@@ -104,16 +129,45 @@ Namespace ViewModels
                 StatusMessage = "Name is required."
                 Return
             End If
-            _store.Customers.Add(New CustomerItem With {
-                .CustomerId = _store.Customers.Count + 1,
-                .Name = EditName.Trim(),
-                .Phone = EditPhone.Trim(),
-                .VisitCount = 0,
-                .LoyaltyPoints = 0
-            })
+
+            If _isAdding Then
+                _store.Customers.Add(New CustomerItem With {
+                    .CustomerId = If(_store.Customers.Count = 0, 1, _store.Customers.Max(Function(c) c.CustomerId) + 1),
+                    .Name = EditName.Trim(),
+                    .Phone = EditPhone.Trim(),
+                    .VisitCount = 0,
+                    .LoyaltyPoints = 0
+                })
+                StatusMessage = "Customer added."
+            Else
+                Dim existing = _store.Customers.FirstOrDefault(Function(c) c.CustomerId = _editingCustomerId)
+                If existing Is Nothing Then
+                    StatusMessage = "Customer not found."
+                    Return
+                End If
+                existing.Name = EditName.Trim()
+                existing.Phone = EditPhone.Trim()
+                StatusMessage = "Customer updated."
+            End If
+
             IsEditMode = False
-            StatusMessage = "Customer added."
             LoadCustomers()
+            _store.RaiseCustomersChanged()
+        End Sub
+
+        Private Sub DeleteCustomer(customer As CustomerItem)
+            If customer Is Nothing Then Return
+            Dim confirm = System.Windows.MessageBox.Show(
+                $"Delete customer '{customer.Name}'?",
+                "Confirm delete",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning)
+            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+
+            _store.Customers.Remove(customer)
+            StatusMessage = $"{customer.Name} deleted."
+            LoadCustomers()
+            _store.RaiseCustomersChanged()
         End Sub
     End Class
 End Namespace

@@ -21,7 +21,7 @@ public class ReportsForm : Form
     public ReportsForm()
     {
         Text = "Reports";
-        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin", "Manager"))
+        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin"))
             Text += " (Daily only)";
 
         BuildSalesTab();
@@ -48,7 +48,7 @@ public class ReportsForm : Form
         var btnAnnual = new Button { Text = "Annual", Location = new Point(385, 12), Width = 70 };
         btnAnnual.Click += (_, _) => RunSalesReport("annual");
 
-        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin", "Manager"))
+        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin"))
         {
             btnWeekly.Enabled = btnMonthly.Enabled = btnAnnual.Enabled = false;
         }
@@ -81,7 +81,7 @@ public class ReportsForm : Form
 
     private void BuildInventoryTab()
     {
-        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin", "Manager"))
+        if (SessionContext.HasRole("Cashier") && !SessionContext.HasRole("Admin"))
             return;
 
         var tab = new TabPage("Inventory Reports");
@@ -204,7 +204,7 @@ public class ReportsForm : Form
         {
             var g = e.Graphics!;
             float y = 50;
-            g.DrawString("Hair Salon Sales Report", new Font("Segoe UI", 14, FontStyle.Bold), Brushes.Black, 50, y); y += 30;
+            g.DrawString("Fix Republic POS Sales Report", new Font("Segoe UI", 14, FontStyle.Bold), Brushes.Black, 50, y); y += 30;
             g.DrawString(_lblSummary.Text, new Font("Segoe UI", 10), Brushes.Black, 50, y);
         };
         using var preview = new PrintPreviewDialog { Document = doc, Width = 700, Height = 500 };

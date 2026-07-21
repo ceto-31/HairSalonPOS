@@ -88,7 +88,7 @@ Namespace Services
                 AddLine(doc, $"Change due: {receipt.ChangeGiven:N2}")
             End If
             AddSeparator(doc)
-            AddCenter(doc, "Thank you for visiting Cindy Hair Salon!", 12)
+            AddCenter(doc, $"Thank you for visiting {appSettings.SalonName}!", 12)
             AddCenter(doc, "CUSTOMER COPY", 11, True)
 
             Return doc

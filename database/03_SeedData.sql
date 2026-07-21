@@ -41,14 +41,6 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'manager')
-BEGIN
-    INSERT INTO Users (Username, PasswordHash, FullName, RoleId)
-    SELECT 'manager', (SELECT PasswordHash FROM Users WHERE Username = 'admin'), 'Salon Manager', RoleId
-    FROM Roles WHERE RoleName = 'Manager';
-END
-GO
-
 IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'cashier')
 BEGIN
     INSERT INTO Users (Username, PasswordHash, FullName, RoleId)

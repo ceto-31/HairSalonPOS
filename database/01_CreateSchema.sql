@@ -129,7 +129,7 @@ GO
 -- Seed roles
 IF NOT EXISTS (SELECT 1 FROM Roles)
 BEGIN
-    INSERT INTO Roles (RoleName) VALUES ('Admin'), ('Manager'), ('Cashier');
+    INSERT INTO Roles (RoleName) VALUES ('Admin'), ('Cashier');
 END
 GO
 

@@ -4,19 +4,76 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="520" d:DesignWidth="800">
     <Grid Background="{StaticResource PageBackgroundBrush}">
-        <Border Style="{StaticResource CardBorder}" Width="380" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <Border Style="{StaticResource CardBorder}" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>
-                <TextBlock Text="Cindy Hair Salon POS" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" HorizontalAlignment="Center"/>
-                <TextBlock Text="Sign in to continue" Margin="0,8,0,24" Foreground="#78716C" HorizontalAlignment="Center"/>
-                <TextBlock Text="Username" Style="{StaticResource SectionHeader}"/>
-                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="44" Padding="12,8" Margin="0,0,0,12"/>
-                <TextBlock Text="Password" Style="{StaticResource SectionHeader}"/>
-                <PasswordBox x:Name="PasswordBox" Height="44" Padding="12,8" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,0,0,8"/>
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,12" TextWrapping="Wrap"/>
-                <Button Content="Login" Style="{StaticResource AccentButton}" Command="{Binding LoginCommand}" Margin="0,8,0,0"/>
-                <TextBlock Margin="0,16,0,0" Foreground="#78716C" FontSize="12" Text="Demo: admin / Admin@123"/>
+                <TextBlock Text="Fix Republic" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" HorizontalAlignment="Center"/>
+
+                <!-- Login -->
+                <StackPanel Visibility="{Binding IsLoginStep, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Sign in to continue" Margin="0,8,0,24" Foreground="#78716C" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Username" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="44" Padding="12,8" Margin="0,0,0,12"/>
+                    <TextBlock Text="Password" Style="{StaticResource SectionHeader}"/>
+                    <PasswordBox x:Name="PasswordBox" Height="44" Padding="12,8" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding InfoMessage}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <Button Content="Login" Style="{StaticResource AccentButton}" Command="{Binding LoginCommand}" Margin="0,8,0,0"/>
+                    <Button Content="Forgot password?" Command="{Binding ShowForgotPasswordCommand}"
+                            Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}"
+                            Cursor="Hand" Margin="0,12,0,0" HorizontalAlignment="Center" Padding="4"/>
+                    <TextBlock Margin="0,12,0,0" Foreground="#78716C" FontSize="12" Text="Demo: admin / Admin@123" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Username step -->
+                <StackPanel Visibility="{Binding IsUsernameStep, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Margin="0,8,0,16">
+                        <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
+                                Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
+                    </DockPanel>
+                    <TextBlock Text="Forgot password" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
+                    <TextBlock Text="Enter your username to continue." Foreground="#78716C" Margin="0,0,0,16" TextWrapping="Wrap"/>
+                    <TextBlock Text="Username" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="44" Padding="12,8" Margin="0,0,0,12"/>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <Button Content="Next" Style="{StaticResource AccentButton}" Command="{Binding RecoveryNextCommand}"/>
+                </StackPanel>
+
+                <!-- Security questions -->
+                <StackPanel Visibility="{Binding IsSecurityStep, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Margin="0,8,0,16">
+                        <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
+                                Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
+                    </DockPanel>
+                    <TextBlock Text="Security questions" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding InfoMessage}" Foreground="#78716C" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                    <TextBlock Text="Favorite number" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding FavNumber, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
+                    <TextBlock Text="Favorite color" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding FavColor, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
+                    <TextBlock Text="Favorite animal" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding FavAnimal, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <Button Content="Verify" Style="{StaticResource AccentButton}" Command="{Binding RecoveryNextCommand}"/>
+                    <TextBlock Margin="0,12,0,0" Foreground="#78716C" FontSize="11" TextWrapping="Wrap"
+                               Text="Demo (admin): 7 / blue / dog"/>
+                </StackPanel>
+
+                <!-- Reset password -->
+                <StackPanel Visibility="{Binding IsResetStep, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Margin="0,8,0,16">
+                        <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
+                                Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
+                    </DockPanel>
+                    <TextBlock Text="Reset password" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,16"/>
+                    <TextBlock Text="New password" Style="{StaticResource SectionHeader}"/>
+                    <PasswordBox x:Name="NewPasswordBox" Height="44" Padding="12,8" PasswordChanged="NewPasswordBox_PasswordChanged" Margin="0,0,0,10"/>
+                    <TextBlock Text="Confirm password" Style="{StaticResource SectionHeader}"/>
+                    <PasswordBox x:Name="ConfirmPasswordBox" Height="44" Padding="12,8" PasswordChanged="ConfirmPasswordBox_PasswordChanged" Margin="0,0,0,10"/>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <Button Content="Save new password" Style="{StaticResource AccentButton}" Command="{Binding ResetPasswordCommand}"/>
+                </StackPanel>
             </StackPanel>
         </Border>
     </Grid>

@@ -40,8 +40,13 @@ Namespace Services
             Dim vatable = taxable - tax
             Dim total = taxable
 
-            If request.PaymentMethod = "Cash" AndAlso request.AmountTendered > 0 AndAlso request.AmountTendered < total Then
-                Throw New InvalidOperationException("Amount tendered is less than total.")
+            If request.PaymentMethod = "Cash" Then
+                If request.AmountTendered <= 0D Then
+                    Throw New InvalidOperationException("Enter amount tendered before checkout.")
+                End If
+                If request.AmountTendered < total Then
+                    Throw New InvalidOperationException("Amount tendered is less than total.")
+                End If
             End If
 
             For Each line In cart.Where(Function(c) Not c.IsService)
@@ -49,6 +54,7 @@ Namespace Services
                 product.StockOnHand -= line.Quantity
                 _store.LogMovement(line.Sku, -line.Quantity, "Sale", request.CashierName, "Sale checkout")
             Next
+            _store.PersistCatalog()
 
             Dim saleId = _store.NextSaleId
             _store.NextSaleId += 1
