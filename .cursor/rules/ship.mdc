@@ -10,12 +10,15 @@ When the user says **ship** (alone or clearly as a command), immediately commit 
 ## Procedure
 
 1. Run in parallel: `git status`, `git diff` (staged + unstaged), `git log` (recent messages for style).
-2. Stage all relevant source changes.
-3. **Exclude** `publish/`, build outputs (`bin/`, `obj/`), secrets (`.env`, credentials), and IDE junk (`.vs/`).
-4. Draft a concise 1–2 sentence commit message focused on why (match repo style: short lowercase summaries).
-5. Commit using a HEREDOC-style message (PowerShell here-string is fine on Windows).
-6. Push to the tracked remote branch (`git push -u origin HEAD` if needed).
-7. Verify with `git status` and report the commit hash + remote URL briefly.
+2. **Exclude** `publish/`, build outputs (`bin/`, `obj/`), secrets (`.env`, credentials), and IDE junk (`.vs/`).
+3. Split work into **multiple commits** by feature/area — do **not** dump everything into one commit.
+4. For each group: stage only those files, then commit.
+5. Messages must be **short and simple** (3–7 words), lowercase, match repo style:
+   - Good: `add dashboard view`, `fix cashier checkout`, `update login ui`
+   - Bad: long multi-clause sentences
+6. Commit using a HEREDOC-style message (PowerShell here-string is fine on Windows).
+7. After all commits, push once to the tracked remote (`git push -u origin HEAD` if needed).
+8. Verify with `git status` and report each commit hash briefly.
 
 ## Notes
 
