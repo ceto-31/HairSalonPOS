@@ -14,8 +14,10 @@ Namespace ViewModels
         Private Const SeniorPromoCode As String = "SENIOR"
         Private Const SeniorMinimumAge As Integer = 60
         Private Const MaximumReasonableAge As Integer = 120
+        Private Const DefaultCustomerName As String = "Walk-in"
+        Private Const UnsavedCategoryReminder As String = "Click Save categories to update the POS tabs."
 
-        Private _customerName As String = "Walk-in"
+        Private _customerName As String = DefaultCustomerName
         Private _selectedStylist As StaffMember
         Private _customerBirthDate As Date?
         Private _seniorEligibilityText As String = "Enter birthdate to check senior discount"
@@ -32,19 +34,27 @@ Namespace ViewModels
         Private _selectedCategory As String = String.Empty
         Private _selectedSubCategory As String = String.Empty
         Private _isCatalogEditMode As Boolean
+        Private _isCategoryManageMode As Boolean
         Private _isAddingCatalog As Boolean = True
         Private _editingSku As String = String.Empty
         Private _editCatalogName As String = String.Empty
         Private _editCatalogPrice As Decimal
         Private _editCatalogType As String = "Service"
         Private _lastReceipt As ReceiptModel
+        Private _selectedManageCategory As CatalogCategoryNode
+        Private _selectedManageSubCategory As String
+        Private _editCategoryName As String = String.Empty
+        Private _editSubCategoryName As String = String.Empty
+        Private _hasUnsavedCategoryChanges As Boolean
+        Private _lastFocusedCategoryName As String = String.Empty
+        Private _lastFocusedSubCategoryName As String = String.Empty
+        Private _pendingAppointmentId As Integer
 
         Public Sub New()
             CatalogTiles = New ObservableCollection(Of CatalogTile)()
             Cart = New ObservableCollection(Of CartLine)()
-            CustomerNames = New ObservableCollection(Of String)(_store.Customers.Select(Function(c) c.Name))
             Stylists = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
-            Categories = New ObservableCollection(Of CatalogCategoryNode)(BuildCategoryTree())
+            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories)
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
             SubCategoryChips = New ObservableCollection(Of SelectableChip)()
             CatalogTypes = New ObservableCollection(Of String) From {"Service", "Product"}
@@ -60,32 +70,94 @@ Namespace ViewModels
             DeleteCatalogTileCommand = New RelayCommand(Of CatalogTile)(AddressOf DeleteCatalogTile, AddressOf CanManageCatalogTile)
             SaveCatalogCommand = New RelayCommand(AddressOf SaveCatalogItem, AddressOf CanManageCatalog)
             CancelCatalogEditCommand = New RelayCommand(Sub() IsCatalogEditMode = False)
+            BeginManageCategoriesCommand = New RelayCommand(AddressOf BeginManageCategories, Function() SessionContext.IsAdmin)
+            AddCategoryCommand = New RelayCommand(AddressOf AddCategory, Function() IsCategoryManageMode)
+            AddSubCategoryCommand = New RelayCommand(AddressOf AddSubCategory, Function() IsCategoryManageMode AndAlso SelectedManageCategory IsNot Nothing)
+            RenameCategoryCommand = New RelayCommand(AddressOf RenameCategory, Function() IsCategoryManageMode AndAlso SelectedManageCategory IsNot Nothing)
+            RenameSubCategoryCommand = New RelayCommand(AddressOf RenameSubCategory, Function() IsCategoryManageMode AndAlso SelectedManageCategory IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(SelectedManageSubCategory))
+            DeleteCategoryCommand = New RelayCommand(AddressOf DeleteCategory, Function() IsCategoryManageMode AndAlso SelectedManageCategory IsNot Nothing)
+            DeleteSubCategoryCommand = New RelayCommand(AddressOf DeleteSubCategory, Function() IsCategoryManageMode AndAlso SelectedManageCategory IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(SelectedManageSubCategory))
+            SaveCategoriesCommand = New RelayCommand(AddressOf SaveCategories, Function() IsCategoryManageMode)
+            CancelCategoryManageCommand = New RelayCommand(AddressOf CancelCategoryManage, Function() IsCategoryManageMode)
             SelectCashCommand = New RelayCommand(Sub() PaymentMethod = "Cash")
             SelectGcashCommand = New RelayCommand(Sub() PaymentMethod = "GCash")
             ApplyPromoCommand = New RelayCommand(AddressOf ApplyPromo)
             ReprintLastReceiptCommand = New RelayCommand(AddressOf ReprintLastReceipt, Function() LastReceipt IsNot Nothing)
 
             SelectedStylist = Stylists.FirstOrDefault()
-            SelectCategory(Categories.First().Name)
+            If Categories.Count > 0 Then SelectCategory(Categories.First().Name)
 
             AddHandler _store.StaffChanged, Sub() RefreshStylists()
-            AddHandler _store.CustomersChanged, Sub() RefreshCustomerNames()
         End Sub
 
         Public Sub RefreshLookups()
             RefreshStylists()
-            RefreshCustomerNames()
+            RefreshCategoriesFromStore()
             OnPropertyChanged(NameOf(CanManageCatalogItems))
             BeginAddCatalogCommand.NotifyCanExecuteChanged()
             EditCatalogTileCommand.NotifyCanExecuteChanged()
             DeleteCatalogTileCommand.NotifyCanExecuteChanged()
             SaveCatalogCommand.NotifyCanExecuteChanged()
+            BeginManageCategoriesCommand.NotifyCanExecuteChanged()
         End Sub
 
-        ''' <summary>Admin-only: show catalog Add/Edit/Delete controls.</summary>
+        Public Sub LoadFromAppointment(appt As AppointmentItem)
+            If appt Is Nothing Then Return
+
+            Cart.Clear()
+            PromoCode = String.Empty
+            AmountTendered = 0D
+            _customerBirthDate = Nothing
+            OnPropertyChanged(NameOf(CustomerBirthDate))
+            SeniorEligibilityText = "Enter birthdate to check senior discount"
+
+            _pendingAppointmentId = appt.AppointmentId
+            CustomerName = If(String.IsNullOrWhiteSpace(appt.CustomerName), DefaultCustomerName, appt.CustomerName.Trim())
+
+            If Not String.IsNullOrWhiteSpace(appt.StaffName) Then
+                Dim stylist = Stylists.FirstOrDefault(Function(s) s.Name.Equals(appt.StaffName, StringComparison.OrdinalIgnoreCase))
+                If stylist IsNot Nothing Then SelectedStylist = stylist
+            End If
+
+            Dim service = FindServiceByName(appt.ServiceName)
+            If service IsNot Nothing Then
+                AddToCart(service.Sku, service.Name, service.Price, True)
+                StatusMessage = $"Appointment loaded for {CustomerName}."
+            Else
+                Cart.Add(New CartLine With {
+                    .Sku = $"APT{appt.AppointmentId}",
+                    .Name = appt.ServiceName,
+                    .UnitPrice = 0D,
+                    .Quantity = 1,
+                    .IsService = True
+                })
+                RecalculateTotals()
+                ClearCartCommand.NotifyCanExecuteChanged()
+                CheckoutCommand.NotifyCanExecuteChanged()
+                StatusMessage = $"Service ""{appt.ServiceName}"" was not found in the catalog — added with ₱0. Set the price before checkout."
+            End If
+        End Sub
+
+        Private Function FindServiceByName(serviceName As String) As ServiceItem
+            If String.IsNullOrWhiteSpace(serviceName) Then Return Nothing
+
+            Dim exact = _store.Services.FirstOrDefault(Function(s) s.Name.Equals(serviceName, StringComparison.OrdinalIgnoreCase))
+            If exact IsNot Nothing Then Return exact
+
+            Return _store.Services.FirstOrDefault(
+                Function(s) s.Name.IndexOf(serviceName, StringComparison.OrdinalIgnoreCase) >= 0 OrElse
+                            serviceName.IndexOf(s.Name, StringComparison.OrdinalIgnoreCase) >= 0)
+        End Function
+
         Public ReadOnly Property CanManageCatalogItems As Boolean
             Get
                 Return SessionContext.IsAdmin
+            End Get
+        End Property
+
+        Public ReadOnly Property IsBrowseMode As Boolean
+            Get
+                Return Not IsCatalogEditMode AndAlso Not IsCategoryManageMode
             End Get
         End Property
 
@@ -97,34 +169,33 @@ Namespace ViewModels
             If SelectedStylist Is Nothing Then SelectedStylist = Stylists.FirstOrDefault()
         End Sub
 
-        Private Sub RefreshCustomerNames()
-            Dim current = CustomerName
-            CustomerNames = New ObservableCollection(Of String)(_store.Customers.Select(Function(c) c.Name))
-            OnPropertyChanged(NameOf(CustomerNames))
-            If Not String.IsNullOrWhiteSpace(current) AndAlso CustomerNames.Contains(current) Then
-                CustomerName = current
+        Private Sub RefreshCategoriesFromStore(Optional selectCategoryName As String = Nothing, Optional selectSubCategoryName As String = Nothing)
+            Dim cat = If(Not String.IsNullOrWhiteSpace(selectCategoryName), selectCategoryName, SelectedCategory)
+            Dim subCat = If(Not String.IsNullOrWhiteSpace(selectSubCategoryName), selectSubCategoryName, SelectedSubCategory)
+            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories)
+            OnPropertyChanged(NameOf(Categories))
+            CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
+            OnPropertyChanged(NameOf(CategoryChips))
+
+            If Not String.IsNullOrWhiteSpace(cat) AndAlso Categories.Any(Function(c) c.Name.Equals(cat, StringComparison.OrdinalIgnoreCase)) Then
+                SelectCategory(cat)
+                If Not String.IsNullOrWhiteSpace(subCat) AndAlso SubCategoryChips.Any(Function(s) s.Name.Equals(subCat, StringComparison.OrdinalIgnoreCase)) Then
+                    SelectSubCategory(subCat)
+                End If
+            ElseIf Categories.Count > 0 Then
+                SelectCategory(Categories.First().Name)
             End If
         End Sub
 
-        Public Shared Function BuildCategoryTree() As List(Of CatalogCategoryNode)
-            Return New List(Of CatalogCategoryNode) From {
-                New CatalogCategoryNode With {.Name = "HAIR SERVICES", .SubCategories = New List(Of String) From {"Rebond Packages", "Hair Treatment Packages", "Cut and Styles", "Hair Color", "Hair Treatment"}},
-                New CatalogCategoryNode With {.Name = "NAIL SERVICES", .SubCategories = New List(Of String) From {"Basic Care", "Gel and Extensions"}},
-                New CatalogCategoryNode With {.Name = "BODY SERVICES", .SubCategories = New List(Of String) From {"Spa and Scrub Packages", "Paraffin Therapy and Massage"}},
-                New CatalogCategoryNode With {.Name = "EYELASH SERVICES"},
-                New CatalogCategoryNode With {.Name = "EYEBROW SERVICES"},
-                New CatalogCategoryNode With {.Name = "WAXING SERVICES"}
-            }
-        End Function
-
         Public Property CatalogTiles As ObservableCollection(Of CatalogTile)
         Public Property Cart As ObservableCollection(Of CartLine)
-        Public Property CustomerNames As ObservableCollection(Of String)
         Public Property Stylists As ObservableCollection(Of StaffMember)
         Public Property Categories As ObservableCollection(Of CatalogCategoryNode)
         Public Property CategoryChips As ObservableCollection(Of SelectableChip)
         Public Property SubCategoryChips As ObservableCollection(Of SelectableChip)
         Public Property CatalogTypes As ObservableCollection(Of String)
+        Public Property ManageCategories As ObservableCollection(Of CatalogCategoryNode)
+        Public Property ManageSubCategories As ObservableCollection(Of String)
 
         Public Property CustomerName As String
             Get
@@ -322,7 +393,66 @@ Namespace ViewModels
                 Return _isCatalogEditMode
             End Get
             Set(value As Boolean)
-                SetProperty(_isCatalogEditMode, value)
+                If SetProperty(_isCatalogEditMode, value) Then
+                    OnPropertyChanged(NameOf(IsBrowseMode))
+                End If
+            End Set
+        End Property
+
+        Public Property IsCategoryManageMode As Boolean
+            Get
+                Return _isCategoryManageMode
+            End Get
+            Set(value As Boolean)
+                If SetProperty(_isCategoryManageMode, value) Then
+                    OnPropertyChanged(NameOf(IsBrowseMode))
+                    NotifyCategoryManageCommands()
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedManageCategory As CatalogCategoryNode
+            Get
+                Return _selectedManageCategory
+            End Get
+            Set(value As CatalogCategoryNode)
+                If SetProperty(_selectedManageCategory, value) Then
+                    RefreshManageSubCategories()
+                    EditCategoryName = If(value?.Name, String.Empty)
+                    SelectedManageSubCategory = Nothing
+                    EditSubCategoryName = String.Empty
+                    NotifyCategoryManageCommands()
+                End If
+            End Set
+        End Property
+
+        Public Property SelectedManageSubCategory As String
+            Get
+                Return _selectedManageSubCategory
+            End Get
+            Set(value As String)
+                If SetProperty(_selectedManageSubCategory, value) Then
+                    EditSubCategoryName = If(value, String.Empty)
+                    NotifyCategoryManageCommands()
+                End If
+            End Set
+        End Property
+
+        Public Property EditCategoryName As String
+            Get
+                Return _editCategoryName
+            End Get
+            Set(value As String)
+                SetProperty(_editCategoryName, value)
+            End Set
+        End Property
+
+        Public Property EditSubCategoryName As String
+            Get
+                Return _editSubCategoryName
+            End Get
+            Set(value As String)
+                SetProperty(_editSubCategoryName, value)
             End Set
         End Property
 
@@ -404,20 +534,42 @@ Namespace ViewModels
         Public Property DeleteCatalogTileCommand As RelayCommand(Of CatalogTile)
         Public Property SaveCatalogCommand As RelayCommand
         Public Property CancelCatalogEditCommand As RelayCommand
+        Public Property BeginManageCategoriesCommand As RelayCommand
+        Public Property AddCategoryCommand As RelayCommand
+        Public Property AddSubCategoryCommand As RelayCommand
+        Public Property RenameCategoryCommand As RelayCommand
+        Public Property RenameSubCategoryCommand As RelayCommand
+        Public Property DeleteCategoryCommand As RelayCommand
+        Public Property DeleteSubCategoryCommand As RelayCommand
+        Public Property SaveCategoriesCommand As RelayCommand
+        Public Property CancelCategoryManageCommand As RelayCommand
         Public Property SelectCashCommand As RelayCommand
         Public Property SelectGcashCommand As RelayCommand
         Public Property ApplyPromoCommand As RelayCommand
         Public Property ReprintLastReceiptCommand As RelayCommand
 
+        Private Sub NotifyCategoryManageCommands()
+            AddCategoryCommand.NotifyCanExecuteChanged()
+            AddSubCategoryCommand.NotifyCanExecuteChanged()
+            RenameCategoryCommand.NotifyCanExecuteChanged()
+            RenameSubCategoryCommand.NotifyCanExecuteChanged()
+            DeleteCategoryCommand.NotifyCanExecuteChanged()
+            DeleteSubCategoryCommand.NotifyCanExecuteChanged()
+            SaveCategoriesCommand.NotifyCanExecuteChanged()
+            CancelCategoryManageCommand.NotifyCanExecuteChanged()
+        End Sub
+
         Private Sub SelectCategory(name As String)
             If String.IsNullOrWhiteSpace(name) Then Return
-            SelectedCategory = name
+            Dim node = Categories.FirstOrDefault(Function(c) c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            If node Is Nothing Then Return
+
+            SelectedCategory = node.Name
             For Each chip In CategoryChips
-                chip.IsSelected = String.Equals(chip.Name, name, StringComparison.OrdinalIgnoreCase)
+                chip.IsSelected = String.Equals(chip.Name, node.Name, StringComparison.OrdinalIgnoreCase)
             Next
 
-            Dim node = Categories.FirstOrDefault(Function(c) c.Name = name)
-            Dim subs = If(node?.SubCategories, New List(Of String)())
+            Dim subs = If(node.SubCategories, New List(Of String)())
             SubCategoryChips = New ObservableCollection(Of SelectableChip)(subs.Select(Function(s) New SelectableChip With {.Name = s}))
             OnPropertyChanged(NameOf(SubCategoryChips))
             OnPropertyChanged(NameOf(HasSubCategories))
@@ -438,6 +590,250 @@ Namespace ViewModels
             Next
             LoadCatalogTiles()
         End Sub
+
+        Private Sub BeginManageCategories()
+            ManageCategories = New ObservableCollection(Of CatalogCategoryNode)(
+                _store.Categories.Select(Function(c) CloneCategory(c)))
+            OnPropertyChanged(NameOf(ManageCategories))
+            SelectedManageCategory = ManageCategories.FirstOrDefault()
+            _hasUnsavedCategoryChanges = False
+            _lastFocusedCategoryName = String.Empty
+            _lastFocusedSubCategoryName = String.Empty
+            StatusMessage = String.Empty
+            IsCategoryManageMode = True
+        End Sub
+
+        Private Sub CancelCategoryManage()
+            If _hasUnsavedCategoryChanges Then
+                If Not AppDialogService.Confirm(
+                    "Discard unsaved category changes?",
+                    "Unsaved changes",
+                    "Discard",
+                    "Cancel",
+                    AppDialogType.Confirmation) Then Return
+            End If
+            CloseCategoryManagePanel()
+        End Sub
+
+        Private Sub CloseCategoryManagePanel()
+            _hasUnsavedCategoryChanges = False
+            IsCategoryManageMode = False
+            ManageCategories = Nothing
+            SelectedManageCategory = Nothing
+            ManageSubCategories = Nothing
+            SelectedManageSubCategory = Nothing
+            EditCategoryName = String.Empty
+            EditSubCategoryName = String.Empty
+            OnPropertyChanged(NameOf(ManageCategories))
+            OnPropertyChanged(NameOf(ManageSubCategories))
+        End Sub
+
+        Private Sub MarkCategoryManageDirty()
+            _hasUnsavedCategoryChanges = True
+            StatusMessage = UnsavedCategoryReminder
+        End Sub
+
+        Private Sub SaveCategories()
+            If ManageCategories Is Nothing OrElse ManageCategories.Count = 0 Then
+                StatusMessage = "At least one category is required."
+                Return
+            End If
+
+            Dim duplicate = ManageCategories.GroupBy(Function(c) c.Name.Trim().ToLowerInvariant()).FirstOrDefault(Function(g) g.Count() > 1)
+            If duplicate IsNot Nothing Then
+                StatusMessage = $"Duplicate category name: {duplicate.First().Name}"
+                Return
+            End If
+
+            For Each node In ManageCategories
+                If String.IsNullOrWhiteSpace(node.Name) Then
+                    StatusMessage = "Category name is required."
+                    Return
+                End If
+                Dim dupSub = node.SubCategories.GroupBy(Function(s) s.Trim().ToLowerInvariant()).FirstOrDefault(Function(g) g.Count() > 1)
+                If dupSub IsNot Nothing Then
+                    StatusMessage = $"Duplicate subcategory in {node.Name}: {dupSub.First()}"
+                    Return
+                End If
+            Next
+
+            _store.Categories.Clear()
+            _store.Categories.AddRange(ManageCategories.Select(Function(c) CloneCategory(c)))
+            _store.PersistCatalog()
+
+            Dim categoryToSelect = _lastFocusedCategoryName
+            Dim subCategoryToSelect = _lastFocusedSubCategoryName
+            RefreshCategoriesFromStore(categoryToSelect, subCategoryToSelect)
+            CloseCategoryManagePanel()
+            StatusMessage = "Categories saved."
+        End Sub
+
+        Private Sub AddCategory()
+            Dim name = EditCategoryName?.Trim()
+            If String.IsNullOrWhiteSpace(name) Then
+                StatusMessage = "Enter a category name."
+                Return
+            End If
+            If ManageCategories.Any(Function(c) c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) Then
+                StatusMessage = "Category name already exists."
+                Return
+            End If
+
+            Dim node = New CatalogCategoryNode With {.Name = name}
+            ManageCategories.Add(node)
+            SelectedManageCategory = node
+            EditCategoryName = name
+            _lastFocusedCategoryName = name
+            _lastFocusedSubCategoryName = String.Empty
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub AddSubCategory()
+            If SelectedManageCategory Is Nothing Then Return
+            Dim name = EditSubCategoryName?.Trim()
+            If String.IsNullOrWhiteSpace(name) Then
+                StatusMessage = "Enter a subcategory name."
+                Return
+            End If
+            If SelectedManageCategory.SubCategories.Any(Function(s) s.Equals(name, StringComparison.OrdinalIgnoreCase)) Then
+                StatusMessage = "Subcategory name already exists."
+                Return
+            End If
+
+            SelectedManageCategory.SubCategories.Add(name)
+            RefreshManageSubCategories()
+            SelectedManageSubCategory = name
+            EditSubCategoryName = name
+            _lastFocusedCategoryName = SelectedManageCategory.Name
+            _lastFocusedSubCategoryName = name
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub RenameCategory()
+            If SelectedManageCategory Is Nothing Then Return
+            Dim newName = EditCategoryName?.Trim()
+            If String.IsNullOrWhiteSpace(newName) Then
+                StatusMessage = "Category name is required."
+                Return
+            End If
+            If ManageCategories.Any(Function(c) Not Object.ReferenceEquals(c, SelectedManageCategory) AndAlso c.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)) Then
+                StatusMessage = "Category name already exists."
+                Return
+            End If
+
+            Dim oldName = SelectedManageCategory.Name
+            If oldName.Equals(newName, StringComparison.OrdinalIgnoreCase) Then Return
+
+            SelectedManageCategory.Name = newName
+            UpdateCategoryReferences(oldName, newName, Nothing, Nothing)
+            For Each chip In CategoryChips.Where(Function(c) c.Name.Equals(oldName, StringComparison.OrdinalIgnoreCase))
+                chip.Name = newName
+            Next
+            If SelectedCategory.Equals(oldName, StringComparison.OrdinalIgnoreCase) Then
+                SelectedCategory = newName
+            End If
+            _lastFocusedCategoryName = newName
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub RenameSubCategory()
+            If SelectedManageCategory Is Nothing OrElse String.IsNullOrWhiteSpace(SelectedManageSubCategory) Then Return
+            Dim newName = EditSubCategoryName?.Trim()
+            If String.IsNullOrWhiteSpace(newName) Then
+                StatusMessage = "Subcategory name is required."
+                Return
+            End If
+            If SelectedManageCategory.SubCategories.Any(Function(s) Not s.Equals(SelectedManageSubCategory, StringComparison.OrdinalIgnoreCase) AndAlso s.Equals(newName, StringComparison.OrdinalIgnoreCase)) Then
+                StatusMessage = "Subcategory name already exists."
+                Return
+            End If
+
+            Dim index = SelectedManageCategory.SubCategories.FindIndex(Function(s) s.Equals(SelectedManageSubCategory, StringComparison.OrdinalIgnoreCase))
+            If index < 0 Then Return
+            If SelectedManageSubCategory.Equals(newName, StringComparison.OrdinalIgnoreCase) Then Return
+
+            SelectedManageCategory.SubCategories(index) = newName
+            UpdateCategoryReferences(SelectedManageCategory.Name, SelectedManageCategory.Name, SelectedManageSubCategory, newName)
+            If SelectedSubCategory.Equals(SelectedManageSubCategory, StringComparison.OrdinalIgnoreCase) Then
+                SelectedSubCategory = newName
+            End If
+            RefreshManageSubCategories()
+            SelectedManageSubCategory = newName
+            _lastFocusedCategoryName = SelectedManageCategory.Name
+            _lastFocusedSubCategoryName = newName
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub DeleteCategory()
+            If SelectedManageCategory Is Nothing Then Return
+            Dim categoryName = SelectedManageCategory.Name
+            Dim serviceCount = _store.Services.Where(Function(s) s.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase)).Count()
+            Dim productCount = _store.Products.Where(Function(p) p.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase)).Count()
+            Dim itemCount = serviceCount + productCount
+
+            If itemCount > 0 Then
+                If Not AppDialogService.ConfirmDelete(categoryName, $"{itemCount} catalog item(s) still use category '{categoryName}'.") Then Return
+            Else
+                If Not AppDialogService.ConfirmDelete(categoryName) Then Return
+            End If
+
+            ManageCategories.Remove(SelectedManageCategory)
+            SelectedManageCategory = ManageCategories.FirstOrDefault()
+            EditCategoryName = If(SelectedManageCategory?.Name, String.Empty)
+            _lastFocusedCategoryName = If(SelectedManageCategory?.Name, String.Empty)
+            _lastFocusedSubCategoryName = String.Empty
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub DeleteSubCategory()
+            If SelectedManageCategory Is Nothing OrElse String.IsNullOrWhiteSpace(SelectedManageSubCategory) Then Return
+            Dim categoryName = SelectedManageCategory.Name
+            Dim subName = SelectedManageSubCategory
+            Dim serviceCount = _store.Services.Where(Function(s) s.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase) AndAlso s.SubCategory.Equals(subName, StringComparison.OrdinalIgnoreCase)).Count()
+            Dim productCount = _store.Products.Where(Function(p) p.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase) AndAlso p.SubCategory.Equals(subName, StringComparison.OrdinalIgnoreCase)).Count()
+            Dim itemCount = serviceCount + productCount
+
+            If itemCount > 0 Then
+                If Not AppDialogService.ConfirmDelete(subName, $"{itemCount} catalog item(s) still use subcategory '{subName}'.") Then Return
+            Else
+                If Not AppDialogService.ConfirmDelete(subName) Then Return
+            End If
+
+            SelectedManageCategory.SubCategories.RemoveAll(Function(s) s.Equals(subName, StringComparison.OrdinalIgnoreCase))
+            RefreshManageSubCategories()
+            SelectedManageSubCategory = Nothing
+            EditSubCategoryName = String.Empty
+            _lastFocusedSubCategoryName = String.Empty
+            MarkCategoryManageDirty()
+        End Sub
+
+        Private Sub RefreshManageSubCategories()
+            Dim subs = If(SelectedManageCategory?.SubCategories, New List(Of String)())
+            ManageSubCategories = New ObservableCollection(Of String)(subs)
+            OnPropertyChanged(NameOf(ManageSubCategories))
+        End Sub
+
+        Private Sub UpdateCategoryReferences(oldCategory As String, newCategory As String, oldSubCategory As String, newSubCategory As String)
+            For Each service In _store.Services
+                If Not service.Category.Equals(oldCategory, StringComparison.OrdinalIgnoreCase) Then Continue For
+                If oldSubCategory IsNot Nothing AndAlso Not service.SubCategory.Equals(oldSubCategory, StringComparison.OrdinalIgnoreCase) Then Continue For
+                service.Category = newCategory
+                If newSubCategory IsNot Nothing Then service.SubCategory = newSubCategory
+            Next
+            For Each product In _store.Products
+                If Not product.Category.Equals(oldCategory, StringComparison.OrdinalIgnoreCase) Then Continue For
+                If oldSubCategory IsNot Nothing AndAlso Not product.SubCategory.Equals(oldSubCategory, StringComparison.OrdinalIgnoreCase) Then Continue For
+                product.Category = newCategory
+                If newSubCategory IsNot Nothing Then product.SubCategory = newSubCategory
+            Next
+        End Sub
+
+        Private Shared Function CloneCategory(source As CatalogCategoryNode) As CatalogCategoryNode
+            Return New CatalogCategoryNode With {
+                .Name = source.Name,
+                .SubCategories = New List(Of String)(If(source.SubCategories, New List(Of String)()))
+            }
+        End Function
 
         Private Function CanManageCatalog() As Boolean
             If Not SessionContext.IsAdmin Then Return False
@@ -592,12 +988,7 @@ Namespace ViewModels
                 StatusMessage = ex.Message
                 Return
             End Try
-            Dim confirm = System.Windows.MessageBox.Show(
-                $"Delete '{tile.Name}'?",
-                "Confirm delete",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning)
-            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+            If Not AppDialogService.ConfirmDelete(tile.Name) Then Return
 
             Dim svc = _store.Services.FirstOrDefault(Function(s) s.Sku = tile.Sku)
             If svc IsNot Nothing Then
@@ -657,6 +1048,8 @@ Namespace ViewModels
             Cart.Clear()
             PromoCode = String.Empty
             AmountTendered = 0D
+            CustomerName = DefaultCustomerName
+            _pendingAppointmentId = 0
             StatusMessage = String.Empty
             _customerBirthDate = Nothing
             OnPropertyChanged(NameOf(CustomerBirthDate))
@@ -665,6 +1058,11 @@ Namespace ViewModels
             ClearCartCommand.NotifyCanExecuteChanged()
             CheckoutCommand.NotifyCanExecuteChanged()
         End Sub
+
+        Private Shared Function NormalizeCustomerName(name As String) As String
+            If String.IsNullOrWhiteSpace(name) Then Return DefaultCustomerName
+            Return name.Trim()
+        End Function
 
         Private Sub ApplyPromo()
             EnforceSeniorPromoEligibility()
@@ -768,8 +1166,8 @@ Namespace ViewModels
                 End Try
             End If
             Dim taxable = Math.Max(0D, SubTotal - DiscountAmount)
-            Tax = Math.Round(taxable - (taxable / (1D + InMemoryDataStore.TaxRate)), 2)
-            VatableSales = taxable - Tax
+            Tax = 0D
+            VatableSales = 0D
             Total = taxable
             ChangeAmount = Math.Max(0D, AmountTendered - Total)
             CheckoutCommand.NotifyCanExecuteChanged()
@@ -798,12 +1196,16 @@ Namespace ViewModels
                     .Cart = Cart.ToList(),
                     .PaymentMethod = PaymentMethod,
                     .CashierName = SessionContext.CurrentUser.FullName,
-                    .CustomerName = CustomerName,
+                    .CustomerName = NormalizeCustomerName(CustomerName),
                     .StylistName = If(SelectedStylist?.Name, String.Empty),
                     .PromoCode = PromoCode,
                     .AmountTendered = AmountTendered
                 }
                 LastReceipt = _checkout.FinalizeSale(request)
+                If _pendingAppointmentId > 0 Then
+                    _store.CompleteAppointment(_pendingAppointmentId)
+                    _pendingAppointmentId = 0
+                End If
                 Try
                     _print.PrintReceipt(LastReceipt, showDialog:=True)
                     StatusMessage = $"Sale {LastReceipt.ReceiptNumber} completed and sent to printer."

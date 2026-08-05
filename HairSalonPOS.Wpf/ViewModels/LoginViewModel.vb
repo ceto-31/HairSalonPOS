@@ -1,5 +1,6 @@
 Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Services
+Imports System.Linq
 
 Namespace ViewModels
     Public Class LoginViewModel
@@ -20,6 +21,9 @@ Namespace ViewModels
         Private _favNumber As String = String.Empty
         Private _favColor As String = String.Empty
         Private _favAnimal As String = String.Empty
+        Private _favNumberError As String = String.Empty
+        Private _favColorError As String = String.Empty
+        Private _favAnimalError As String = String.Empty
         Private _newPassword As String = String.Empty
         Private _confirmPassword As String = String.Empty
         Private _infoMessage As String = String.Empty
@@ -32,6 +36,12 @@ Namespace ViewModels
             RecoveryNextCommand = New RelayCommand(AddressOf RecoveryNext, AddressOf CanRecoveryNext)
             ResetPasswordCommand = New RelayCommand(AddressOf ResetPassword, AddressOf CanResetPassword)
         End Sub
+
+        Public ReadOnly Property PasswordRequirementsText As String
+            Get
+                Return PasswordValidator.RequirementsSummary
+            End Get
+        End Property
 
         Public Property Username As String
             Get
@@ -117,8 +127,10 @@ Namespace ViewModels
                 Return _favNumber
             End Get
             Set(value As String)
-                SetProperty(_favNumber, value)
-                RecoveryNextCommand.NotifyCanExecuteChanged()
+                If SetProperty(_favNumber, value) Then
+                    FavNumberError = String.Empty
+                    RecoveryNextCommand.NotifyCanExecuteChanged()
+                End If
             End Set
         End Property
 
@@ -127,8 +139,10 @@ Namespace ViewModels
                 Return _favColor
             End Get
             Set(value As String)
-                SetProperty(_favColor, value)
-                RecoveryNextCommand.NotifyCanExecuteChanged()
+                If SetProperty(_favColor, value) Then
+                    FavColorError = String.Empty
+                    RecoveryNextCommand.NotifyCanExecuteChanged()
+                End If
             End Set
         End Property
 
@@ -137,8 +151,37 @@ Namespace ViewModels
                 Return _favAnimal
             End Get
             Set(value As String)
-                SetProperty(_favAnimal, value)
-                RecoveryNextCommand.NotifyCanExecuteChanged()
+                If SetProperty(_favAnimal, value) Then
+                    FavAnimalError = String.Empty
+                    RecoveryNextCommand.NotifyCanExecuteChanged()
+                End If
+            End Set
+        End Property
+
+        Public Property FavNumberError As String
+            Get
+                Return _favNumberError
+            End Get
+            Set(value As String)
+                SetProperty(_favNumberError, value)
+            End Set
+        End Property
+
+        Public Property FavColorError As String
+            Get
+                Return _favColorError
+            End Get
+            Set(value As String)
+                SetProperty(_favColorError, value)
+            End Set
+        End Property
+
+        Public Property FavAnimalError As String
+            Get
+                Return _favAnimalError
+            End Get
+            Set(value As String)
+                SetProperty(_favAnimalError, value)
             End Set
         End Property
 
@@ -187,9 +230,12 @@ Namespace ViewModels
         Private Sub ShowForgotPassword()
             ErrorMessage = String.Empty
             InfoMessage = String.Empty
+            Username = String.Empty
+            Password = String.Empty
             FavNumber = String.Empty
             FavColor = String.Empty
             FavAnimal = String.Empty
+            ClearSecurityFieldErrors()
             NewPassword = String.Empty
             ConfirmPassword = String.Empty
             RecoveryStep = StepUsername
@@ -198,6 +244,7 @@ Namespace ViewModels
         Private Sub RecoveryBack()
             ErrorMessage = String.Empty
             InfoMessage = String.Empty
+            ClearSecurityFieldErrors()
             Select Case RecoveryStep
                 Case StepUsername
                     RecoveryStep = StepLogin
@@ -226,23 +273,41 @@ Namespace ViewModels
         Private Sub RecoveryNext()
             ErrorMessage = String.Empty
             InfoMessage = String.Empty
+            ClearSecurityFieldErrors()
+
             Select Case RecoveryStep
                 Case StepUsername
                     If _auth.FindUser(Username) Is Nothing Then
                         ErrorMessage = "Username not found."
                         Return
                     End If
-                    InfoMessage = "Answer all three questions to continue."
+                    InfoMessage = "Answer all three security questions to continue."
                     RecoveryStep = StepSecurity
+
                 Case StepSecurity
-                    If Not _auth.VerifySecurityAnswers(Username, FavNumber, FavColor, FavAnimal) Then
-                        ErrorMessage = "One or more answers are incorrect."
+                    Dim wrongAnswers = _auth.GetIncorrectSecurityAnswers(Username, FavNumber, FavColor, FavAnimal)
+                    If wrongAnswers.Count > 0 Then
+                        ApplySecurityFieldErrors(wrongAnswers)
+                        ErrorMessage = "Incorrect answer(s): " & String.Join(", ", wrongAnswers) & "."
                         Return
                     End If
+
                     NewPassword = String.Empty
                     ConfirmPassword = String.Empty
                     RecoveryStep = StepReset
             End Select
+        End Sub
+
+        Private Sub ApplySecurityFieldErrors(wrongAnswers As List(Of String))
+            FavNumberError = If(wrongAnswers.Contains("Favorite number"), "Incorrect answer.", String.Empty)
+            FavColorError = If(wrongAnswers.Contains("Favorite color"), "Incorrect answer.", String.Empty)
+            FavAnimalError = If(wrongAnswers.Contains("Favorite animal"), "Incorrect answer.", String.Empty)
+        End Sub
+
+        Private Sub ClearSecurityFieldErrors()
+            FavNumberError = String.Empty
+            FavColorError = String.Empty
+            FavAnimalError = String.Empty
         End Sub
 
         Private Function CanResetPassword() As Boolean
@@ -253,18 +318,25 @@ Namespace ViewModels
 
         Private Sub ResetPassword()
             ErrorMessage = String.Empty
+
             If NewPassword <> ConfirmPassword Then
                 ErrorMessage = "Passwords do not match."
                 Return
             End If
-            If NewPassword.Length < 6 Then
-                ErrorMessage = "Password must be at least 6 characters."
+
+            Dim validation = PasswordValidator.Validate(NewPassword)
+            If Not validation.IsValid Then
+                ErrorMessage = "Password does not meet requirements:" & Environment.NewLine &
+                               String.Join(Environment.NewLine, validation.Errors.Select(Function(e) "• " & e))
                 Return
             End If
+
             If Not _auth.ResetPassword(Username, NewPassword) Then
                 ErrorMessage = "Unable to reset password."
                 Return
             End If
+
+            Username = String.Empty
             Password = String.Empty
             InfoMessage = "Password updated. Sign in with your new password."
             RecoveryStep = StepLogin

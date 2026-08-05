@@ -6,6 +6,7 @@ Namespace Services
     Public Class CatalogFileData
         Public Property Services As New List(Of ServiceItem)
         Public Property Products As New List(Of ProductItem)
+        Public Property Categories As New List(Of CatalogCategoryNode)
     End Class
 
     Public Class CatalogPersistenceService
@@ -33,10 +34,11 @@ Namespace Services
             End Try
         End Function
 
-        Public Sub Save(services As IEnumerable(Of ServiceItem), products As IEnumerable(Of ProductItem))
+        Public Sub Save(services As IEnumerable(Of ServiceItem), products As IEnumerable(Of ProductItem), categories As IEnumerable(Of CatalogCategoryNode))
             Dim data As New CatalogFileData With {
                 .Services = services.ToList(),
-                .Products = products.ToList()
+                .Products = products.ToList(),
+                .Categories = categories.ToList()
             }
             File.WriteAllText(_catalogPath, JsonSerializer.Serialize(data, New JsonSerializerOptions With {.WriteIndented = True}))
         End Sub

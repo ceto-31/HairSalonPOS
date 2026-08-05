@@ -6,24 +6,27 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles.xaml"/>
                 <ResourceDictionary Source="Resources/Converters.xaml"/>
+                <ResourceDictionary Source="Resources/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <DataTemplate x:Key="LoginTemplate">
                 <views:LoginView/>
             </DataTemplate>
+            <DataTemplate x:Key="DashboardTemplate">
+                <views:DashboardView/>
+            </DataTemplate>
             <DataTemplate x:Key="CashierTemplate">
                 <views:CashierView/>
+            </DataTemplate>
+            <DataTemplate x:Key="TransactionsTemplate">
+                <views:TransactionsView/>
             </DataTemplate>
             <DataTemplate x:Key="InventoryTemplate">
                 <views:InventoryView/>
             </DataTemplate>
             <DataTemplate x:Key="ReportsTemplate">
                 <views:ReportsView/>
-            </DataTemplate>
-            <DataTemplate x:Key="CustomersTemplate">
-                <views:CustomersView/>
             </DataTemplate>
             <DataTemplate x:Key="StaffTemplate">
                 <views:StaffView/>

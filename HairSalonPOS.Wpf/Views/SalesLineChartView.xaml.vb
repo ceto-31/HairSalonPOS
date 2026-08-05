@@ -1,6 +1,7 @@
 Namespace Views
-    Partial Public Class CustomersView
+    Partial Public Class SalesLineChartView
         Inherits UserControl
+
         Public Sub New()
             InitializeComponent()
         End Sub

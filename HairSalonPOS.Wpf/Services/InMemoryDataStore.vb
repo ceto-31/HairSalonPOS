@@ -13,8 +13,8 @@ Namespace Services
         Public ReadOnly Property Users As New List(Of UserAccount)
         Public ReadOnly Property Services As New List(Of ServiceItem)
         Public ReadOnly Property Products As New List(Of ProductItem)
+        Public ReadOnly Property Categories As New List(Of CatalogCategoryNode)
         Public ReadOnly Property Packages As New List(Of PackageItem)
-        Public ReadOnly Property Customers As New List(Of CustomerItem)
         Public ReadOnly Property Staff As New List(Of StaffMember)
         Public ReadOnly Property Discounts As New List(Of DiscountItem)
         Public ReadOnly Property Appointments As New List(Of AppointmentItem)
@@ -28,7 +28,7 @@ Namespace Services
         Public Event SaleCompleted As EventHandler
         Public Event InventoryChanged As EventHandler
         Public Event StaffChanged As EventHandler
-        Public Event CustomersChanged As EventHandler
+        Public Event AppointmentsChanged As EventHandler
 
         Private Sub New()
             SeedData()
@@ -52,6 +52,13 @@ Namespace Services
             If catalog IsNot Nothing Then
                 If catalog.Services IsNot Nothing Then Services.AddRange(catalog.Services)
                 If catalog.Products IsNot Nothing Then Products.AddRange(catalog.Products)
+                If catalog.Categories IsNot Nothing AndAlso catalog.Categories.Count > 0 Then
+                    Categories.AddRange(CloneCategories(catalog.Categories))
+                End If
+            End If
+
+            If Categories.Count = 0 Then
+                Categories.AddRange(DefaultCategories())
             End If
 
             ' Retail inventory products (Category blank = inventory-only). Only seed SKUs missing after load.
@@ -70,30 +77,42 @@ Namespace Services
 
             PersistCatalog()
 
-            Customers.AddRange({
-                New CustomerItem With {.CustomerId = 1, .Name = "Walk-in", .Phone = "", .VisitCount = 0, .LoyaltyPoints = 0},
-                New CustomerItem With {.CustomerId = 2, .Name = "Joy Dela Cruz", .Phone = "09171234567", .VisitCount = 8, .LoyaltyPoints = 120},
-                New CustomerItem With {.CustomerId = 3, .Name = "Anna Cruz", .Phone = "09179876543", .VisitCount = 3, .LoyaltyPoints = 45}
-            })
+            Dim persistedStaff = StaffPersistenceService.Instance.Load()
+            If persistedStaff IsNot Nothing Then
+                Staff.AddRange(persistedStaff)
+            Else
+                Staff.AddRange({
+                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .CommissionRate = 10D},
+                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .CommissionRate = 8D},
+                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .CommissionRate = 7D}
+                })
+                PersistStaff()
+            End If
 
-            Staff.AddRange({
-                New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .CommissionRate = 10D},
-                New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .CommissionRate = 8D},
-                New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .CommissionRate = 7D}
-            })
-
-            Discounts.AddRange({
-                New DiscountItem With {.Code = "SENIOR", .Description = "Senior / PWD — 20% off · Always active · BIR compliant", .DiscountType = "Percent", .Value = 20D, .IsSeniorPwd = True, .IsActive = True},
-                New DiscountItem With {.Code = "BDAY", .Description = "Birthday promo — 15% off · Birthday month only", .DiscountType = "Percent", .Value = 15D, .IsActive = True},
-                New DiscountItem With {.Code = "SUMMER2026", .Description = "₱100 off · Promo code · Ends Jun 30", .DiscountType = "Fixed", .Value = 100D, .IsActive = True, .EndDate = New Date(2026, 6, 30)}
-            })
+            Dim persistedDiscounts = DiscountPersistenceService.Instance.Load()
+            If persistedDiscounts IsNot Nothing Then
+                Discounts.AddRange(persistedDiscounts)
+            Else
+                Discounts.AddRange({
+                    New DiscountItem With {.Code = "SENIOR", .Description = "Senior / PWD — 20% off · Always active · BIR compliant", .DiscountType = "Percent", .Value = 20D, .IsSeniorPwd = True, .IsActive = True},
+                    New DiscountItem With {.Code = "BDAY", .Description = "Birthday promo — 15% off · Birthday month only", .DiscountType = "Percent", .Value = 15D, .IsActive = True},
+                    New DiscountItem With {.Code = "SUMMER2026", .Description = "₱100 off · Promo code · Ends Jun 30", .DiscountType = "Fixed", .Value = 100D, .IsActive = True, .EndDate = New Date(2026, 6, 30)}
+                })
+                PersistDiscounts()
+            End If
 
             Dim today = Date.Today
-            Appointments.AddRange({
-                New AppointmentItem With {.AppointmentId = 1, .CustomerName = "Joy D.", .StaffName = "Maria Santos", .ServiceName = "Rebond", .StartTime = today.AddHours(9), .DurationMinutes = 120},
-                New AppointmentItem With {.AppointmentId = 2, .CustomerName = "Anna C.", .StaffName = "Maria Santos", .ServiceName = "Hair Spa", .StartTime = today.AddHours(11), .DurationMinutes = 60},
-                New AppointmentItem With {.AppointmentId = 3, .CustomerName = "Walk-in", .StaffName = "Ana Reyes", .ServiceName = "Haircut", .StartTime = today.AddHours(14), .DurationMinutes = 30}
-            })
+            Dim persistedAppointments = AppointmentPersistenceService.Instance.Load()
+            If persistedAppointments IsNot Nothing Then
+                Appointments.AddRange(persistedAppointments)
+            Else
+                Appointments.AddRange({
+                    New AppointmentItem With {.AppointmentId = 1, .CustomerName = "Joy D.", .StaffName = "Maria Santos", .ServiceName = "Rebond", .StartTime = today.AddHours(9), .DurationMinutes = 120},
+                    New AppointmentItem With {.AppointmentId = 2, .CustomerName = "Anna C.", .StaffName = "Maria Santos", .ServiceName = "Hair Spa", .StartTime = today.AddHours(11), .DurationMinutes = 60},
+                    New AppointmentItem With {.AppointmentId = 3, .CustomerName = "Walk-in", .StaffName = "Ana Reyes", .ServiceName = "Haircut", .StartTime = today.AddHours(14), .DurationMinutes = 30}
+                })
+                PersistAppointments()
+            End If
 
             SeedSampleSales()
         End Sub
@@ -103,8 +122,38 @@ Namespace Services
         End Sub
 
         Public Sub PersistCatalog()
-            CatalogPersistenceService.Instance.Save(Services, Products)
+            CatalogPersistenceService.Instance.Save(Services, Products, Categories)
         End Sub
+
+        Public Sub PersistAppointments()
+            AppointmentPersistenceService.Instance.Save(Appointments)
+        End Sub
+
+        Public Sub PersistStaff()
+            StaffPersistenceService.Instance.Save(Staff)
+        End Sub
+
+        Public Sub PersistDiscounts()
+            DiscountPersistenceService.Instance.Save(Discounts)
+        End Sub
+
+        Public Shared Function DefaultCategories() As List(Of CatalogCategoryNode)
+            Return New List(Of CatalogCategoryNode) From {
+                New CatalogCategoryNode With {.Name = "HAIR SERVICES", .SubCategories = New List(Of String) From {"Rebond Packages", "Hair Treatment Packages", "Cut and Styles", "Hair Color", "Hair Treatment"}},
+                New CatalogCategoryNode With {.Name = "NAIL SERVICES", .SubCategories = New List(Of String) From {"Basic Care", "Gel and Extensions"}},
+                New CatalogCategoryNode With {.Name = "BODY SERVICES", .SubCategories = New List(Of String) From {"Spa and Scrub Packages", "Paraffin Therapy and Massage"}},
+                New CatalogCategoryNode With {.Name = "EYELASH SERVICES"},
+                New CatalogCategoryNode With {.Name = "EYEBROW SERVICES"},
+                New CatalogCategoryNode With {.Name = "WAXING SERVICES"}
+            }
+        End Function
+
+        Private Shared Function CloneCategories(source As IEnumerable(Of CatalogCategoryNode)) As List(Of CatalogCategoryNode)
+            Return source.Select(Function(c) New CatalogCategoryNode With {
+                .Name = c.Name,
+                .SubCategories = New List(Of String)(If(c.SubCategories, New List(Of String)()))
+            }).ToList()
+        End Function
 
         Private Sub EnsureSecurityAnswers()
             For Each user In Users
@@ -199,11 +248,24 @@ Namespace Services
         End Sub
 
         Public Sub RaiseStaffChanged()
+            PersistStaff()
             RaiseEvent StaffChanged(Me, EventArgs.Empty)
         End Sub
 
-        Public Sub RaiseCustomersChanged()
-            RaiseEvent CustomersChanged(Me, EventArgs.Empty)
+        Public Sub RaiseDiscountsChanged()
+            PersistDiscounts()
+        End Sub
+
+        Public Sub CompleteAppointment(appointmentId As Integer)
+            Dim appt = Appointments.FirstOrDefault(Function(a) a.AppointmentId = appointmentId)
+            If appt Is Nothing Then Return
+            Appointments.Remove(appt)
+            RaiseAppointmentsChanged()
+        End Sub
+
+        Public Sub RaiseAppointmentsChanged()
+            PersistAppointments()
+            RaiseEvent AppointmentsChanged(Me, EventArgs.Empty)
         End Sub
     End Class
 End Namespace

@@ -3,4 +3,8 @@
                     xmlns:helpers="clr-namespace:HairSalonPOS.Wpf.Helpers">
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+    <helpers:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVis"/>
+    <helpers:StringEmptyToVisibilityConverter x:Key="StringEmptyToVis"/>
+    <helpers:HourToDisplayConverter x:Key="HourToDisplay"/>
+    <helpers:TimeSpanToDisplayConverter x:Key="TimeSpanToDisplay"/>
 </ResourceDictionary>

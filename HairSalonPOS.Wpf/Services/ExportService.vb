@@ -78,7 +78,7 @@ Namespace Services
                         End Sub)
                 End Sub).GeneratePdf(dlg.FileName)
 
-            MessageBox.Show("Report saved as PDF.", "Export", MessageBoxButton.OK, MessageBoxImage.Information)
+            AppDialogService.ShowInfo("Report saved as PDF.", "Export")
             Return True
         End Function
 
@@ -149,7 +149,7 @@ Namespace Services
                         End Sub)
                 End Sub).GeneratePdf(dlg.FileName)
 
-            MessageBox.Show("Inventory saved as PDF.", "Export", MessageBoxButton.OK, MessageBoxImage.Information)
+            AppDialogService.ShowInfo("Inventory saved as PDF.", "Export")
             Return True
         End Function
     End Class

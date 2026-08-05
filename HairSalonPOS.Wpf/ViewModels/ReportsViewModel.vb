@@ -1,5 +1,6 @@
 Imports System.Collections.ObjectModel
 Imports CommunityToolkit.Mvvm.Input
+Imports HairSalonPOS.Wpf.Helpers
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
 
@@ -16,11 +17,17 @@ Namespace ViewModels
         Private _averageSale As Decimal
         Private _topService As String = "—"
         Private _statusMessage As String = String.Empty
+        Private _dailyChart As DashboardLineChart
+        Private _weeklyChart As DashboardLineChart
+        Private _yearlyChart As DashboardLineChart
 
         Public Sub New()
             Sales = New ObservableCollection(Of SaleRecord)()
             RevenueBars = New ObservableCollection(Of RevenueBarItem)()
             StylistPerformance = New ObservableCollection(Of StylistPerformanceItem)()
+            DailyChart = New DashboardLineChart()
+            WeeklyChart = New DashboardLineChart()
+            YearlyChart = New DashboardLineChart()
 
             RefreshCommand = New RelayCommand(AddressOf LoadReports)
             SetDailyCommand = New RelayCommand(Sub() Period = "Daily")
@@ -104,6 +111,33 @@ Namespace ViewModels
         Public Property RevenueBars As ObservableCollection(Of RevenueBarItem)
         Public Property StylistPerformance As ObservableCollection(Of StylistPerformanceItem)
 
+        Public Property DailyChart As DashboardLineChart
+            Get
+                Return _dailyChart
+            End Get
+            Private Set(value As DashboardLineChart)
+                SetProperty(_dailyChart, value)
+            End Set
+        End Property
+
+        Public Property WeeklyChart As DashboardLineChart
+            Get
+                Return _weeklyChart
+            End Get
+            Private Set(value As DashboardLineChart)
+                SetProperty(_weeklyChart, value)
+            End Set
+        End Property
+
+        Public Property YearlyChart As DashboardLineChart
+            Get
+                Return _yearlyChart
+            End Get
+            Private Set(value As DashboardLineChart)
+                SetProperty(_yearlyChart, value)
+            End Set
+        End Property
+
         Public ReadOnly Property IsDaily As Boolean
             Get
                 Return Period = "Daily"
@@ -162,6 +196,10 @@ Namespace ViewModels
 
             OnPropertyChanged(NameOf(Sales))
             OnPropertyChanged(NameOf(StylistPerformance))
+
+            DailyChart = SalesChartBuilder.BuildDailyChart(_store.Sales, SelectedDate)
+            WeeklyChart = SalesChartBuilder.BuildWeeklyChart(_store.Sales, SelectedDate)
+            YearlyChart = SalesChartBuilder.BuildYearlyChart(_store.Sales, SelectedDate)
         End Sub
 
         Private Function FilterSales() As IEnumerable(Of SaleRecord)

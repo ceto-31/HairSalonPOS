@@ -7,10 +7,11 @@ Namespace Helpers
         Inherits DataTemplateSelector
 
         Public Property LoginTemplate As DataTemplate
+        Public Property DashboardTemplate As DataTemplate
         Public Property CashierTemplate As DataTemplate
+        Public Property TransactionsTemplate As DataTemplate
         Public Property InventoryTemplate As DataTemplate
         Public Property ReportsTemplate As DataTemplate
-        Public Property CustomersTemplate As DataTemplate
         Public Property StaffTemplate As DataTemplate
         Public Property DiscountsTemplate As DataTemplate
         Public Property AppointmentsTemplate As DataTemplate
@@ -20,14 +21,16 @@ Namespace Helpers
             Select Case True
                 Case TypeOf item Is LoginViewModel
                     Return LoginTemplate
+                Case TypeOf item Is DashboardViewModel
+                    Return DashboardTemplate
                 Case TypeOf item Is CashierViewModel
                     Return CashierTemplate
+                Case TypeOf item Is TransactionsViewModel
+                    Return TransactionsTemplate
                 Case TypeOf item Is InventoryViewModel
                     Return InventoryTemplate
                 Case TypeOf item Is ReportsViewModel
                     Return ReportsTemplate
-                Case TypeOf item Is CustomersViewModel
-                    Return CustomersTemplate
                 Case TypeOf item Is StaffViewModel
                     Return StaffTemplate
                 Case TypeOf item Is DiscountsViewModel

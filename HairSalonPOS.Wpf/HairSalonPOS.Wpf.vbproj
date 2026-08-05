@@ -26,4 +26,8 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Assets\pos_LOGO.png" />
+  </ItemGroup>
+
 </Project>

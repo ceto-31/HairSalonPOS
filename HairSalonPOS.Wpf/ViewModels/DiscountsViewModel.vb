@@ -175,20 +175,17 @@ Namespace ViewModels
                 StatusMessage = "Promo updated."
             End If
 
+            _store.RaiseDiscountsChanged()
             IsEditMode = False
         End Sub
 
         Private Sub DeleteDiscount(item As DiscountItem)
             If item Is Nothing Then Return
-            Dim confirm = System.Windows.MessageBox.Show(
-                $"Delete promo '{item.Code}'?",
-                "Confirm delete",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning)
-            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+            If Not AppDialogService.ConfirmDelete(item.Code) Then Return
 
             _store.Discounts.Remove(item)
             Discounts.Remove(item)
+            _store.RaiseDiscountsChanged()
             StatusMessage = $"Promo {item.Code} deleted."
         End Sub
     End Class

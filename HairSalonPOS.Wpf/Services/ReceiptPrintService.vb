@@ -78,8 +78,6 @@ Namespace Services
             Else
                 AddLine(doc, "Discount: 0.00")
             End If
-            AddLine(doc, $"VATable sales: {receipt.VatableSales:N2}")
-            AddLine(doc, $"VAT (12%): {receipt.Tax:N2}")
             AddLine(doc, $"TOTAL: {receipt.Total:N2}", 13, True)
             AddSeparator(doc)
             AddLine(doc, $"Payment: {receipt.PaymentMethod}")
@@ -123,8 +121,6 @@ Namespace Services
             Else
                 lines.Add("Discount: 0.00")
             End If
-            lines.Add($"VATable: {receipt.VatableSales,11:N2}")
-            lines.Add($"VAT 12%: {receipt.Tax,9:N2}")
             lines.Add($"TOTAL: {receipt.Total,12:N2}")
             lines.Add(New String("-"c, width))
             lines.Add($"Payment: {receipt.PaymentMethod}")

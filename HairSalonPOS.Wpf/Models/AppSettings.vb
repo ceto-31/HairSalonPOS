@@ -15,6 +15,13 @@ Namespace Models
         Public Property SaleId As Integer
         Public Property IssuedAt As DateTime
         Public Property CashierName As String = String.Empty
+        Public Property CustomerName As String = String.Empty
+        Public Property StylistName As String = String.Empty
+        Public Property PaymentMethod As String = String.Empty
+        Public Property SubTotal As Decimal
+        Public Property Discount As Decimal
+        Public Property Tax As Decimal
         Public Property Total As Decimal
+        Public Property ReceiptJson As String = String.Empty
     End Class
 End Namespace

@@ -161,12 +161,12 @@ Namespace ViewModels
 
         Private Sub DeleteStaff(member As StaffMember)
             If member Is Nothing Then Return
-            Dim confirm = System.Windows.MessageBox.Show(
-                $"Remove {member.Name} from staff?",
-                "Confirm delete",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning)
-            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+            If Not AppDialogService.Confirm(
+                $"Remove {member.Name} from staff? This action cannot be undone.",
+                "Delete Item?",
+                "Delete",
+                "Cancel",
+                AppDialogType.Warning) Then Return
 
             _store.Staff.Remove(member)
             StaffMembers.Remove(member)

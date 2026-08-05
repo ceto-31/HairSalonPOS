@@ -1,0 +1,25 @@
+---
+description: Keyword "ship" means commit and push all changes
+alwaysApply: true
+---
+
+# Ship keyword
+
+When the user says **ship** (alone or clearly as a command), immediately commit and push all current changes without asking for confirmation first.
+
+## Procedure
+
+1. Run in parallel: `git status`, `git diff` (staged + unstaged), `git log` (recent messages for style).
+2. Stage all relevant source changes.
+3. **Exclude** `publish/`, build outputs (`bin/`, `obj/`), secrets (`.env`, credentials), and IDE junk (`.vs/`).
+4. Draft a concise 1–2 sentence commit message focused on why (match repo style: short lowercase summaries).
+5. Commit using a HEREDOC-style message (PowerShell here-string is fine on Windows).
+6. Push to the tracked remote branch (`git push -u origin HEAD` if needed).
+7. Verify with `git status` and report the commit hash + remote URL briefly.
+
+## Notes
+
+- "ship" is explicit permission to commit and push for that turn.
+- Do not force-push, amend, or skip hooks unless the user explicitly asks.
+- If there is nothing to commit, say so and do not create an empty commit.
+- If push fails (auth/network), report the error and stop.

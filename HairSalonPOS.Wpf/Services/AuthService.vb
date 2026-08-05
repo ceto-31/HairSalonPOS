@@ -16,11 +16,27 @@ Namespace Services
         End Function
 
         Public Function VerifySecurityAnswers(username As String, favNumber As String, favColor As String, favAnimal As String) As Boolean
+            Return GetIncorrectSecurityAnswers(username, favNumber, favColor, favAnimal).Count = 0
+        End Function
+
+        Public Function GetIncorrectSecurityAnswers(username As String, favNumber As String, favColor As String, favAnimal As String) As List(Of String)
+            Dim wrong As New List(Of String)
             Dim user = FindUser(username)
-            If user Is Nothing Then Return False
-            Return String.Equals(user.FavNumber?.Trim(), favNumber?.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso
-                   String.Equals(user.FavColor?.Trim(), favColor?.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso
-                   String.Equals(user.FavAnimal?.Trim(), favAnimal?.Trim(), StringComparison.OrdinalIgnoreCase)
+            If user Is Nothing Then Return wrong
+
+            If Not String.Equals(user.FavNumber?.Trim(), favNumber?.Trim(), StringComparison.OrdinalIgnoreCase) Then
+                wrong.Add("Favorite number")
+            End If
+
+            If Not String.Equals(user.FavColor?.Trim(), favColor?.Trim(), StringComparison.OrdinalIgnoreCase) Then
+                wrong.Add("Favorite color")
+            End If
+
+            If Not String.Equals(user.FavAnimal?.Trim(), favAnimal?.Trim(), StringComparison.OrdinalIgnoreCase) Then
+                wrong.Add("Favorite animal")
+            End If
+
+            Return wrong
         End Function
 
         Public Function ResetPassword(username As String, newPassword As String) As Boolean

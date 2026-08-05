@@ -1,25 +1,8 @@
+Imports System.Collections.ObjectModel
+Imports System.Windows.Media
 Imports CommunityToolkit.Mvvm.ComponentModel
 
 Namespace Models
-    Public Class CustomerItem
-        Inherits ObservableObject
-
-        Public Property CustomerId As Integer
-        Public Property Name As String = String.Empty
-        Public Property Phone As String = String.Empty
-        Public Property VisitCount As Integer
-        Public Property LoyaltyPoints As Integer
-
-        Public ReadOnly Property Initials As String
-            Get
-                Dim parts = Name.Split(" "c, StringSplitOptions.RemoveEmptyEntries)
-                If parts.Length = 0 Then Return "?"
-                If parts.Length = 1 Then Return parts(0).Substring(0, Math.Min(2, parts(0).Length)).ToUpper()
-                Return (parts(0)(0).ToString() & parts(parts.Length - 1)(0).ToString()).ToUpper()
-            End Get
-        End Property
-    End Class
-
     Public Class StaffMember
         Inherits ObservableObject
 
@@ -65,12 +48,73 @@ Namespace Models
     End Class
 
     Public Class AppointmentItem
+        Inherits ObservableObject
+
+        Private _appointmentId As Integer
+        Private _customerName As String = String.Empty
+        Private _staffName As String = String.Empty
+        Private _serviceName As String = String.Empty
+        Private _startTime As DateTime
+        Private _durationMinutes As Integer
+
         Public Property AppointmentId As Integer
-        Public Property CustomerName As String = String.Empty
-        Public Property StaffName As String = String.Empty
-        Public Property ServiceName As String = String.Empty
+            Get
+                Return _appointmentId
+            End Get
+            Set(value As Integer)
+                SetProperty(_appointmentId, value)
+            End Set
+        End Property
+
+        Public Property CustomerName As String
+            Get
+                Return _customerName
+            End Get
+            Set(value As String)
+                SetProperty(_customerName, value)
+            End Set
+        End Property
+
+        Public Property StaffName As String
+            Get
+                Return _staffName
+            End Get
+            Set(value As String)
+                SetProperty(_staffName, value)
+            End Set
+        End Property
+
+        Public Property ServiceName As String
+            Get
+                Return _serviceName
+            End Get
+            Set(value As String)
+                SetProperty(_serviceName, value)
+            End Set
+        End Property
+
         Public Property StartTime As DateTime
+            Get
+                Return _startTime
+            End Get
+            Set(value As DateTime)
+                If SetProperty(_startTime, value) Then
+                    OnPropertyChanged(NameOf(TimeLabel))
+                    OnPropertyChanged(NameOf(EndTime))
+                End If
+            End Set
+        End Property
+
         Public Property DurationMinutes As Integer
+            Get
+                Return _durationMinutes
+            End Get
+            Set(value As Integer)
+                If SetProperty(_durationMinutes, value) Then
+                    OnPropertyChanged(NameOf(EndTime))
+                End If
+            End Set
+        End Property
 
         Public ReadOnly Property TimeLabel As String
             Get
@@ -138,5 +182,42 @@ Namespace Models
         Public Property StylistName As String = String.Empty
         Public Property ServiceCount As Integer
         Public Property Revenue As Decimal
+    End Class
+
+    Public Class DashboardAppointmentRow
+        Public Property TimeLabel As String = String.Empty
+        Public Property CustomerName As String = String.Empty
+        Public Property ServiceName As String = String.Empty
+        Public Property StaffName As String = String.Empty
+    End Class
+
+    Public Class DashboardSaleRow
+        Public Property ReceiptNumber As String = String.Empty
+        Public Property TimeLabel As String = String.Empty
+        Public Property CustomerName As String = String.Empty
+        Public Property Total As Decimal
+    End Class
+
+    Public Class LowStockAlertRow
+        Public Property ProductName As String = String.Empty
+        Public Property StockOnHand As Integer
+        Public Property ReorderLevel As Integer
+    End Class
+
+    Public Class DashboardChartPoint
+        Public Property Label As String = String.Empty
+        Public Property Amount As Decimal
+        Public Property X As Double
+        Public Property Y As Double
+        Public Property MarkerLeft As Double
+        Public Property MarkerTop As Double
+    End Class
+
+    Public Class DashboardLineChart
+        Public Property Title As String = String.Empty
+        Public Property Subtitle As String = String.Empty
+        Public Property CurveGeometry As PathGeometry
+        Public Property MaxAmountLabel As String = String.Empty
+        Public Property Points As ObservableCollection(Of DashboardChartPoint)
     End Class
 End Namespace

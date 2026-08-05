@@ -54,7 +54,8 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
                     <DockPanel Margin="0,0,0,12">
-                        <TextBlock Text="Inventory Management" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="Inventory Management" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="+ Add product" Style="{StaticResource PrimaryButton}" Command="{Binding AddProductCommand}" Margin="0,0,8,0"/>
                             <Button Content="Edit selected" Style="{StaticResource SecondaryButton}" Command="{Binding EditProductCommand}" Margin="0,0,8,0"/>
@@ -62,17 +63,41 @@
                         </StackPanel>
                     </DockPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="280"
-                                 Style="{StaticResource ModernTextBox}" Tag="Search products..."/>
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource SearchTextBox}" Tag="Search products..."/>
                         <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
-                        <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}" Style="{StaticResource PillTabButton}"/>
+                        <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowProductsTab}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowMovementLog}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
                 </StackPanel>
 
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
 
                 <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
                           Style="{StaticResource DataGridStyle}" RowStyle="{StaticResource LowStockRowStyle}"
@@ -92,10 +117,10 @@
                                     <Border CornerRadius="12" Padding="10,4" HorizontalAlignment="Left">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#DCFCE7"/>
+                                                <Setter Property="Background" Value="{DynamicResource SuccessBadgeBrush}"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsLowStock}" Value="True">
-                                                        <Setter Property="Background" Value="#FEE2E2"/>
+                                                        <Setter Property="Background" Value="{DynamicResource ErrorBadgeBrush}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -109,10 +134,10 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button Content="Edit" Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}" Cursor="Hand"
+                                        <Button Content="Edit" Style="{StaticResource GridActionEditButton}"
                                                 Command="{Binding DataContext.EditProductRowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}" Margin="0,0,8,0"/>
-                                        <Button Content="Delete" Background="Transparent" BorderThickness="0" Foreground="#DC2626" Cursor="Hand"
+                                        <Button Content="Delete" Style="{StaticResource GridActionDeleteButton}"
                                                 Command="{Binding DataContext.DeleteProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"/>
                                     </StackPanel>

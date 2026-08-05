@@ -8,56 +8,63 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
+        Private ReadOnly _openAtPointOfSale As Action(Of AppointmentItem)
         Private _selectedDate As Date = Date.Today
-        Private _selectedStaff As StaffMember
-        Private _editCustomer As String = String.Empty
+        Private _editFirstName As String = String.Empty
+        Private _editLastName As String = String.Empty
+        Private _editAppointmentDate As Date = Date.Today
         Private _editService As String = String.Empty
-        Private _editTime As String = "09:00"
+        Private _editHour As Integer = 9
+        Private _editMinute As Integer = 0
         Private _editDuration As Integer = 60
+        Private _selectedBusinessHour As TimeSpan?
         Private _isEditMode As Boolean
+        Private _isViewMode As Boolean
+        Private _viewAppointment As AppointmentItem
         Private _isAdding As Boolean = True
         Private _editingAppointmentId As Integer
         Private _statusMessage As String = String.Empty
 
-        Public Sub New()
-            StaffList = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
+        Public Sub New(openAtPointOfSale As Action(Of AppointmentItem))
+            _openAtPointOfSale = openAtPointOfSale
             Appointments = New ObservableCollection(Of AppointmentItem)()
+            AvailableBusinessHours = New ObservableCollection(Of TimeSpan)()
+            HourOptions = New ObservableCollection(Of Integer)()
+            MinuteOptions = New ObservableCollection(Of Integer) From {0, 15, 30, 45}
             RefreshServiceNames()
 
-            SelectedStaff = StaffList.FirstOrDefault()
             PrevDayCommand = New RelayCommand(Sub() SelectedDate = SelectedDate.AddDays(-1))
             NextDayCommand = New RelayCommand(Sub() SelectedDate = SelectedDate.AddDays(1))
             BookCommand = New RelayCommand(AddressOf BeginBook)
             EditAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf BeginEdit)
             SaveAppointmentCommand = New RelayCommand(AddressOf SaveAppointment)
+            UpdateAppointmentCommand = New RelayCommand(AddressOf UpdateAppointment)
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
+            ViewAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf BeginView)
+            CancelViewCommand = New RelayCommand(Sub() IsViewMode = False)
             DeleteAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf DeleteAppointment)
             ConvertToTransactionCommand = New RelayCommand(Of AppointmentItem)(AddressOf ConvertToTransaction)
 
-            AddHandler _store.StaffChanged, Sub() RefreshStaffList()
+            AddHandler _store.AppointmentsChanged, Sub() LoadAppointments()
             LoadAppointments()
         End Sub
 
-        Public Sub RefreshStaffList()
-            Dim selectedId = If(SelectedStaff?.StaffId, 0)
-            StaffList = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
-            OnPropertyChanged(NameOf(StaffList))
-            SelectedStaff = StaffList.FirstOrDefault(Function(s) s.StaffId = selectedId)
-            If SelectedStaff Is Nothing Then SelectedStaff = StaffList.FirstOrDefault()
-        End Sub
-
-        Public Property StaffList As ObservableCollection(Of StaffMember)
         Public Property Appointments As ObservableCollection(Of AppointmentItem)
+        Public Property AvailableBusinessHours As ObservableCollection(Of TimeSpan)
         Public Property ServiceNames As ObservableCollection(Of String)
+        Public Property HourOptions As ObservableCollection(Of Integer)
+        Public Property MinuteOptions As ObservableCollection(Of Integer)
 
         Public Property SelectedDate As Date
             Get
                 Return _selectedDate
             End Get
             Set(value As Date)
-                SetProperty(_selectedDate, value)
-                LoadAppointments()
-                OnPropertyChanged(NameOf(DateLabel))
+                If SetProperty(_selectedDate, value) Then
+                    LoadAppointments()
+                    OnPropertyChanged(NameOf(DateLabel))
+                    OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+                End If
             End Set
         End Property
 
@@ -67,13 +74,27 @@ Namespace ViewModels
             End Get
         End Property
 
-        Public Property SelectedStaff As StaffMember
+        Public ReadOnly Property SelectedDayBusinessHoursLabel As String
             Get
-                Return _selectedStaff
+                Dim day = If(IsEditMode, EditAppointmentDate.Date, SelectedDate.Date)
+                Dim hours = BusinessHoursService.GetHours(day)
+                Dim openLabel = Date.Today.Add(hours.Open).ToString("h:mm tt")
+                Dim closeLabel = Date.Today.Add(hours.Close).ToString("h:mm tt")
+                Dim dayType = If(BusinessHoursService.IsWeekend(day), "Weekend", "Weekday")
+                Return $"{dayType} hours: {openLabel} – {closeLabel}"
             End Get
-            Set(value As StaffMember)
-                SetProperty(_selectedStaff, value)
-                LoadAppointments()
+        End Property
+
+        Public Property SelectedBusinessHour As TimeSpan?
+            Get
+                Return _selectedBusinessHour
+            End Get
+            Set(value As TimeSpan?)
+                If SetProperty(_selectedBusinessHour, value) AndAlso value.HasValue Then
+                    EditHour = value.Value.Hours
+                    EditMinute = value.Value.Minutes
+                    EnsureMinuteOption(EditMinute)
+                End If
             End Set
         End Property
 
@@ -82,8 +103,72 @@ Namespace ViewModels
                 Return _isEditMode
             End Get
             Set(value As Boolean)
-                SetProperty(_isEditMode, value)
+                If SetProperty(_isEditMode, value) Then
+                    OnPropertyChanged(NameOf(IsListMode))
+                    OnPropertyChanged(NameOf(IsAddingAppointment))
+                    OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+                    If value Then
+                        RefreshAvailableBusinessHours(EditAppointmentDate)
+                    Else
+                        AvailableBusinessHours.Clear()
+                        SelectedBusinessHour = Nothing
+                    End If
+                End If
             End Set
+        End Property
+
+        Public Property IsViewMode As Boolean
+            Get
+                Return _isViewMode
+            End Get
+            Set(value As Boolean)
+                If SetProperty(_isViewMode, value) Then
+                    OnPropertyChanged(NameOf(IsListMode))
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property IsListMode As Boolean
+            Get
+                Return Not IsEditMode AndAlso Not IsViewMode
+            End Get
+        End Property
+
+        Public ReadOnly Property IsAddingAppointment As Boolean
+            Get
+                Return IsEditMode AndAlso _isAdding
+            End Get
+        End Property
+
+        Public Property ViewAppointment As AppointmentItem
+            Get
+                Return _viewAppointment
+            End Get
+            Private Set(value As AppointmentItem)
+                SetProperty(_viewAppointment, value)
+                NotifyViewLabels()
+            End Set
+        End Property
+
+        Public ReadOnly Property ViewEndTimeLabel As String
+            Get
+                If ViewAppointment Is Nothing Then Return String.Empty
+                Return ViewAppointment.EndTime.ToString("h:mm tt")
+            End Get
+        End Property
+
+        Public ReadOnly Property ViewDateLabel As String
+            Get
+                If ViewAppointment Is Nothing Then Return String.Empty
+                Return ViewAppointment.StartTime.ToString("dddd, MMMM d, yyyy")
+            End Get
+        End Property
+
+        Public ReadOnly Property ViewDurationLabel As String
+            Get
+                If ViewAppointment Is Nothing Then Return String.Empty
+                Return $"{ViewAppointment.DurationMinutes} minutes"
+            End Get
         End Property
 
         Public ReadOnly Property FormTitle As String
@@ -92,12 +177,33 @@ Namespace ViewModels
             End Get
         End Property
 
-        Public Property EditCustomer As String
+        Public Property EditFirstName As String
             Get
-                Return _editCustomer
+                Return _editFirstName
             End Get
             Set(value As String)
-                SetProperty(_editCustomer, value)
+                SetProperty(_editFirstName, value)
+            End Set
+        End Property
+
+        Public Property EditLastName As String
+            Get
+                Return _editLastName
+            End Get
+            Set(value As String)
+                SetProperty(_editLastName, value)
+            End Set
+        End Property
+
+        Public Property EditAppointmentDate As Date
+            Get
+                Return _editAppointmentDate
+            End Get
+            Set(value As Date)
+                If SetProperty(_editAppointmentDate, value) Then
+                    RefreshAvailableBusinessHours(value)
+                    OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+                End If
             End Set
         End Property
 
@@ -110,12 +216,26 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property EditTime As String
+        Public Property EditHour As Integer
             Get
-                Return _editTime
+                Return _editHour
             End Get
-            Set(value As String)
-                SetProperty(_editTime, value)
+            Set(value As Integer)
+                If SetProperty(_editHour, value) Then
+                    RefreshMinuteOptions()
+                    SyncSelectedBusinessHourFromDropdowns()
+                End If
+            End Set
+        End Property
+
+        Public Property EditMinute As Integer
+            Get
+                Return _editMinute
+            End Get
+            Set(value As Integer)
+                If SetProperty(_editMinute, value) Then
+                    SyncSelectedBusinessHourFromDropdowns()
+                End If
             End Set
         End Property
 
@@ -142,7 +262,10 @@ Namespace ViewModels
         Public Property BookCommand As RelayCommand
         Public Property EditAppointmentCommand As RelayCommand(Of AppointmentItem)
         Public Property SaveAppointmentCommand As RelayCommand
+        Public Property UpdateAppointmentCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
+        Public Property ViewAppointmentCommand As RelayCommand(Of AppointmentItem)
+        Public Property CancelViewCommand As RelayCommand
         Public Property DeleteAppointmentCommand As RelayCommand(Of AppointmentItem)
         Public Property ConvertToTransactionCommand As RelayCommand(Of AppointmentItem)
 
@@ -153,95 +276,266 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(ServiceNames))
         End Sub
 
+        Private Sub RefreshAvailableBusinessHours(day As Date)
+            Dim preferred = If(_selectedBusinessHour.HasValue, _selectedBusinessHour.Value, New TimeSpan(EditHour, EditMinute, 0))
+
+            AvailableBusinessHours.Clear()
+            For Each slot In BusinessHoursService.GetAvailableTimeSlots(day)
+                AvailableBusinessHours.Add(slot)
+            Next
+
+            HourOptions.Clear()
+            For Each hourValue In BusinessHoursService.GetHourOptions(day)
+                HourOptions.Add(hourValue)
+            Next
+
+            If AvailableBusinessHours.Contains(preferred) Then
+                _editHour = preferred.Hours
+                _editMinute = preferred.Minutes
+            ElseIf AvailableBusinessHours.Count > 0 Then
+                preferred = AvailableBusinessHours(0)
+                _editHour = preferred.Hours
+                _editMinute = preferred.Minutes
+            End If
+
+            OnPropertyChanged(NameOf(EditHour))
+            RefreshMinuteOptions()
+            OnPropertyChanged(NameOf(EditMinute))
+            SyncSelectedBusinessHourFromDropdowns()
+            OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+        End Sub
+
+        Private Sub RefreshMinuteOptions()
+            Dim minutes = BusinessHoursService.GetMinuteOptions(EditAppointmentDate, EditHour).ToList()
+            MinuteOptions.Clear()
+            For Each minuteValue In minutes
+                MinuteOptions.Add(minuteValue)
+            Next
+
+            If MinuteOptions.Count = 0 Then
+                Return
+            End If
+
+            If Not MinuteOptions.Contains(EditMinute) Then
+                _editMinute = MinuteOptions(0)
+                OnPropertyChanged(NameOf(EditMinute))
+            End If
+        End Sub
+
+        Private Sub SyncSelectedBusinessHourFromDropdowns()
+            Dim slot = New TimeSpan(EditHour, EditMinute, 0)
+            If AvailableBusinessHours.Contains(slot) Then
+                _selectedBusinessHour = slot
+            Else
+                _selectedBusinessHour = Nothing
+            End If
+            OnPropertyChanged(NameOf(SelectedBusinessHour))
+        End Sub
+
         Public Sub LoadAppointments()
-            Dim staffName = If(SelectedStaff?.Name, String.Empty)
             Appointments = New ObservableCollection(Of AppointmentItem)(
-                _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date AndAlso a.StaffName = staffName).
+                _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date).
                 OrderBy(Function(a) a.StartTime))
             OnPropertyChanged(NameOf(Appointments))
         End Sub
 
         Private Sub BeginBook()
             RefreshServiceNames()
+            IsViewMode = False
             _isAdding = True
             _editingAppointmentId = 0
-            EditCustomer = String.Empty
+            EditFirstName = String.Empty
+            EditLastName = String.Empty
+            EditAppointmentDate = SelectedDate
             EditService = ServiceNames.FirstOrDefault()
-            EditTime = "09:00"
+            Dim open = BusinessHoursService.GetHours(EditAppointmentDate).Open
+            EditHour = open.Hours
+            EditMinute = open.Minutes
+            EnsureMinuteOption(EditMinute)
+            RefreshAvailableBusinessHours(EditAppointmentDate)
             EditDuration = 60
+            StatusMessage = String.Empty
             OnPropertyChanged(NameOf(FormTitle))
+            OnPropertyChanged(NameOf(IsAddingAppointment))
             IsEditMode = True
         End Sub
 
         Private Sub BeginEdit(appt As AppointmentItem)
             If appt Is Nothing Then Return
+            IsViewMode = False
             RefreshServiceNames()
             If Not ServiceNames.Contains(appt.ServiceName) Then ServiceNames.Add(appt.ServiceName)
             _isAdding = False
             _editingAppointmentId = appt.AppointmentId
-            EditCustomer = appt.CustomerName
+            Dim parts = SplitName(appt.CustomerName)
+            EditFirstName = parts.Item1
+            EditLastName = parts.Item2
+            EditAppointmentDate = appt.StartTime.Date
             EditService = appt.ServiceName
-            EditTime = appt.StartTime.ToString("HH:mm")
+            EnsureMinuteOption(appt.StartTime.Minute)
+            EditHour = appt.StartTime.Hour
+            EditMinute = appt.StartTime.Minute
+            RefreshAvailableBusinessHours(EditAppointmentDate)
             EditDuration = appt.DurationMinutes
+            StatusMessage = String.Empty
             OnPropertyChanged(NameOf(FormTitle))
+            OnPropertyChanged(NameOf(IsAddingAppointment))
             IsEditMode = True
         End Sub
 
+        Private Sub BeginView(appt As AppointmentItem)
+            If appt Is Nothing Then Return
+            IsEditMode = False
+            ViewAppointment = appt
+            IsViewMode = True
+        End Sub
+
         Private Sub SaveAppointment()
-            If SelectedStaff Is Nothing Then
-                StatusMessage = "Select a stylist first."
+            If Not _isAdding Then
+                UpdateAppointment()
                 Return
             End If
-            Dim timeParts = EditTime.Split(":"c)
-            Dim hour = If(timeParts.Length > 0, Integer.Parse(timeParts(0)), 9)
-            Dim minute = If(timeParts.Length > 1, Integer.Parse(timeParts(1)), 0)
-            Dim startTime = SelectedDate.Date.AddHours(hour).AddMinutes(minute)
 
-            If _isAdding Then
-                Dim appt As New AppointmentItem With {
-                    .AppointmentId = If(_store.Appointments.Count = 0, 1, _store.Appointments.Max(Function(a) a.AppointmentId) + 1),
-                    .CustomerName = EditCustomer.Trim(),
-                    .StaffName = SelectedStaff.Name,
-                    .ServiceName = EditService,
-                    .StartTime = startTime,
-                    .DurationMinutes = EditDuration
-                }
-                _store.Appointments.Add(appt)
-                StatusMessage = "Appointment booked."
-            Else
-                Dim existing = _store.Appointments.FirstOrDefault(Function(a) a.AppointmentId = _editingAppointmentId)
-                If existing Is Nothing Then
-                    StatusMessage = "Appointment not found."
-                    Return
-                End If
-                existing.CustomerName = EditCustomer.Trim()
-                existing.StaffName = SelectedStaff.Name
-                existing.ServiceName = EditService
-                existing.StartTime = startTime
-                existing.DurationMinutes = EditDuration
-                StatusMessage = "Appointment updated."
+            Dim draft = TryBuildDraftAppointment()
+            If draft Is Nothing Then Return
+
+            Dim appt As New AppointmentItem With {
+                .AppointmentId = If(_store.Appointments.Count = 0, 1, _store.Appointments.Max(Function(a) a.AppointmentId) + 1),
+                .CustomerName = draft.CustomerName,
+                .StaffName = String.Empty,
+                .ServiceName = draft.ServiceName,
+                .StartTime = draft.StartTime,
+                .DurationMinutes = draft.DurationMinutes
+            }
+            _store.Appointments.Add(appt)
+            _store.RaiseAppointmentsChanged()
+            StatusMessage = "Appointment booked."
+            FinishEdit(draft.StartTime.Date)
+        End Sub
+
+        Private Sub UpdateAppointment()
+            If _isAdding OrElse _editingAppointmentId <= 0 Then
+                StatusMessage = "No appointment selected for update."
+                AppDialogService.ShowError(StatusMessage, "Update failed")
+                Return
             End If
 
+            Dim draft = TryBuildDraftAppointment()
+            If draft Is Nothing Then Return
+
+            Dim existing = _store.Appointments.FirstOrDefault(Function(a) a.AppointmentId = _editingAppointmentId)
+            If existing Is Nothing Then
+                StatusMessage = "Appointment not found."
+                AppDialogService.ShowError(StatusMessage, "Update failed")
+                Return
+            End If
+
+            existing.CustomerName = draft.CustomerName
+            existing.ServiceName = draft.ServiceName
+            existing.StartTime = draft.StartTime
+            existing.DurationMinutes = draft.DurationMinutes
+
+            If ViewAppointment IsNot Nothing AndAlso ViewAppointment.AppointmentId = existing.AppointmentId Then
+                NotifyViewLabels()
+            End If
+
+            _store.RaiseAppointmentsChanged()
+            StatusMessage = "Appointment updated."
+            FinishEdit(draft.StartTime.Date)
+        End Sub
+
+        Private Function TryBuildDraftAppointment() As AppointmentItem
+            If String.IsNullOrWhiteSpace(EditFirstName) Then
+                Return FailValidation("First name is required.")
+            End If
+            If String.IsNullOrWhiteSpace(EditLastName) Then
+                Return FailValidation("Last name is required.")
+            End If
+            If String.IsNullOrWhiteSpace(EditService) Then
+                Return FailValidation("Service is required.")
+            End If
+            If AvailableBusinessHours.Count = 0 Then
+                Return FailValidation("No available time slots for the selected date. Choose a later day or time.", "No available slots")
+            End If
+            If Not HourOptions.Contains(EditHour) OrElse Not MinuteOptions.Contains(EditMinute) Then
+                Return FailValidation("Please select a valid start time within business hours.")
+            End If
+            If EditDuration <= 0 Then
+                Return FailValidation("Duration must be greater than zero.")
+            End If
+
+            Dim customerName = $"{EditFirstName.Trim()} {EditLastName.Trim()}"
+            Dim startTime = EditAppointmentDate.Date.AddHours(EditHour).AddMinutes(EditMinute)
+            Dim hoursError = BusinessHoursService.ValidateAppointment(startTime, EditDuration)
+            If Not String.IsNullOrEmpty(hoursError) Then
+                Dim title = If(hoursError.IndexOf("past", StringComparison.OrdinalIgnoreCase) >= 0,
+                               "Past time not allowed",
+                               "Outside business hours")
+                Return FailValidation(hoursError, title)
+            End If
+
+            Return New AppointmentItem With {
+                .CustomerName = customerName,
+                .ServiceName = EditService,
+                .StartTime = startTime,
+                .DurationMinutes = EditDuration
+            }
+        End Function
+
+        Private Function FailValidation(message As String, Optional title As String = "Cannot save appointment") As AppointmentItem
+            StatusMessage = message
+            AppDialogService.ShowError(message, title)
+            Return Nothing
+        End Function
+
+        Private Sub FinishEdit(appointmentDate As Date)
+            SelectedDate = appointmentDate
             IsEditMode = False
             LoadAppointments()
         End Sub
 
+        Private Sub NotifyViewLabels()
+            OnPropertyChanged(NameOf(ViewEndTimeLabel))
+            OnPropertyChanged(NameOf(ViewDateLabel))
+            OnPropertyChanged(NameOf(ViewDurationLabel))
+        End Sub
+
+        Private Sub EnsureMinuteOption(minute As Integer)
+            If Not MinuteOptions.Contains(minute) Then
+                MinuteOptions.Add(minute)
+                MinuteOptions = New ObservableCollection(Of Integer)(MinuteOptions.OrderBy(Function(m) m))
+                OnPropertyChanged(NameOf(MinuteOptions))
+            End If
+        End Sub
+
+        Private Shared Function SplitName(fullName As String) As (String, String)
+            If String.IsNullOrWhiteSpace(fullName) Then
+                Return (String.Empty, String.Empty)
+            End If
+
+            Dim trimmed = fullName.Trim()
+            Dim spaceIndex = trimmed.IndexOf(" "c)
+            If spaceIndex < 0 Then
+                Return (trimmed, String.Empty)
+            End If
+
+            Return (trimmed.Substring(0, spaceIndex), trimmed.Substring(spaceIndex + 1).Trim())
+        End Function
+
         Private Sub DeleteAppointment(appt As AppointmentItem)
             If appt Is Nothing Then Return
-            Dim confirm = System.Windows.MessageBox.Show(
-                $"Delete appointment for {appt.CustomerName}?",
-                "Confirm delete",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning)
-            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+            If Not AppDialogService.ConfirmDelete($"appointment for {appt.CustomerName}") Then Return
 
             _store.Appointments.Remove(appt)
+            _store.RaiseAppointmentsChanged()
             StatusMessage = "Appointment deleted."
             LoadAppointments()
         End Sub
 
         Private Sub ConvertToTransaction(appt As AppointmentItem)
-            StatusMessage = $"Appointment for {appt.CustomerName} — {appt.ServiceName} ready to convert at Cashier."
+            If appt Is Nothing Then Return
+            IsViewMode = False
+            _openAtPointOfSale?.Invoke(appt)
         End Sub
     End Class
 End Namespace

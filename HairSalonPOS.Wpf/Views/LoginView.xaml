@@ -5,74 +5,180 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="520" d:DesignWidth="800">
-    <Grid Background="{StaticResource PageBackgroundBrush}">
-        <Border Style="{StaticResource CardBorder}" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center">
+    <Grid Background="{DynamicResource PageBackgroundBrush}">
+        <Border Style="{StaticResource LoginCardBorder}" Width="400" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>
-                <TextBlock Text="Fix Republic" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" HorizontalAlignment="Center"/>
+                <StackPanel Style="{StaticResource LoginHeaderBlock}">
+                    <Grid Width="100" Height="100"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          ClipToBounds="True">
+                        <Grid.OpacityMask>
+                            <VisualBrush Stretch="None">
+                                <VisualBrush.Visual>
+                                    <Grid Width="100" Height="100">
+                                        <Ellipse Width="100" Height="100" Fill="Black"/>
+                                    </Grid>
+                                </VisualBrush.Visual>
+                            </VisualBrush>
+                        </Grid.OpacityMask>
+                        <Image Width="210" Height="210"
+                               Stretch="UniformToFill"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               Source="pack://application:,,,/Assets/pos_LOGO.png"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    </Grid>
+                    <TextBlock Text="POS with Inventory Management System"
+                               FontSize="13"
+                               Foreground="{DynamicResource MutedTextBrush}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Margin="0,6,0,0"
+                               MaxWidth="320"
+                               LineHeight="18"/>
+                </StackPanel>
 
                 <!-- Login -->
                 <StackPanel Visibility="{Binding IsLoginStep, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="Sign in to continue" Margin="0,8,0,24" Foreground="#78716C" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Username" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="44" Padding="12,8" Margin="0,0,0,12"/>
-                    <TextBlock Text="Password" Style="{StaticResource SectionHeader}"/>
-                    <PasswordBox x:Name="PasswordBox" Height="44" Padding="12,8" PasswordChanged="PasswordBox_PasswordChanged" Margin="0,0,0,8"/>
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding InfoMessage}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                    <Button Content="Login" Style="{StaticResource AccentButton}" Command="{Binding LoginCommand}" Margin="0,8,0,0"/>
-                    <Button Content="Forgot password?" Command="{Binding ShowForgotPasswordCommand}"
-                            Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}"
-                            Cursor="Hand" Margin="0,12,0,0" HorizontalAlignment="Center" Padding="4"/>
-                    <TextBlock Margin="0,12,0,0" Foreground="#78716C" FontSize="12" Text="Demo: admin / Admin@123" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Sign in to continue" Style="{StaticResource LoginStepSubtitle}"/>
+
+                    <TextBlock Text="Username" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorder}">
+                        <TextBox x:Name="LoginUsernameBox"
+                                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource LoginInlineTextBox}"
+                                 IsEnabled="{Binding IsLoginStep}"/>
+                    </Border>
+
+                    <TextBlock Text="Password" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorder}">
+                        <Grid VerticalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="PasswordBox" Grid.Column="0"
+                                         Style="{StaticResource LoginPasswordBox}"
+                                         PasswordChanged="PasswordBox_PasswordChanged"/>
+                            <TextBox x:Name="PasswordTextBox" Grid.Column="0"
+                                     Style="{StaticResource LoginPasswordRevealTextBox}"
+                                     Visibility="Collapsed"
+                                     TextChanged="PasswordTextBox_TextChanged"/>
+                            <ToggleButton Grid.Column="1" Style="{StaticResource PasswordRevealButton}"
+                                          Checked="PasswordReveal_Checked" Unchecked="PasswordReveal_Unchecked"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" Style="{StaticResource LoginMessage}"/>
+                    <TextBlock Text="{Binding InfoMessage}" Foreground="{DynamicResource AccentBrush}" Style="{StaticResource LoginMessage}"/>
+                    <Button Content="Login" Style="{StaticResource LoginPrimaryButton}" Command="{Binding LoginCommand}"/>
+                    <Button Content="Forgot password?" Command="{Binding ShowForgotPasswordCommand}" Style="{StaticResource LoginLinkButton}"/>
                 </StackPanel>
 
                 <!-- Username step -->
                 <StackPanel Visibility="{Binding IsUsernameStep, Converter={StaticResource BoolToVis}}">
-                    <DockPanel Margin="0,8,0,16">
+                    <DockPanel Style="{StaticResource LoginBackRow}">
                         <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
                                 Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
                     </DockPanel>
-                    <TextBlock Text="Forgot password" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
-                    <TextBlock Text="Enter your username to continue." Foreground="#78716C" Margin="0,0,0,16" TextWrapping="Wrap"/>
-                    <TextBlock Text="Username" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="44" Padding="12,8" Margin="0,0,0,12"/>
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                    <Button Content="Next" Style="{StaticResource AccentButton}" Command="{Binding RecoveryNextCommand}"/>
+                    <TextBlock Text="Forgot password" Style="{StaticResource LoginStepTitle}"/>
+                    <TextBlock Text="Enter your username to continue." Style="{StaticResource LoginStepDescription}"/>
+
+                    <TextBlock Text="Username" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorder}">
+                        <TextBox x:Name="RecoveryUsernameBox"
+                                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource LoginInlineTextBox}"
+                                 IsEnabled="{Binding IsUsernameStep}"/>
+                    </Border>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" Style="{StaticResource LoginMessage}"/>
+                    <Button Content="Next" Style="{StaticResource LoginPrimaryButton}" Command="{Binding RecoveryNextCommand}"/>
                 </StackPanel>
 
                 <!-- Security questions -->
                 <StackPanel Visibility="{Binding IsSecurityStep, Converter={StaticResource BoolToVis}}">
-                    <DockPanel Margin="0,8,0,16">
+                    <DockPanel Style="{StaticResource LoginBackRow}">
                         <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
                                 Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
                     </DockPanel>
-                    <TextBlock Text="Security questions" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
-                    <TextBlock Text="{Binding InfoMessage}" Foreground="#78716C" Margin="0,0,0,12" TextWrapping="Wrap"/>
-                    <TextBlock Text="Favorite number" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding FavNumber, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
-                    <TextBlock Text="Favorite color" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding FavColor, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
-                    <TextBlock Text="Favorite animal" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding FavAnimal, UpdateSourceTrigger=PropertyChanged}" Height="40" Padding="12,8" Margin="0,0,0,10"/>
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                    <Button Content="Verify" Style="{StaticResource AccentButton}" Command="{Binding RecoveryNextCommand}"/>
-                    <TextBlock Margin="0,12,0,0" Foreground="#78716C" FontSize="11" TextWrapping="Wrap"
-                               Text="Demo (admin): 7 / blue / dog"/>
+                    <TextBlock Text="Security questions" Style="{StaticResource LoginStepTitle}"/>
+                    <TextBlock Text="{Binding InfoMessage}" Style="{StaticResource LoginStepDescription}"/>
+
+                    <TextBlock Text="Favorite number" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorderCompact}">
+                        <TextBox Text="{Binding FavNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource LoginInlineTextBox}"/>
+                    </Border>
+                    <TextBlock Text="{Binding FavNumberError}" Style="{StaticResource LoginFieldError}"/>
+
+                    <TextBlock Text="Favorite color" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorderCompact}">
+                        <TextBox Text="{Binding FavColor, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource LoginInlineTextBox}"/>
+                    </Border>
+                    <TextBlock Text="{Binding FavColorError}" Style="{StaticResource LoginFieldError}"/>
+
+                    <TextBlock Text="Favorite animal" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorderCompact}">
+                        <TextBox Text="{Binding FavAnimal, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource LoginInlineTextBox}"/>
+                    </Border>
+                    <TextBlock Text="{Binding FavAnimalError}" Style="{StaticResource LoginFieldError}"/>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" Style="{StaticResource LoginMessage}"/>
+                    <Button Content="Verify" Style="{StaticResource LoginPrimaryButton}" Command="{Binding RecoveryNextCommand}"/>
                 </StackPanel>
 
                 <!-- Reset password -->
                 <StackPanel Visibility="{Binding IsResetStep, Converter={StaticResource BoolToVis}}">
-                    <DockPanel Margin="0,8,0,16">
+                    <DockPanel Style="{StaticResource LoginBackRow}">
                         <Button Content="← Back" Command="{Binding RecoveryBackCommand}" Style="{StaticResource SecondaryButton}"
                                 Padding="10,6" HorizontalAlignment="Left" DockPanel.Dock="Left"/>
                     </DockPanel>
-                    <TextBlock Text="Reset password" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,16"/>
-                    <TextBlock Text="New password" Style="{StaticResource SectionHeader}"/>
-                    <PasswordBox x:Name="NewPasswordBox" Height="44" Padding="12,8" PasswordChanged="NewPasswordBox_PasswordChanged" Margin="0,0,0,10"/>
-                    <TextBlock Text="Confirm password" Style="{StaticResource SectionHeader}"/>
-                    <PasswordBox x:Name="ConfirmPasswordBox" Height="44" Padding="12,8" PasswordChanged="ConfirmPasswordBox_PasswordChanged" Margin="0,0,0,10"/>
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                    <Button Content="Save new password" Style="{StaticResource AccentButton}" Command="{Binding ResetPasswordCommand}"/>
+                    <TextBlock Text="Reset password" Style="{StaticResource LoginStepTitle}"/>
+                    <TextBlock Text="{Binding PasswordRequirementsText}"
+                               FontSize="12" Style="{StaticResource LoginStepDescription}"/>
+
+                    <TextBlock Text="New password" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorder}">
+                        <Grid VerticalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="NewPasswordBox" Grid.Column="0"
+                                         Style="{StaticResource LoginPasswordBox}"
+                                         PasswordChanged="NewPasswordBox_PasswordChanged"/>
+                            <TextBox x:Name="NewPasswordTextBox" Grid.Column="0"
+                                     Style="{StaticResource LoginPasswordRevealTextBox}"
+                                     Visibility="Collapsed"
+                                     TextChanged="NewPasswordTextBox_TextChanged"/>
+                            <ToggleButton Grid.Column="1" Style="{StaticResource PasswordRevealButton}"
+                                          Checked="NewPasswordReveal_Checked" Unchecked="NewPasswordReveal_Unchecked"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="Confirm password" Style="{StaticResource LoginFieldLabel}"/>
+                    <Border Style="{StaticResource LoginInputBorder}">
+                        <Grid VerticalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="ConfirmPasswordBox" Grid.Column="0"
+                                         Style="{StaticResource LoginPasswordBox}"
+                                         PasswordChanged="ConfirmPasswordBox_PasswordChanged"/>
+                            <TextBox x:Name="ConfirmPasswordTextBox" Grid.Column="0"
+                                     Style="{StaticResource LoginPasswordRevealTextBox}"
+                                     Visibility="Collapsed"
+                                     TextChanged="ConfirmPasswordTextBox_TextChanged"/>
+                            <ToggleButton Grid.Column="1" Style="{StaticResource PasswordRevealButton}"
+                                          Checked="ConfirmPasswordReveal_Checked" Unchecked="ConfirmPasswordReveal_Unchecked"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" Style="{StaticResource LoginMessage}"/>
+                    <Button Content="Save new password" Style="{StaticResource LoginPrimaryButton}" Command="{Binding ResetPasswordCommand}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

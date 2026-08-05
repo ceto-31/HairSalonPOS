@@ -46,11 +46,11 @@
                     <Button Content="+ New promo" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
                             Command="{Binding NewPromoCommand}"/>
                 </DockPanel>
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
                 <ItemsControl ItemsSource="{Binding Discounts}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{StaticResource CardMutedBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,10">
+                            <Border Background="{DynamicResource CardMutedBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -60,15 +60,15 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="{Binding Code}" FontWeight="Bold" FontSize="15"/>
-                                        <TextBlock Text="{Binding Description}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="12" Padding="10,4" Margin="0,0,8,0">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#DCFCE7"/>
+                                                <Setter Property="Background" Value="{DynamicResource SuccessBadgeBrush}"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding StatusLabel}" Value="Expiring">
-                                                        <Setter Property="Background" Value="#FEF3C7"/>
+                                                        <Setter Property="Background" Value="{DynamicResource WarningBadgeBrush}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>

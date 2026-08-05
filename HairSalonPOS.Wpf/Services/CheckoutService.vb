@@ -36,8 +36,8 @@ Namespace Services
             End If
 
             Dim taxable = Math.Max(0D, subTotal - discount)
-            Dim tax = Math.Round(taxable - (taxable / (1D + InMemoryDataStore.TaxRate)), 2)
-            Dim vatable = taxable - tax
+            Dim tax = 0D
+            Dim vatable = 0D
             Dim total = taxable
 
             If request.PaymentMethod = "Cash" Then
@@ -67,11 +67,13 @@ Namespace Services
                 .IsService = c.IsService
             }).ToList()
 
+            Dim customerName = If(String.IsNullOrWhiteSpace(request.CustomerName), "Walk-in", request.CustomerName.Trim())
+
             Dim receipt As New ReceiptModel With {
                 .SaleId = saleId,
                 .SaleDate = DateTime.Now,
                 .CashierName = request.CashierName,
-                .CustomerName = request.CustomerName,
+                .CustomerName = customerName,
                 .StylistName = request.StylistName,
                 .PaymentMethod = request.PaymentMethod,
                 .SubTotal = subTotal,
@@ -95,7 +97,7 @@ Namespace Services
                 .ReceiptNumber = receipt.ReceiptNumber,
                 .SaleDate = receipt.SaleDate,
                 .CashierName = request.CashierName,
-                .CustomerName = request.CustomerName,
+                .CustomerName = customerName,
                 .StylistName = request.StylistName,
                 .PaymentMethod = request.PaymentMethod,
                 .SubTotal = subTotal,
@@ -109,13 +111,6 @@ Namespace Services
             }
 
             _store.Sales.Add(sale)
-
-            Dim customer = _store.Customers.FirstOrDefault(Function(c) c.Name.Equals(request.CustomerName, StringComparison.OrdinalIgnoreCase))
-            If customer IsNot Nothing AndAlso Not customer.Name.Equals("Walk-in", StringComparison.OrdinalIgnoreCase) Then
-                customer.VisitCount += 1
-                customer.LoyaltyPoints += CInt(Math.Floor(total / 10D))
-            End If
-
             _store.RaiseSaleCompleted()
             Return receipt
         End Function

@@ -271,12 +271,7 @@ Namespace ViewModels
                 StatusMessage = "Only Admin can manage inventory."
                 Return
             End If
-            Dim confirm = System.Windows.MessageBox.Show(
-                $"Delete product '{product.Name}'?",
-                "Confirm delete",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning)
-            If confirm <> System.Windows.MessageBoxResult.Yes Then Return
+            If Not AppDialogService.ConfirmDelete(product.Name) Then Return
 
             Try
                 _inventory.DeleteProduct(product)

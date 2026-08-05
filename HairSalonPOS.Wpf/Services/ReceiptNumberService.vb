@@ -1,6 +1,7 @@
 Imports System.Configuration
 Imports System.IO
 Imports System.Text.Json
+Imports HairSalonPOS.Wpf.Helpers
 Imports HairSalonPOS.Wpf.Models
 Imports Microsoft.Data.SqlClient
 
@@ -32,6 +33,26 @@ Namespace Services
             End SyncLock
         End Function
 
+        Public Function GetPersistedSales(fromDate As Date, toDateExclusive As Date) As List(Of SaleRecord)
+            SyncLock _lock
+                Dim fromDb = TryLoadSalesFromDatabase(fromDate, toDateExclusive)
+                If fromDb IsNot Nothing AndAlso fromDb.Count > 0 Then Return fromDb
+
+                Return LoadSalesFromLedger(fromDate, toDateExclusive)
+            End SyncLock
+        End Function
+
+        Public Function GetReceiptByOrNumber(orNumber As String) As ReceiptModel
+            If String.IsNullOrWhiteSpace(orNumber) Then Return Nothing
+
+            SyncLock _lock
+                Dim fromDb = TryLoadReceiptFromDatabase(orNumber)
+                If fromDb IsNot Nothing Then Return fromDb
+
+                Return LoadReceiptFromLedger(orNumber)
+            End SyncLock
+        End Function
+
         Private Function GetNextSequence() As Integer
             Dim ledger = LoadLedger()
             Dim fromFile = ledger.LastOrSequence + 1
@@ -51,7 +72,14 @@ Namespace Services
                 .SaleId = receipt.SaleId,
                 .IssuedAt = receipt.SaleDate,
                 .CashierName = receipt.CashierName,
-                .Total = receipt.Total
+                .CustomerName = receipt.CustomerName,
+                .StylistName = receipt.StylistName,
+                .PaymentMethod = receipt.PaymentMethod,
+                .SubTotal = receipt.SubTotal,
+                .Discount = receipt.DiscountAmount,
+                .Tax = receipt.Tax,
+                .Total = receipt.Total,
+                .ReceiptJson = JsonSerializer.Serialize(receipt)
             })
             SaveLedger(ledger)
         End Sub
@@ -98,6 +126,117 @@ Namespace Services
                 Return True
             Catch
                 Return False
+            End Try
+        End Function
+
+        Private Function TryLoadSalesFromDatabase(fromDate As Date, toDateExclusive As Date) As List(Of SaleRecord)
+            Dim connectionString = ConfigurationManager.ConnectionStrings("HairSalonDb")?.ConnectionString
+            If String.IsNullOrWhiteSpace(connectionString) Then Return Nothing
+            Try
+                Dim results As New List(Of SaleRecord)
+                Using conn As New SqlConnection(connectionString)
+                    conn.Open()
+                    Using cmd As New SqlCommand(
+                        "SELECT OrNumber, SaleId, IssuedAt, CashierName, CustomerName, StylistName, SubTotal, Discount, Tax, Total, PaymentMethod, ReceiptJson
+                         FROM Receipts
+                         WHERE IssuedAt >= @FromDate AND IssuedAt < @ToDate
+                         ORDER BY IssuedAt DESC", conn)
+                        cmd.Parameters.AddWithValue("@FromDate", fromDate)
+                        cmd.Parameters.AddWithValue("@ToDate", toDateExclusive)
+                        Using reader = cmd.ExecuteReader()
+                            While reader.Read()
+                                results.Add(MapReaderToSaleRecord(reader))
+                            End While
+                        End Using
+                    End Using
+                End Using
+                Return results
+            Catch
+                Return Nothing
+            End Try
+        End Function
+
+        Private Function TryLoadReceiptFromDatabase(orNumber As String) As ReceiptModel
+            Dim connectionString = ConfigurationManager.ConnectionStrings("HairSalonDb")?.ConnectionString
+            If String.IsNullOrWhiteSpace(connectionString) Then Return Nothing
+            Try
+                Using conn As New SqlConnection(connectionString)
+                    conn.Open()
+                    Using cmd As New SqlCommand(
+                        "SELECT ReceiptJson FROM Receipts WHERE OrNumber = @OrNumber", conn)
+                        cmd.Parameters.AddWithValue("@OrNumber", orNumber)
+                        Dim json = TryCast(cmd.ExecuteScalar(), String)
+                        Return DeserializeReceiptJson(json)
+                    End Using
+                End Using
+            Catch
+                Return Nothing
+            End Try
+        End Function
+
+        Private Function LoadSalesFromLedger(fromDate As Date, toDateExclusive As Date) As List(Of SaleRecord)
+            Dim ledger = LoadLedger()
+            Return ledger.Receipts.
+                Where(Function(r) r.IssuedAt >= fromDate AndAlso r.IssuedAt < toDateExclusive).
+                Select(AddressOf MapLedgerRecordToSaleRecord).
+                OrderByDescending(Function(s) s.SaleDate).
+                ToList()
+        End Function
+
+        Private Function LoadReceiptFromLedger(orNumber As String) As ReceiptModel
+            Dim ledger = LoadLedger()
+            Dim record = ledger.Receipts.FirstOrDefault(Function(r) r.OrNumber.Equals(orNumber, StringComparison.OrdinalIgnoreCase))
+            If record Is Nothing Then Return Nothing
+            Return DeserializeReceiptJson(record.ReceiptJson)
+        End Function
+
+        Private Function MapReaderToSaleRecord(reader As SqlDataReader) As SaleRecord
+            Dim json = If(reader.IsDBNull(11), Nothing, reader.GetString(11))
+            Dim receipt = DeserializeReceiptJson(json)
+            If receipt IsNot Nothing Then Return ReceiptModelMapper.ToSaleRecord(receipt)
+
+            Return New SaleRecord With {
+                .SaleId = reader.GetInt32(1),
+                .ReceiptNumber = reader.GetString(0),
+                .SaleDate = reader.GetDateTime(2),
+                .CashierName = If(reader.IsDBNull(3), String.Empty, reader.GetString(3)),
+                .CustomerName = If(reader.IsDBNull(4), String.Empty, reader.GetString(4)),
+                .StylistName = If(reader.IsDBNull(5), String.Empty, reader.GetString(5)),
+                .SubTotal = If(reader.IsDBNull(6), 0D, reader.GetDecimal(6)),
+                .DiscountAmount = If(reader.IsDBNull(7), 0D, reader.GetDecimal(7)),
+                .Tax = If(reader.IsDBNull(8), 0D, reader.GetDecimal(8)),
+                .Total = If(reader.IsDBNull(9), 0D, reader.GetDecimal(9)),
+                .PaymentMethod = If(reader.IsDBNull(10), String.Empty, reader.GetString(10)),
+                .Lines = New List(Of SaleLineRecord)()
+            }
+        End Function
+
+        Private Function MapLedgerRecordToSaleRecord(record As IssuedReceiptRecord) As SaleRecord
+            Dim receipt = DeserializeReceiptJson(record.ReceiptJson)
+            If receipt IsNot Nothing Then Return ReceiptModelMapper.ToSaleRecord(receipt)
+
+            Return New SaleRecord With {
+                .SaleId = record.SaleId,
+                .ReceiptNumber = record.OrNumber,
+                .SaleDate = record.IssuedAt,
+                .CashierName = record.CashierName,
+                .CustomerName = record.CustomerName,
+                .StylistName = record.StylistName,
+                .PaymentMethod = record.PaymentMethod,
+                .SubTotal = record.SubTotal,
+                .DiscountAmount = record.Discount,
+                .Tax = record.Tax,
+                .Total = record.Total,
+                .Lines = New List(Of SaleLineRecord)()
+            }
+        End Function
+
+        Private Shared Function DeserializeReceiptJson(json As String) As ReceiptModel
+            If String.IsNullOrWhiteSpace(json) Then Return Nothing
+            Try
+                Return JsonSerializer.Deserialize(Of ReceiptModel)(json)
+            Catch
+                Return Nothing
             End Try
         End Function
 

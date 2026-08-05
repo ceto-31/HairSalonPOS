@@ -47,11 +47,11 @@
                     <Button Content="+ Add staff" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
                             Command="{Binding AddStaffCommand}"/>
                 </DockPanel>
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
                 <ItemsControl ItemsSource="{Binding StaffMembers}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="#E7E5E4" BorderThickness="0,0,0,1" Padding="0,14">
+                            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -60,13 +60,13 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Width="44" Height="44" CornerRadius="22" Background="#DBEAFE" Margin="0,0,14,0">
-                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="#2563EB"
+                                    <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,14,0">
+                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{DynamicResource AvatarForegroundBrush}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
-                                        <TextBlock Foreground="{StaticResource MutedTextBrush}">
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}">
                                             <Run Text="{Binding Role}"/>
                                             <Run Text=" • "/>
                                             <Run Text="{Binding CommissionRate}"/>
@@ -74,7 +74,7 @@
                                         </TextBlock>
                                     </StackPanel>
                                     <Border Grid.Column="2" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
-                                        <TextBlock Text="Active" FontWeight="SemiBold" Foreground="{StaticResource AccentDarkBrush}"/>
+                                        <TextBlock Text="Active" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
                                     </Border>
                                     <Button Grid.Column="3" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
                                             Command="{Binding DataContext.EditStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
