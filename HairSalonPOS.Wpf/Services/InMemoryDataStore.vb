@@ -82,9 +82,9 @@ Namespace Services
                 Staff.AddRange(persistedStaff)
             Else
                 Staff.AddRange({
-                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .CommissionRate = 10D},
-                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .CommissionRate = 8D},
-                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .CommissionRate = 7D}
+                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist"},
+                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist"},
+                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist"}
                 })
                 PersistStaff()
             End If
@@ -178,7 +178,14 @@ Namespace Services
         End Sub
 
         Private Sub SeedSampleSales()
-            Dim baseDate = Date.Today
+            ' Real receipt history comes from the ledger. Don't inject demo OR-001..OR-008 once any real sale exists.
+            If ReceiptNumberService.Instance.HasIssuedReceipts() Then
+                Sales.Clear()
+                Return
+            End If
+
+            ' Keep sample data on yesterday so today's real checkouts stay on top when sorted by SaleDate.
+            Dim baseDate = Date.Today.AddDays(-1)
             Dim cashier = "Ana Reyes"
             Sales.Clear()
             Sales.AddRange({

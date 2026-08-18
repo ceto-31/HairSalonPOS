@@ -163,7 +163,10 @@ Namespace ViewModels
         Public Property ExportCommand As RelayCommand
 
         Public Sub LoadReports()
-            Dim filtered = FilterSales().OrderByDescending(Function(s) s.SaleDate).ToList()
+            Dim filtered = FilterSales().
+                OrderByDescending(Function(s) s.SaleDate).
+                ThenByDescending(Function(s) s.SaleId).
+                ToList()
             Sales = New ObservableCollection(Of SaleRecord)(filtered)
             TransactionCount = filtered.Count
             TotalSales = If(filtered.Count > 0, filtered.Sum(Function(s) s.Total), 0D)

@@ -53,6 +53,15 @@ Namespace Services
             End SyncLock
         End Function
 
+        Public Function HasIssuedReceipts() As Boolean
+            SyncLock _lock
+                Dim ledger = LoadLedger()
+                If ledger.LastOrSequence > 0 OrElse ledger.Receipts.Count > 0 Then Return True
+                Dim fromDb = TryGetNextSequenceFromDatabase()
+                Return fromDb.HasValue AndAlso fromDb.Value > 1
+            End SyncLock
+        End Function
+
         Private Function GetNextSequence() As Integer
             Dim ledger = LoadLedger()
             Dim fromFile = ledger.LastOrSequence + 1
