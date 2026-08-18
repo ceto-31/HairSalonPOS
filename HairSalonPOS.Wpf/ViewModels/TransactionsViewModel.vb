@@ -12,7 +12,7 @@ Namespace ViewModels
         Private ReadOnly _history As TransactionHistoryService = TransactionHistoryService.Instance
         Private ReadOnly _print As New ReceiptPrintService()
 
-        Private _period As String = "Daily"
+        Private _period As String = "All"
         Private _selectedDate As Date = Date.Today
         Private _searchText As String = String.Empty
         Private _transactionCount As Integer
@@ -25,9 +25,11 @@ Namespace ViewModels
             Sales = New ObservableCollection(Of SaleRecord)()
 
             RefreshCommand = New RelayCommand(AddressOf LoadTransactions)
+            SetAllCommand = New RelayCommand(Sub() Period = "All")
             SetDailyCommand = New RelayCommand(Sub() Period = "Daily")
             SetWeeklyCommand = New RelayCommand(Sub() Period = "Weekly")
             SetMonthlyCommand = New RelayCommand(Sub() Period = "Monthly")
+            SetYearlyCommand = New RelayCommand(Sub() Period = "Yearly")
             PreviewReceiptCommand = New RelayCommand(Of SaleRecord)(AddressOf PreviewReceipt)
             ReprintReceiptCommand = New RelayCommand(Of SaleRecord)(AddressOf ReprintReceipt)
 
@@ -42,6 +44,11 @@ Namespace ViewModels
             Set(value As String)
                 SetProperty(_period, value)
                 LoadTransactions()
+                OnPropertyChanged(NameOf(IsAll))
+                OnPropertyChanged(NameOf(IsDaily))
+                OnPropertyChanged(NameOf(IsWeekly))
+                OnPropertyChanged(NameOf(IsMonthly))
+                OnPropertyChanged(NameOf(IsYearly))
             End Set
         End Property
 
@@ -102,10 +109,42 @@ Namespace ViewModels
 
         Public Property Sales As ObservableCollection(Of SaleRecord)
 
+        Public ReadOnly Property IsAll As Boolean
+            Get
+                Return Period = "All"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsDaily As Boolean
+            Get
+                Return Period = "Daily"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsWeekly As Boolean
+            Get
+                Return Period = "Weekly"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsMonthly As Boolean
+            Get
+                Return Period = "Monthly"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsYearly As Boolean
+            Get
+                Return Period = "Yearly"
+            End Get
+        End Property
+
         Public Property RefreshCommand As RelayCommand
+        Public Property SetAllCommand As RelayCommand
         Public Property SetDailyCommand As RelayCommand
         Public Property SetWeeklyCommand As RelayCommand
         Public Property SetMonthlyCommand As RelayCommand
+        Public Property SetYearlyCommand As RelayCommand
         Public Property PreviewReceiptCommand As RelayCommand(Of SaleRecord)
         Public Property ReprintReceiptCommand As RelayCommand(Of SaleRecord)
 
@@ -154,7 +193,11 @@ Namespace ViewModels
                                                s.CashierName.Contains(term, StringComparison.OrdinalIgnoreCase))
             End If
 
-            Dim filtered = query.OrderByDescending(Function(s) s.SaleDate).ToList()
+            Dim filtered = query.
+                OrderByDescending(Function(s) s.SaleDate).
+                ThenByDescending(Function(s) ParseReceiptSequence(s.ReceiptNumber)).
+                ThenByDescending(Function(s) s.SaleId).
+                ToList()
             Sales = New ObservableCollection(Of SaleRecord)(filtered)
             TransactionCount = filtered.Count
             TotalSales = If(filtered.Count > 0, filtered.Sum(Function(s) s.Total), 0D)
@@ -162,14 +205,27 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(Sales))
         End Sub
 
+        Private Shared Function ParseReceiptSequence(receiptNumber As String) As Integer
+            If String.IsNullOrWhiteSpace(receiptNumber) Then Return 0
+            Dim digits = New String(receiptNumber.Where(Function(c) Char.IsDigit(c)).ToArray())
+            Dim value As Integer
+            If Integer.TryParse(digits, value) Then Return value
+            Return 0
+        End Function
+
         Private Function GetDateRange() As (FromDate As Date, ToDateExclusive As Date)
             Select Case Period
+                Case "All"
+                    Return (Date.MinValue, Date.Today.AddDays(1))
                 Case "Weekly"
                     Dim start = SelectedDate.Date.AddDays(-CInt(SelectedDate.DayOfWeek))
                     Return (start, start.AddDays(7))
                 Case "Monthly"
                     Dim start = New Date(SelectedDate.Year, SelectedDate.Month, 1)
                     Return (start, start.AddMonths(1))
+                Case "Yearly"
+                    Dim start = New Date(SelectedDate.Year, 1, 1)
+                    Return (start, start.AddYears(1))
                 Case Else
                     Return (SelectedDate.Date, SelectedDate.Date.AddDays(1))
             End Select

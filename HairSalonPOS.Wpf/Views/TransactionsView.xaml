@@ -19,9 +19,71 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                <Button Content="Today" Command="{Binding SetDailyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
-                <Button Content="This week" Command="{Binding SetWeeklyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
-                <Button Content="This month" Command="{Binding SetMonthlyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,16,0"/>
+                <Button Content="All" Command="{Binding SetAllCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAll}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Today" Command="{Binding SetDailyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDaily}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="This week" Command="{Binding SetWeeklyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsWeekly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="This month" Command="{Binding SetMonthlyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMonthly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="This year" Command="{Binding SetYearlyCommand}" Margin="0,0,16,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsYearly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <DatePicker SelectedDate="{Binding SelectedDate}" Width="160" VerticalAlignment="Center"/>
             </StackPanel>
 
