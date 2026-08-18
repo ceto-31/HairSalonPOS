@@ -20,7 +20,7 @@ Namespace ViewModels
         Private _customerName As String = DefaultCustomerName
         Private _selectedStylist As StaffMember
         Private _customerBirthDate As Date?
-        Private _seniorEligibilityText As String = "Enter birthdate to check senior discount"
+        Private _seniorEligibilityText As String = String.Empty
         Private _promoCode As String = String.Empty
         Private _paymentMethod As String = "Cash"
         Private _amountTendered As Decimal
@@ -54,7 +54,7 @@ Namespace ViewModels
             CatalogTiles = New ObservableCollection(Of CatalogTile)()
             Cart = New ObservableCollection(Of CartLine)()
             Stylists = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
-            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories)
+            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories.Where(Function(c) c.IsActive))
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
             SubCategoryChips = New ObservableCollection(Of SelectableChip)()
             CatalogTypes = New ObservableCollection(Of String) From {"Service", "Product"}
@@ -109,7 +109,7 @@ Namespace ViewModels
             AmountTendered = 0D
             _customerBirthDate = Nothing
             OnPropertyChanged(NameOf(CustomerBirthDate))
-            SeniorEligibilityText = "Enter birthdate to check senior discount"
+            SeniorEligibilityText = String.Empty
 
             _pendingAppointmentId = appt.AppointmentId
             CustomerName = If(String.IsNullOrWhiteSpace(appt.CustomerName), DefaultCustomerName, appt.CustomerName.Trim())
@@ -172,7 +172,7 @@ Namespace ViewModels
         Private Sub RefreshCategoriesFromStore(Optional selectCategoryName As String = Nothing, Optional selectSubCategoryName As String = Nothing)
             Dim cat = If(Not String.IsNullOrWhiteSpace(selectCategoryName), selectCategoryName, SelectedCategory)
             Dim subCat = If(Not String.IsNullOrWhiteSpace(selectSubCategoryName), selectSubCategoryName, SelectedSubCategory)
-            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories)
+            Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories.Where(Function(c) c.IsActive))
             OnPropertyChanged(NameOf(Categories))
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
             OnPropertyChanged(NameOf(CategoryChips))
@@ -220,9 +220,7 @@ Namespace ViewModels
                 Return _customerBirthDate
             End Get
             Set(value As Date?)
-                If SetProperty(_customerBirthDate, value) Then
-                    ApplySeniorAgeTrapping()
-                End If
+                SetProperty(_customerBirthDate, value)
             End Set
         End Property
 
@@ -679,7 +677,7 @@ Namespace ViewModels
                 Return
             End If
 
-            Dim node = New CatalogCategoryNode With {.Name = name}
+            Dim node = New CatalogCategoryNode With {.Name = name, .IsActive = True}
             ManageCategories.Add(node)
             SelectedManageCategory = node
             EditCategoryName = name
@@ -831,6 +829,7 @@ Namespace ViewModels
         Private Shared Function CloneCategory(source As CatalogCategoryNode) As CatalogCategoryNode
             Return New CatalogCategoryNode With {
                 .Name = source.Name,
+                .IsActive = source.IsActive,
                 .SubCategories = New List(Of String)(If(source.SubCategories, New List(Of String)()))
             }
         End Function
@@ -861,13 +860,13 @@ Namespace ViewModels
             Dim cat = SelectedCategory
             Dim subCat = CurrentSubCategoryValue()
 
-            For Each s In _store.Services.Where(Function(x) MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
+            For Each s In _store.Services.Where(Function(x) x.IsActive AndAlso MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
                 CatalogTiles.Add(New CatalogTile With {
                     .Sku = s.Sku, .Name = s.Name, .Price = s.Price, .Icon = s.Icon,
                     .TileType = "Service", .Category = s.Category, .SubCategory = s.SubCategory
                 })
             Next
-            For Each p In _store.Products.Where(Function(x) MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
+            For Each p In _store.Products.Where(Function(x) x.IsActive AndAlso MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
                 CatalogTiles.Add(New CatalogTile With {
                     .Sku = p.Sku, .Name = p.Name, .Price = p.Price, .Icon = "🧴",
                     .TileType = "Product", .Category = p.Category, .SubCategory = p.SubCategory
@@ -940,7 +939,8 @@ Namespace ViewModels
                         .StockOnHand = 100,
                         .ReorderLevel = 5,
                         .Category = cat,
-                        .SubCategory = subCat
+                        .SubCategory = subCat,
+                        .IsActive = True
                     })
                 Else
                     Dim sku = $"CS{(_store.Services.Count + 1):D3}"
@@ -951,7 +951,9 @@ Namespace ViewModels
                         .DurationMinutes = 60,
                         .Icon = "✨",
                         .Category = cat,
-                        .SubCategory = subCat
+                        .SubCategory = subCat,
+                        .CommissionPercent = 0D,
+                        .IsActive = True
                     })
                 End If
                 StatusMessage = "Item added."
@@ -1053,7 +1055,7 @@ Namespace ViewModels
             StatusMessage = String.Empty
             _customerBirthDate = Nothing
             OnPropertyChanged(NameOf(CustomerBirthDate))
-            SeniorEligibilityText = "Enter birthdate to check senior discount"
+            SeniorEligibilityText = String.Empty
             RecalculateTotals()
             ClearCartCommand.NotifyCanExecuteChanged()
             CheckoutCommand.NotifyCanExecuteChanged()
@@ -1065,78 +1067,96 @@ Namespace ViewModels
         End Function
 
         Private Sub ApplyPromo()
-            EnforceSeniorPromoEligibility()
-            RecalculateTotals()
-        End Sub
-
-        Private Sub ApplySeniorAgeTrapping()
-            If Not CustomerBirthDate.HasValue Then
-                SeniorEligibilityText = "Enter birthdate to check senior discount"
-                If IsSeniorPromo(PromoCode) Then
-                    PromoCode = String.Empty
-                End If
+            If String.IsNullOrWhiteSpace(PromoCode) Then
+                AppDialogService.ShowWarning("Enter a promo code.", "Promo code")
                 RecalculateTotals()
                 Return
             End If
 
-            Dim birthDate = CustomerBirthDate.Value.Date
-            If birthDate > Date.Today Then
-                SeniorEligibilityText = "Invalid birthdate — cannot be in the future"
-                If IsSeniorPromo(PromoCode) Then
-                    PromoCode = String.Empty
-                End If
-                RecalculateTotals()
+            If IsSeniorPromo(PromoCode) Then
+                ApplySeniorPromoWithBirthdatePrompt()
                 Return
             End If
 
-            Dim age = CalculateAge(birthDate)
-            If age > MaximumReasonableAge Then
-                SeniorEligibilityText = "Invalid birthdate — age exceeds reasonable limit"
-                If IsSeniorPromo(PromoCode) Then
-                    PromoCode = String.Empty
-                End If
-                RecalculateTotals()
-                Return
-            End If
-
-            If age >= SeniorMinimumAge Then
-                PromoCode = SeniorPromoCode
-                SeniorEligibilityText = $"Age {age} — Senior discount applied"
+            Dim code = PromoCode.Trim()
+            Dim discount = _store.Discounts.FirstOrDefault(Function(d) d.Code.Equals(code, StringComparison.OrdinalIgnoreCase) AndAlso d.IsActive)
+            If discount Is Nothing Then
+                AppDialogService.ShowWarning("Invalid or inactive promo code.", "Promo code")
+                StatusMessage = String.Empty
             Else
-                If IsSeniorPromo(PromoCode) Then
-                    PromoCode = String.Empty
-                End If
-                SeniorEligibilityText = $"Age {age} — Not eligible for senior discount"
+                StatusMessage = $"Promo {discount.Code} applied."
+                AppDialogService.ShowSuccess($"Promo {discount.Code} applied.", "Promo applied")
             End If
-
             RecalculateTotals()
         End Sub
+
+        Private Sub ApplySeniorPromoWithBirthdatePrompt()
+            Dim birth = AppDialogService.PromptBirthdate(_customerBirthDate)
+            If Not birth.HasValue Then
+                PromoCode = String.Empty
+                _customerBirthDate = Nothing
+                OnPropertyChanged(NameOf(CustomerBirthDate))
+                SeniorEligibilityText = String.Empty
+                StatusMessage = String.Empty
+                AppDialogService.ShowInfo("Senior discount cancelled.", "Senior discount")
+                RecalculateTotals()
+                Return
+            End If
+
+            Dim validation = ValidateSeniorBirthdate(birth.Value)
+            If Not validation.IsEligible Then
+                PromoCode = String.Empty
+                _customerBirthDate = Nothing
+                OnPropertyChanged(NameOf(CustomerBirthDate))
+                SeniorEligibilityText = validation.Message
+                StatusMessage = String.Empty
+                AppDialogService.ShowWarning(validation.Message, "Not eligible")
+                RecalculateTotals()
+                Return
+            End If
+
+            _customerBirthDate = birth.Value.Date
+            OnPropertyChanged(NameOf(CustomerBirthDate))
+            PromoCode = SeniorPromoCode
+            SeniorEligibilityText = validation.Message
+            StatusMessage = validation.Message
+            AppDialogService.ShowSuccess(validation.Message, "Senior discount")
+            RecalculateTotals()
+        End Sub
+
+        Private Function ValidateSeniorBirthdate(birthDate As Date) As (IsEligible As Boolean, Message As String)
+            Dim dateOnly = birthDate.Date
+            If dateOnly > Date.Today Then
+                Return (False, "Invalid birthdate — cannot be in the future")
+            End If
+
+            Dim age = CalculateAge(dateOnly)
+            If age > MaximumReasonableAge Then
+                Return (False, "Invalid birthdate — age exceeds reasonable limit")
+            End If
+
+            If age < SeniorMinimumAge Then
+                Return (False, $"Age {age} — Not eligible for senior discount")
+            End If
+
+            Return (True, $"Age {age} — Senior discount applied")
+        End Function
 
         Private Sub EnforceSeniorPromoEligibility()
             If Not IsSeniorPromo(PromoCode) Then Return
 
             If Not CustomerBirthDate.HasValue Then
                 PromoCode = String.Empty
-                SeniorEligibilityText = "Birthdate required for senior discount"
-                StatusMessage = "Enter customer birthdate to apply senior discount."
+                SeniorEligibilityText = String.Empty
+                StatusMessage = "Senior discount requires birthdate verification. Click Apply after entering SENIOR."
                 Return
             End If
 
-            Dim birthDate = CustomerBirthDate.Value.Date
-            If birthDate > Date.Today Then
+            Dim validation = ValidateSeniorBirthdate(CustomerBirthDate.Value)
+            If Not validation.IsEligible Then
                 PromoCode = String.Empty
-                SeniorEligibilityText = "Invalid birthdate — cannot be in the future"
-                StatusMessage = "Senior discount blocked: birthdate cannot be in the future."
-                Return
-            End If
-
-            Dim age = CalculateAge(birthDate)
-            If age > MaximumReasonableAge OrElse age < SeniorMinimumAge Then
-                PromoCode = String.Empty
-                SeniorEligibilityText = If(age > MaximumReasonableAge,
-                    "Invalid birthdate — age exceeds reasonable limit",
-                    $"Age {age} — Not eligible for senior discount")
-                StatusMessage = "Customer is not eligible for senior discount."
+                SeniorEligibilityText = validation.Message
+                StatusMessage = validation.Message
             End If
         End Sub
 
@@ -1206,25 +1226,27 @@ Namespace ViewModels
                     _store.CompleteAppointment(_pendingAppointmentId)
                     _pendingAppointmentId = 0
                 End If
-                Try
-                    _print.PrintReceipt(LastReceipt, showDialog:=True)
-                    StatusMessage = $"Sale {LastReceipt.ReceiptNumber} completed and sent to printer."
-                Catch printEx As Exception
-                    StatusMessage = $"Sale {LastReceipt.ReceiptNumber} saved, but printing failed: {printEx.Message}"
-                End Try
+                Dim preview As New Views.ReceiptPreviewWindow(LastReceipt)
+                preview.Owner = Application.Current?.MainWindow
+                preview.ShowDialog()
+                StatusMessage = $"Sale {LastReceipt.ReceiptNumber} completed."
                 ClearCart()
             Catch ex As Exception
                 StatusMessage = ex.Message
+                AppDialogService.ShowError(ex.Message, "Checkout failed")
             End Try
         End Sub
 
         Private Sub ReprintLastReceipt()
             If LastReceipt Is Nothing Then Return
             Try
-                _print.PrintReceipt(LastReceipt, showDialog:=True)
-                StatusMessage = $"Reprinted {LastReceipt.ReceiptNumber}."
+                Dim preview As New Views.ReceiptPreviewWindow(LastReceipt)
+                preview.Owner = Application.Current?.MainWindow
+                preview.ShowDialog()
+                StatusMessage = $"Receipt {LastReceipt.ReceiptNumber} ready."
             Catch ex As Exception
                 StatusMessage = $"Reprint failed: {ex.Message}"
+                AppDialogService.ShowWarning(ex.Message, "Reprint failed")
             End Try
         End Sub
     End Class

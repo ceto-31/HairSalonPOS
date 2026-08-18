@@ -82,5 +82,20 @@ Namespace Services
                 .SecondaryButtonText = "Cancel"
             }) = AppDialogResult.Yes
         End Function
+
+        Public Function PromptBirthdate(Optional initialDate As Date? = Nothing,
+                                        Optional owner As Window = Nothing) As Date?
+            Dim dialog As New Views.BirthdatePromptWindow(initialDate)
+            If owner IsNot Nothing Then
+                dialog.Owner = owner
+            ElseIf Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                dialog.Owner = Application.Current.MainWindow
+            End If
+            Dim result = dialog.ShowDialog()
+            If result = True AndAlso dialog.Confirmed AndAlso dialog.SelectedBirthdate.HasValue Then
+                Return dialog.SelectedBirthdate
+            End If
+            Return Nothing
+        End Function
     End Module
 End Namespace
