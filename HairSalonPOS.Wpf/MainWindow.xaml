@@ -14,7 +14,7 @@
             TransactionsTemplate="{StaticResource TransactionsTemplate}"
             InventoryTemplate="{StaticResource InventoryTemplate}"
             ReportsTemplate="{StaticResource ReportsTemplate}"
-            StaffTemplate="{StaticResource StaffTemplate}"
+            MasterFilesTemplate="{StaticResource MasterFilesTemplate}"
             DiscountsTemplate="{StaticResource DiscountsTemplate}"
             AppointmentsTemplate="{StaticResource AppointmentsTemplate}"
             SettingsTemplate="{StaticResource SettingsTemplate}"/>
@@ -108,11 +108,41 @@
                             </Button>
                             <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"/>
 
+                            <Button Content="MASTER FILES" Command="{Binding NavigateMasterFilesCommand}"
+                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentNavKey}" Value="MasterFiles">
+                                                <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"
+                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
+
                             <Button Content="POINT OF SALE" Command="{Binding NavigateCashierCommand}">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding CurrentNavKey}" Value="PointOfSale">
+                                                <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"/>
+
+                            <Button Content="APPOINTMENTS" Command="{Binding NavigateAppointmentsCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentNavKey}" Value="Appointments">
                                                 <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
                                             </DataTrigger>
@@ -157,52 +187,6 @@
                                     <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding CurrentNavKey}" Value="Reports">
-                                                <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"/>
-
-                            <Button Content="STAFF" Command="{Binding NavigateStaffCommand}"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CurrentNavKey}" Value="Staff">
-                                                <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
-
-                            <Button Content="DISCOUNTS" Command="{Binding NavigateDiscountsCommand}"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CurrentNavKey}" Value="Discounts">
-                                                <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="16,0"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
-
-                            <Button Content="APPOINTMENTS" Command="{Binding NavigateAppointmentsCommand}">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource DrawerNavButton}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding CurrentNavKey}" Value="Appointments">
                                                 <Setter Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
                                             </DataTrigger>

@@ -12,7 +12,7 @@ Namespace Helpers
         Public Property TransactionsTemplate As DataTemplate
         Public Property InventoryTemplate As DataTemplate
         Public Property ReportsTemplate As DataTemplate
-        Public Property StaffTemplate As DataTemplate
+        Public Property MasterFilesTemplate As DataTemplate
         Public Property DiscountsTemplate As DataTemplate
         Public Property AppointmentsTemplate As DataTemplate
         Public Property SettingsTemplate As DataTemplate
@@ -31,8 +31,8 @@ Namespace Helpers
                     Return InventoryTemplate
                 Case TypeOf item Is ReportsViewModel
                     Return ReportsTemplate
-                Case TypeOf item Is StaffViewModel
-                    Return StaffTemplate
+                Case TypeOf item Is MasterFilesViewModel
+                    Return MasterFilesTemplate
                 Case TypeOf item Is DiscountsViewModel
                     Return DiscountsTemplate
                 Case TypeOf item Is AppointmentsViewModel

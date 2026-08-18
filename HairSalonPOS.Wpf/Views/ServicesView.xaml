@@ -1,0 +1,344 @@
+<UserControl x:Class="Views.ServicesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="600" d:DesignWidth="700">
+    <Grid>
+        <!-- Edit / add service -->
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,16">
+                        <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                                Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
+                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </DockPanel>
+                    <UniformGrid Columns="2" Margin="0,0,0,12">
+                        <StackPanel Margin="0,0,8,8">
+                            <TextBlock Text="Service name" Style="{StaticResource SectionHeader}"/>
+                            <TextBox Text="{Binding EditName}" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Price" Style="{StaticResource SectionHeader}"/>
+                            <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,8,8">
+                            <TextBlock Text="Duration (minutes)" Style="{StaticResource SectionHeader}"/>
+                            <TextBox Text="{Binding EditDuration}" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Commission %" Style="{StaticResource SectionHeader}"/>
+                            <TextBox Text="{Binding EditCommissionPercent}" Style="{StaticResource ModernTextBox}"/>
+                            <TextBlock Text="Use 0 for no commission." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding EditCategoryOptions}" SelectedItem="{Binding EditCategory}" Style="{StaticResource ModernComboBox}"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Subcategory" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding EditSubCategoryOptions}" SelectedItem="{Binding EditSubCategory}" Style="{StaticResource ModernComboBox}"/>
+                        </StackPanel>
+                    </UniformGrid>
+                    <Button Content="Save service" Style="{StaticResource PrimaryButton}" Command="{Binding SaveServiceCommand}" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Category add/edit form -->
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding IsCategoryFormMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,16">
+                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                            Command="{Binding CancelCategoryFormCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding CategoryFormTitle}" FontWeight="SemiBold" FontSize="16"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </DockPanel>
+                <TextBlock Text="Category name" Style="{StaticResource SectionHeader}"/>
+                <TextBox Text="{Binding EditCategoryName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,12"/>
+                <Button Content="Save category" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCategoryFormCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Subcategory add/edit form -->
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding IsSubCategoryFormMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,16">
+                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                            Command="{Binding CancelSubCategoryFormCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding SubCategoryFormTitle}" FontWeight="SemiBold" FontSize="16"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </DockPanel>
+                <TextBlock Text="Subcategory name" Style="{StaticResource SectionHeader}"/>
+                <TextBox Text="{Binding EditSubCategoryName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,12"/>
+                <Button Content="Save subcategory" Style="{StaticResource PrimaryButton}" Command="{Binding SaveSubCategoryFormCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Categories list (Services-style cards) -->
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding ShowCategoryListMode, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,12,0"
+                            Command="{Binding CancelCategoryManageCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"
+                            Visibility="{Binding ShowCategoryCancelButton, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="Categories" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{Binding ShowArchivedLabel}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                Command="{Binding ToggleShowArchivedCommand}"/>
+                        <Button Content="+ Add category" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding BeginAddCategoryCommand}"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding ManageCategories}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                    Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="0"
+                                                    Command="{Binding DataContext.SelectManageCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock Text="{Binding SubCategorySummary}" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Border Grid.Column="1" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <TextBlock Text="{Binding StatusLabel}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                            </Border>
+                                            <Button Grid.Column="2" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                                    Command="{Binding DataContext.BeginEditCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Archive"
+                                                    Command="{Binding DataContext.ArchiveCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Restore"
+                                                    Command="{Binding DataContext.UnarchiveCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="4" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                                    Command="{Binding DataContext.DeleteCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <StackPanel Margin="0,20,0,0" Visibility="{Binding HasSelectedManageCategory, Converter={StaticResource BoolToVis}}">
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock Text="{Binding SelectedManageCategoryTitle}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Content="+ Add subcategory" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
+                                        Command="{Binding BeginAddSubCategoryCommand}"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding ManageSubCategories}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                                        Command="{Binding DataContext.BeginEditSubCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Grid.Column="2" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                                        Command="{Binding DataContext.DeleteSubCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- List mode -->
+        <Border Style="{StaticResource CardBorder}"
+                Visibility="{Binding ShowListMode, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <TextBlock Text="Services" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{Binding ShowArchivedLabel}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                Command="{Binding ToggleShowArchivedCommand}"/>
+                        <Button Content="Manage categories" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                Command="{Binding BeginManageCategoriesCommand}"
+                                Visibility="{Binding ShowManageCategoriesButton, Converter={StaticResource BoolToVis}}"/>
+                        <Button Content="+ Add service" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding AddServiceCommand}"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding CategoryChips}" DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Name}" CommandParameter="{Binding Name}" Margin="0,0,8,8"
+                                    Command="{Binding DataContext.SelectCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource CategoryChipButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <ItemsControl ItemsSource="{Binding SubCategoryChips}" DockPanel.Dock="Top" Margin="0,0,0,12"
+                              Visibility="{Binding HasSubCategories, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Name}" CommandParameter="{Binding Name}" Margin="0,0,8,8"
+                                    Command="{Binding DataContext.SelectSubCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource CategoryChipButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Services}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}">
+                                                <Run Text="₱"/>
+                                                <Run Text="{Binding Price, Mode=OneWay, StringFormat={}{0:N2}}"/>
+                                                <Run Text=" • "/>
+                                                <Run Text="{Binding DurationMinutes, Mode=OneWay}"/>
+                                                <Run Text=" min • Commission: "/>
+                                                <Run Text="{Binding CommissionDisplay, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding StatusLabel, Mode=OneWay}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                        </Border>
+                                        <Button Grid.Column="2" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                                Command="{Binding DataContext.EditServiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Archive"
+                                                Command="{Binding DataContext.ArchiveServiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Restore"
+                                                Command="{Binding DataContext.UnarchiveServiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="4" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                                Command="{Binding DataContext.DeleteServiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -29,8 +29,7 @@ Namespace ViewModels
             TransactionsViewModel = New TransactionsViewModel()
             InventoryViewModel = New InventoryViewModel()
             ReportsViewModel = New ReportsViewModel()
-            StaffViewModel = New StaffViewModel()
-            DiscountsViewModel = New DiscountsViewModel()
+            MasterFilesViewModel = New MasterFilesViewModel()
             AppointmentsViewModel = New AppointmentsViewModel(AddressOf OpenAppointmentAtPointOfSale)
             SettingsViewModel = New SettingsViewModel()
 
@@ -39,8 +38,7 @@ Namespace ViewModels
             NavigateTransactionsCommand = New RelayCommand(AddressOf NavigateTransactions, Function() IsLoggedIn)
             NavigateInventoryCommand = New RelayCommand(AddressOf NavigateInventory, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
             NavigateReportsCommand = New RelayCommand(AddressOf NavigateReports, Function() IsLoggedIn)
-            NavigateStaffCommand = New RelayCommand(AddressOf NavigateStaff, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
-            NavigateDiscountsCommand = New RelayCommand(AddressOf NavigateDiscounts, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
+            NavigateMasterFilesCommand = New RelayCommand(AddressOf NavigateMasterFiles, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
             NavigateAppointmentsCommand = New RelayCommand(AddressOf NavigateAppointments, Function() IsLoggedIn)
             NavigateSettingsCommand = New RelayCommand(AddressOf NavigateSettings, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
             LogoutCommand = New RelayCommand(AddressOf Logout, Function() IsLoggedIn)
@@ -63,8 +61,7 @@ Namespace ViewModels
         Public Property TransactionsViewModel As TransactionsViewModel
         Public Property InventoryViewModel As InventoryViewModel
         Public Property ReportsViewModel As ReportsViewModel
-        Public Property StaffViewModel As StaffViewModel
-        Public Property DiscountsViewModel As DiscountsViewModel
+        Public Property MasterFilesViewModel As MasterFilesViewModel
         Public Property AppointmentsViewModel As AppointmentsViewModel
         Public Property SettingsViewModel As SettingsViewModel
 
@@ -240,8 +237,7 @@ Namespace ViewModels
         Public Property NavigateTransactionsCommand As RelayCommand
         Public Property NavigateInventoryCommand As RelayCommand
         Public Property NavigateReportsCommand As RelayCommand
-        Public Property NavigateStaffCommand As RelayCommand
-        Public Property NavigateDiscountsCommand As RelayCommand
+        Public Property NavigateMasterFilesCommand As RelayCommand
         Public Property NavigateAppointmentsCommand As RelayCommand
         Public Property NavigateSettingsCommand As RelayCommand
         Public Property LogoutCommand As RelayCommand
@@ -290,14 +286,10 @@ Namespace ViewModels
             CurrentNavKey = "Reports"
         End Sub
 
-        Private Sub NavigateStaff()
-            CurrentView = StaffViewModel
-            CurrentNavKey = "Staff"
-        End Sub
-
-        Private Sub NavigateDiscounts()
-            CurrentView = DiscountsViewModel
-            CurrentNavKey = "Discounts"
+        Private Sub NavigateMasterFiles()
+            MasterFilesViewModel.LoadFromStore()
+            CurrentView = MasterFilesViewModel
+            CurrentNavKey = "MasterFiles"
         End Sub
 
         Private Sub NavigateAppointments()
@@ -371,8 +363,7 @@ Namespace ViewModels
             NavigateTransactionsCommand.NotifyCanExecuteChanged()
             NavigateInventoryCommand.NotifyCanExecuteChanged()
             NavigateReportsCommand.NotifyCanExecuteChanged()
-            NavigateStaffCommand.NotifyCanExecuteChanged()
-            NavigateDiscountsCommand.NotifyCanExecuteChanged()
+            NavigateMasterFilesCommand.NotifyCanExecuteChanged()
             NavigateAppointmentsCommand.NotifyCanExecuteChanged()
             NavigateSettingsCommand.NotifyCanExecuteChanged()
             LogoutCommand.NotifyCanExecuteChanged()

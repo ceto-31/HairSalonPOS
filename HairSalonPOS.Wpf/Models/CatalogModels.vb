@@ -20,6 +20,22 @@ Namespace Models
         Public Property Icon As String = "✂️"
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
+        ''' <summary>Commission as percent of price. 0 = no commission.</summary>
+        Public Property CommissionPercent As Decimal
+        Public Property IsActive As Boolean = True
+
+        Public ReadOnly Property CommissionDisplay As String
+            Get
+                If CommissionPercent <= 0D Then Return "None"
+                Return $"{CommissionPercent:0.##}%"
+            End Get
+        End Property
+
+        Public ReadOnly Property StatusLabel As String
+            Get
+                Return If(IsActive, "Active", "Archived")
+            End Get
+        End Property
     End Class
 
     Public Class ProductItem
@@ -35,6 +51,13 @@ Namespace Models
         Public Property ReorderLevel As Integer = 10
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
+        Public Property IsActive As Boolean = True
+
+        Public ReadOnly Property StatusLabel As String
+            Get
+                Return If(IsActive, "Active", "Archived")
+            End Get
+        End Property
 
         Public Property StockOnHand As Integer
             Get

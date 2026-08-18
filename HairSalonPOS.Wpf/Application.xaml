@@ -28,8 +28,8 @@
             <DataTemplate x:Key="ReportsTemplate">
                 <views:ReportsView/>
             </DataTemplate>
-            <DataTemplate x:Key="StaffTemplate">
-                <views:StaffView/>
+            <DataTemplate x:Key="MasterFilesTemplate">
+                <views:MasterFilesView/>
             </DataTemplate>
             <DataTemplate x:Key="DiscountsTemplate">
                 <views:DiscountsView/>

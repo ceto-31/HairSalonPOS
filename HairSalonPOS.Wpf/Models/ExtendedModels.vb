@@ -9,8 +9,13 @@ Namespace Models
         Public Property StaffId As Integer
         Public Property Name As String = String.Empty
         Public Property Role As String = String.Empty
-        Public Property CommissionRate As Decimal
         Public Property IsActive As Boolean = True
+
+        Public ReadOnly Property StatusLabel As String
+            Get
+                Return If(IsActive, "Active", "Archived")
+            End Get
+        End Property
 
         Public ReadOnly Property Initials As String
             Get
@@ -153,6 +158,22 @@ Namespace Models
     Public Class CatalogCategoryNode
         Public Property Name As String = String.Empty
         Public Property SubCategories As New List(Of String)
+        Public Property IsActive As Boolean = True
+
+        Public ReadOnly Property StatusLabel As String
+            Get
+                Return If(IsActive, "Active", "Archived")
+            End Get
+        End Property
+
+        Public ReadOnly Property SubCategorySummary As String
+            Get
+                Dim count = If(SubCategories?.Count, 0)
+                If count = 0 Then Return "No subcategories"
+                If count = 1 Then Return "1 subcategory"
+                Return $"{count} subcategories"
+            End Get
+        End Property
     End Class
 
     Public Class SelectableChip

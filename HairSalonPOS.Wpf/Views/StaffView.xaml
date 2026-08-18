@@ -25,16 +25,10 @@
                         <TextBox Text="{Binding EditLastName}" Style="{StaticResource ModernTextBox}"/>
                     </StackPanel>
                 </UniformGrid>
-                <UniformGrid Columns="2" Margin="0,0,0,12">
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Commission %" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditCommission}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                </UniformGrid>
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
+                    <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
+                </StackPanel>
                 <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveStaffCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
@@ -43,50 +37,79 @@
                 Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVis}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                    <TextBlock Text="Staff management" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <Button Content="+ Add staff" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
-                            Command="{Binding AddStaffCommand}"/>
+                    <TextBlock Text="Staff" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{Binding ShowArchivedLabel}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                Command="{Binding ToggleShowArchivedCommand}"/>
+                        <Button Content="+ Add staff" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding AddStaffCommand}"/>
+                    </StackPanel>
                 </DockPanel>
                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
-                <ItemsControl ItemsSource="{Binding StaffMembers}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,14,0">
-                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
-                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}">
-                                            <Run Text="{Binding Role}"/>
-                                            <Run Text=" • "/>
-                                            <Run Text="{Binding CommissionRate}"/>
-                                            <Run Text="% commission"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                    <Border Grid.Column="2" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
-                                        <TextBlock Text="Active" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
-                                    </Border>
-                                    <Button Grid.Column="3" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
-                                            Command="{Binding DataContext.EditStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"/>
-                                    <Button Grid.Column="4" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
-                                            Command="{Binding DataContext.DeleteStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding StaffMembers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,14,0">
+                                            <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
+                                            <TextBlock Text="{Binding Role}" Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="2" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding StatusLabel}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                        </Border>
+                                        <Button Grid.Column="3" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                                Command="{Binding DataContext.EditStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Grid.Column="4" Padding="12,6" Margin="0,0,8,0" Content="Archive"
+                                                Command="{Binding DataContext.ArchiveStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="4" Padding="12,6" Margin="0,0,8,0" Content="Restore"
+                                                Command="{Binding DataContext.UnarchiveStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Grid.Column="5" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                                Command="{Binding DataContext.DeleteStaffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </DockPanel>
         </Border>
     </Grid>

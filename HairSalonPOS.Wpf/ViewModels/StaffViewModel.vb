@@ -11,22 +11,59 @@ Namespace ViewModels
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
         Private _editRole As String = "Stylist"
-        Private _editCommission As Decimal = 8D
         Private _isEditMode As Boolean
         Private _isAdding As Boolean = True
         Private _editingStaffId As Integer
         Private _statusMessage As String = String.Empty
+        Private _showArchived As Boolean
+        Private _isHostedInMasterFiles As Boolean
 
         Public Sub New()
-            StaffMembers = New ObservableCollection(Of StaffMember)(_store.Staff)
+            StaffMembers = New ObservableCollection(Of StaffMember)()
             AddStaffCommand = New RelayCommand(AddressOf BeginAdd)
             EditStaffCommand = New RelayCommand(Of StaffMember)(AddressOf BeginEdit)
             SaveStaffCommand = New RelayCommand(AddressOf SaveStaff)
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
             DeleteStaffCommand = New RelayCommand(Of StaffMember)(AddressOf DeleteStaff)
+            ArchiveStaffCommand = New RelayCommand(Of StaffMember)(AddressOf ArchiveStaff)
+            UnarchiveStaffCommand = New RelayCommand(Of StaffMember)(AddressOf UnarchiveStaff)
+            ToggleShowArchivedCommand = New RelayCommand(AddressOf ToggleShowArchived)
+            LoadFromStore()
         End Sub
 
+        Public Sub LoadFromStore()
+            RefreshList()
+            StatusMessage = String.Empty
+        End Sub
+
+        Public Property IsHostedInMasterFiles As Boolean
+            Get
+                Return _isHostedInMasterFiles
+            End Get
+            Set(value As Boolean)
+                SetProperty(_isHostedInMasterFiles, value)
+            End Set
+        End Property
+
         Public Property StaffMembers As ObservableCollection(Of StaffMember)
+
+        Public Property ShowArchived As Boolean
+            Get
+                Return _showArchived
+            End Get
+            Set(value As Boolean)
+                If SetProperty(_showArchived, value) Then
+                    RefreshList()
+                    OnPropertyChanged(NameOf(ShowArchivedLabel))
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property ShowArchivedLabel As String
+            Get
+                Return If(ShowArchived, "Hide archived", "Show archived")
+            End Get
+        End Property
 
         Public Property IsEditMode As Boolean
             Get
@@ -70,15 +107,6 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property EditCommission As Decimal
-            Get
-                Return _editCommission
-            End Get
-            Set(value As Decimal)
-                SetProperty(_editCommission, value)
-            End Set
-        End Property
-
         Public Property StatusMessage As String
             Get
                 Return _statusMessage
@@ -93,6 +121,22 @@ Namespace ViewModels
         Public Property SaveStaffCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
         Public Property DeleteStaffCommand As RelayCommand(Of StaffMember)
+        Public Property ArchiveStaffCommand As RelayCommand(Of StaffMember)
+        Public Property UnarchiveStaffCommand As RelayCommand(Of StaffMember)
+        Public Property ToggleShowArchivedCommand As RelayCommand
+
+        Private Sub ToggleShowArchived()
+            ShowArchived = Not ShowArchived
+        End Sub
+
+        Private Sub RefreshList()
+            Dim query = _store.Staff.AsEnumerable()
+            If Not ShowArchived Then
+                query = query.Where(Function(s) s.IsActive)
+            End If
+            StaffMembers = New ObservableCollection(Of StaffMember)(query.OrderBy(Function(s) s.Name))
+            OnPropertyChanged(NameOf(StaffMembers))
+        End Sub
 
         Private Sub BeginAdd()
             _isAdding = True
@@ -100,7 +144,6 @@ Namespace ViewModels
             EditFirstName = String.Empty
             EditLastName = String.Empty
             EditRole = "Stylist"
-            EditCommission = 8D
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -113,7 +156,6 @@ Namespace ViewModels
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
             EditRole = member.Role
-            EditCommission = member.CommissionRate
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -135,11 +177,9 @@ Namespace ViewModels
                     .StaffId = If(_store.Staff.Count = 0, 1, _store.Staff.Max(Function(s) s.StaffId) + 1),
                     .Name = fullName,
                     .Role = EditRole.Trim(),
-                    .CommissionRate = EditCommission,
                     .IsActive = True
                 }
                 _store.Staff.Add(member)
-                StaffMembers.Add(member)
                 StatusMessage = "Staff member added."
             Else
                 Dim existing = _store.Staff.FirstOrDefault(Function(s) s.StaffId = _editingStaffId)
@@ -149,13 +189,11 @@ Namespace ViewModels
                 End If
                 existing.Name = fullName
                 existing.Role = EditRole.Trim()
-                existing.CommissionRate = EditCommission
-                StaffMembers = New ObservableCollection(Of StaffMember)(_store.Staff)
-                OnPropertyChanged(NameOf(StaffMembers))
                 StatusMessage = "Staff member updated."
             End If
 
             _store.RaiseStaffChanged()
+            RefreshList()
             IsEditMode = False
         End Sub
 
@@ -169,9 +207,25 @@ Namespace ViewModels
                 AppDialogType.Warning) Then Return
 
             _store.Staff.Remove(member)
-            StaffMembers.Remove(member)
             StatusMessage = $"{member.Name} removed."
             _store.RaiseStaffChanged()
+            RefreshList()
+        End Sub
+
+        Private Sub ArchiveStaff(member As StaffMember)
+            If member Is Nothing OrElse Not member.IsActive Then Return
+            member.IsActive = False
+            StatusMessage = $"{member.Name} archived."
+            _store.RaiseStaffChanged()
+            RefreshList()
+        End Sub
+
+        Private Sub UnarchiveStaff(member As StaffMember)
+            If member Is Nothing OrElse member.IsActive Then Return
+            member.IsActive = True
+            StatusMessage = $"{member.Name} restored."
+            _store.RaiseStaffChanged()
+            RefreshList()
         End Sub
 
         Private Shared Function SplitName(fullName As String) As (String, String)
