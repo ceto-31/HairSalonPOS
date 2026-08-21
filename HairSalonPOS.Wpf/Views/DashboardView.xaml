@@ -104,9 +104,10 @@
                 <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                            <TextBlock Text="Sales overview" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
-                            <ComboBox ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SalesPeriod}"
+                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SalesPeriod}"
                                       Style="{StaticResource ModernComboBox}" Width="130" HorizontalAlignment="Right"/>
+                            <TextBlock Text="Sales overview" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                         </DockPanel>
                         <UniformGrid DockPanel.Dock="Bottom" Columns="4" Margin="0,12,0,0">
                             <StackPanel>
@@ -145,9 +146,10 @@
                 <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="4,0">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                            <TextBlock Text="Top services" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
-                            <ComboBox ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding TopServicesPeriod}"
+                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding TopServicesPeriod}"
                                       Style="{StaticResource ModernComboBox}" Width="120" HorizontalAlignment="Right"/>
+                            <TextBlock Text="Top services" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                         </DockPanel>
                         <Button DockPanel.Dock="Bottom" Content="View all services ›" Style="{StaticResource DashboardLinkButton}"
                                 Command="{Binding GoToServicesCommand}" Margin="0,8,0,0"
@@ -163,7 +165,7 @@
                                                 BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding Amount, StringFormat=₱{0:N0}}"
                                                    FontWeight="SemiBold" VerticalAlignment="Top"/>
-                                        <StackPanel>
+                                        <StackPanel MinWidth="0">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                             <Border Height="6" Background="{DynamicResource ChipHoverBrush}" CornerRadius="3" Margin="0,6,0,0">
                                                 <Border Width="{Binding BarWidth}" Height="6" CornerRadius="3"
@@ -180,8 +182,10 @@
                 <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="8,0,0,0">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                            <TextBlock Text="Upcoming appointments" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                            <Button Content="View all" Style="{StaticResource DashboardLinkButton}" Command="{Binding GoToAppointmentsCommand}"/>
+                            <Button DockPanel.Dock="Right" Content="View all" Style="{StaticResource DashboardLinkButton}"
+                                    Command="{Binding GoToAppointmentsCommand}"/>
+                            <TextBlock Text="Upcoming appointments" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                         </DockPanel>
                         <Button DockPanel.Dock="Bottom" Content="Go to Appointments ›" Style="{StaticResource DashboardLinkButton}"
                                 Command="{Binding GoToAppointmentsCommand}" Margin="0,8,0,0"/>
@@ -191,16 +195,15 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel Margin="0,0,0,12">
-                                        <TextBlock DockPanel.Dock="Left" Text="{Binding TimeLabel}" Width="72" FontSize="12"
-                                                   Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
                                         <Border DockPanel.Dock="Left" Width="36" Height="36" CornerRadius="18"
                                                 Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,8,0"
                                                 BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
-                                            <TextBlock Text="{Binding StaffInitials}" FontSize="10" FontWeight="Bold"
-                                                       Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
+                                                   Width="20" Height="20" Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Margin="6,0,0,0">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="{DynamicResource SuccessBadgeBrush}"/>
@@ -213,9 +216,13 @@
                                             </Border.Style>
                                             <TextBlock Text="{Binding StatusLabel}" FontSize="9" FontWeight="Bold"/>
                                         </Border>
-                                        <StackPanel VerticalAlignment="Center">
+                                        <StackPanel VerticalAlignment="Center" MinWidth="0" Margin="0,0,4,0">
                                             <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding ServiceName}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{Binding ServiceName, Mode=OneWay}"/>
+                                            </TextBlock>
                                         </StackPanel>
                                     </DockPanel>
                                 </DataTemplate>
