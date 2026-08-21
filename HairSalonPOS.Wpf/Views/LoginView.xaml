@@ -73,7 +73,10 @@
 
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" Style="{StaticResource LoginMessage}"/>
                     <TextBlock Text="{Binding InfoMessage}" Foreground="{DynamicResource AccentBrush}" Style="{StaticResource LoginMessage}"/>
-                    <Button Content="Login" Style="{StaticResource LoginPrimaryButton}" Command="{Binding LoginCommand}"/>
+                    <Button Content="Login"
+                            Style="{StaticResource LoginPrimaryButton}"
+                            Command="{Binding LoginCommand}"
+                            IsDefault="{Binding IsLoginStep}"/>
                     <Button Content="Forgot password?" Command="{Binding ShowForgotPasswordCommand}" Style="{StaticResource LoginLinkButton}"/>
                 </StackPanel>
 
