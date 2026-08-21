@@ -9,6 +9,7 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
+        Private ReadOnly _history As TransactionHistoryService = TransactionHistoryService.Instance
 
         Private _period As String = "Daily"
         Private _selectedDate As Date = Date.Today
@@ -200,21 +201,30 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(Sales))
             OnPropertyChanged(NameOf(StylistPerformance))
 
-            DailyChart = SalesChartBuilder.BuildDailyChart(_store.Sales, SelectedDate)
-            WeeklyChart = SalesChartBuilder.BuildWeeklyChart(_store.Sales, SelectedDate)
-            YearlyChart = SalesChartBuilder.BuildYearlyChart(_store.Sales, SelectedDate)
+            Dim chartWeekStart = SelectedDate.Date.AddDays(-CInt(SelectedDate.DayOfWeek))
+            Dim chartYearStart = New Date(SelectedDate.Year, 1, 1)
+            Dim chartFrom = If(chartWeekStart < chartYearStart, chartWeekStart, chartYearStart)
+            Dim chartSales = _history.GetSales(chartFrom, chartYearStart.AddYears(1))
+            DailyChart = SalesChartBuilder.BuildDailyChart(chartSales, SelectedDate)
+            WeeklyChart = SalesChartBuilder.BuildWeeklyChart(chartSales, SelectedDate)
+            YearlyChart = SalesChartBuilder.BuildYearlyChart(chartSales, SelectedDate)
         End Sub
 
         Private Function FilterSales() As IEnumerable(Of SaleRecord)
+            Dim range = GetDateRange()
+            Return _history.GetSales(range.FromDate, range.ToDateExclusive)
+        End Function
+
+        Private Function GetDateRange() As (FromDate As Date, ToDateExclusive As Date)
             Select Case Period
                 Case "Weekly"
                     Dim start = SelectedDate.Date.AddDays(-CInt(SelectedDate.DayOfWeek))
-                    Dim endDate = start.AddDays(7)
-                    Return _store.Sales.Where(Function(s) s.SaleDate.Date >= start AndAlso s.SaleDate.Date < endDate)
+                    Return (start, start.AddDays(7))
                 Case "Monthly"
-                    Return _store.Sales.Where(Function(s) s.SaleDate.Year = SelectedDate.Year AndAlso s.SaleDate.Month = SelectedDate.Month)
+                    Dim start = New Date(SelectedDate.Year, SelectedDate.Month, 1)
+                    Return (start, start.AddMonths(1))
                 Case Else
-                    Return _store.Sales.Where(Function(s) s.SaleDate.Date = SelectedDate.Date)
+                    Return (SelectedDate.Date, SelectedDate.Date.AddDays(1))
             End Select
         End Function
 

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -28,6 +28,14 @@
 
   <ItemGroup>
     <Resource Include="Assets\pos_LOGO.png" />
+    <Resource Include="Assets\Icons\icon_appointment.png" />
+    <Resource Include="Assets\Icons\icon_appointments.png" />
+    <Resource Include="Assets\Icons\icon_inventory.png" />
+    <Resource Include="Assets\Icons\icon_lowstock.png" />
+    <Resource Include="Assets\Icons\icon_reports.png" />
+    <Resource Include="Assets\Icons\icon_sale.png" />
+    <Resource Include="Assets\Icons\icon_sales.png" />
+    <Resource Include="Assets\Icons\icon_transactions.png" />
   </ItemGroup>
 
 </Project>

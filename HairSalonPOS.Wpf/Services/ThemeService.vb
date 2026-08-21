@@ -64,6 +64,7 @@ Namespace Services
             SetBrush("InputBorderFocusBrush", "#6B4423")
             SetBrush("ChipActiveBackgroundBrush", "#6B4423")
             SetBrush("ChipInactiveForegroundBrush", "#5C4033")
+            SetBrush("ChartFillBrush", "#C8A97E")
         End Sub
 
         Private Shared Sub ApplyDark()
@@ -123,6 +124,7 @@ Namespace Services
             SetBrush("DialogPrimaryHoverBrush", "#C4956A")
             SetBrush("DialogPrimaryPressedBrush", "#B8875A")
             SetBrush("SoftGoldBrush", "#D4A574")
+            SetBrush("ChartFillBrush", "#E0C090")
         End Sub
 
         Private Shared Sub SetBrush(key As String, hex As String)

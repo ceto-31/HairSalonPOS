@@ -339,6 +339,11 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(Appointments))
         End Sub
 
+        Public Sub StartNewBooking()
+            SelectedDate = Date.Today
+            BeginBook()
+        End Sub
+
         Private Sub BeginBook()
             RefreshServiceNames()
             IsViewMode = False

@@ -59,5 +59,24 @@ Namespace Helpers
             geometry.Freeze()
             Return geometry
         End Function
+
+        Public Function BuildAreaFill(points As IList(Of DashboardChartPoint), chartHeight As Double) As PathGeometry
+            Dim curve = BuildSmoothCurve(points)
+            If curve.Figures.Count = 0 OrElse points Is Nothing OrElse points.Count = 0 Then
+                Return New PathGeometry()
+            End If
+
+            Dim figure = curve.Figures(0).Clone()
+            figure.IsClosed = True
+            Dim last = points(points.Count - 1)
+            Dim first = points(0)
+            figure.Segments.Add(New LineSegment(New Point(last.X, chartHeight), True))
+            figure.Segments.Add(New LineSegment(New Point(first.X, chartHeight), True))
+
+            Dim fill As New PathGeometry()
+            fill.Figures.Add(figure)
+            fill.Freeze()
+            Return fill
+        End Function
     End Module
 End Namespace

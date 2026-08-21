@@ -32,6 +32,14 @@ Namespace ViewModels
             MasterFilesViewModel = New MasterFilesViewModel()
             AppointmentsViewModel = New AppointmentsViewModel(AddressOf OpenAppointmentAtPointOfSale)
             SettingsViewModel = New SettingsViewModel()
+            DashboardViewModel.BindNavigation(
+                AddressOf NavigateCashier,
+                AddressOf OpenNewAppointment,
+                AddressOf NavigateAppointments,
+                AddressOf NavigateTransactions,
+                AddressOf NavigateInventory,
+                AddressOf NavigateReports,
+                AddressOf OpenServices)
 
             NavigateDashboardCommand = New RelayCommand(AddressOf NavigateDashboard, Function() IsLoggedIn)
             NavigateCashierCommand = New RelayCommand(AddressOf NavigateCashier, Function() IsLoggedIn)
@@ -287,6 +295,19 @@ Namespace ViewModels
         End Sub
 
         Private Sub NavigateMasterFiles()
+            MasterFilesViewModel.LoadFromStore()
+            CurrentView = MasterFilesViewModel
+            CurrentNavKey = "MasterFiles"
+        End Sub
+
+        Private Sub OpenNewAppointment()
+            AppointmentsViewModel.StartNewBooking()
+            CurrentView = AppointmentsViewModel
+            CurrentNavKey = "Appointments"
+        End Sub
+
+        Private Sub OpenServices()
+            MasterFilesViewModel.Section = "Services"
             MasterFilesViewModel.LoadFromStore()
             CurrentView = MasterFilesViewModel
             CurrentNavKey = "MasterFiles"

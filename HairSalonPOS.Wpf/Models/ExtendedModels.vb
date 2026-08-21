@@ -1,4 +1,5 @@
 Imports System.Collections.ObjectModel
+Imports System.Text.Json.Serialization
 Imports System.Windows.Media
 Imports CommunityToolkit.Mvvm.ComponentModel
 
@@ -6,10 +7,29 @@ Namespace Models
     Public Class StaffMember
         Inherits ObservableObject
 
+        Private _imagePath As String = String.Empty
+
         Public Property StaffId As Integer
         Public Property Name As String = String.Empty
         Public Property Role As String = String.Empty
         Public Property IsActive As Boolean = True
+        Public Property ImagePath As String
+            Get
+                Return _imagePath
+            End Get
+            Set(value As String)
+                If SetProperty(_imagePath, If(value, String.Empty)) Then
+                    OnPropertyChanged(NameOf(HasImage))
+                End If
+            End Set
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
 
         Public ReadOnly Property StatusLabel As String
             Get
@@ -210,6 +230,15 @@ Namespace Models
         Public Property CustomerName As String = String.Empty
         Public Property ServiceName As String = String.Empty
         Public Property StaffName As String = String.Empty
+        Public Property StatusLabel As String = String.Empty
+        Public Property IsConfirmed As Boolean
+        Public ReadOnly Property StaffInitials As String
+            Get
+                Dim parts = StaffName.Split(" "c, StringSplitOptions.RemoveEmptyEntries)
+                If parts.Length = 0 Then Return "?"
+                Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
+            End Get
+        End Property
     End Class
 
     Public Class DashboardSaleRow
@@ -223,6 +252,22 @@ Namespace Models
         Public Property ProductName As String = String.Empty
         Public Property StockOnHand As Integer
         Public Property ReorderLevel As Integer
+        Public Property ImagePath As String = String.Empty
+    End Class
+
+    Public Class DashboardTopServiceRow
+        Public Property Name As String = String.Empty
+        Public Property Amount As Decimal
+        Public Property BarWidth As Double
+    End Class
+
+    Public Class DashboardDonutSlice
+        Public Property Label As String = String.Empty
+        Public Property Amount As Decimal
+        Public Property PercentLabel As String = String.Empty
+        Public Property AmountLabel As String = String.Empty
+        Public Property SliceBrush As Brush
+        Public Property SliceGeometry As PathGeometry
     End Class
 
     Public Class DashboardChartPoint
@@ -232,13 +277,35 @@ Namespace Models
         Public Property Y As Double
         Public Property MarkerLeft As Double
         Public Property MarkerTop As Double
+        Public Property BarLeft As Double
+        Public Property BarTop As Double
+        Public Property BarWidth As Double
+        Public Property BarHeight As Double
+        Public Property IsEmphasis As Boolean
+        Public Property ShowLabel As Boolean = True
+        Public Property BarOpacity As Double = 0.85
     End Class
 
     Public Class DashboardLineChart
         Public Property Title As String = String.Empty
         Public Property Subtitle As String = String.Empty
+        Public Property ChartKind As String = "Area"
+        Public Property ChartWidth As Double = 304
         Public Property CurveGeometry As PathGeometry
+        Public Property AreaGeometry As PathGeometry
         Public Property MaxAmountLabel As String = String.Empty
         Public Property Points As ObservableCollection(Of DashboardChartPoint)
+
+        Public ReadOnly Property IsBarChart As Boolean
+            Get
+                Return ChartKind = "Bar"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsAreaChart As Boolean
+            Get
+                Return ChartKind <> "Bar"
+            End Get
+        End Property
     End Class
 End Namespace
