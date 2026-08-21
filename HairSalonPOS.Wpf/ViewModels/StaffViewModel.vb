@@ -8,6 +8,7 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
+        Private ReadOnly _images As CatalogImageService = CatalogImageService.Instance
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
         Private _editRole As String = "Stylist"
@@ -17,6 +18,10 @@ Namespace ViewModels
         Private _statusMessage As String = String.Empty
         Private _showArchived As Boolean
         Private _isHostedInMasterFiles As Boolean
+        Private _editImagePath As String = String.Empty
+        Private _pendingSourcePath As String
+        Private _originalImagePath As String = String.Empty
+        Private _imageRemoved As Boolean
 
         Public Sub New()
             StaffMembers = New ObservableCollection(Of StaffMember)()
@@ -28,6 +33,8 @@ Namespace ViewModels
             ArchiveStaffCommand = New RelayCommand(Of StaffMember)(AddressOf ArchiveStaff)
             UnarchiveStaffCommand = New RelayCommand(Of StaffMember)(AddressOf UnarchiveStaff)
             ToggleShowArchivedCommand = New RelayCommand(AddressOf ToggleShowArchived)
+            ChooseImageCommand = New RelayCommand(AddressOf ChooseImage)
+            RemoveImageCommand = New RelayCommand(AddressOf RemoveImage)
             LoadFromStore()
         End Sub
 
@@ -85,7 +92,9 @@ Namespace ViewModels
                 Return _editFirstName
             End Get
             Set(value As String)
-                SetProperty(_editFirstName, value)
+                If SetProperty(_editFirstName, value) Then
+                    OnPropertyChanged(NameOf(EditInitials))
+                End If
             End Set
         End Property
 
@@ -94,7 +103,9 @@ Namespace ViewModels
                 Return _editLastName
             End Get
             Set(value As String)
-                SetProperty(_editLastName, value)
+                If SetProperty(_editLastName, value) Then
+                    OnPropertyChanged(NameOf(EditInitials))
+                End If
             End Set
         End Property
 
@@ -105,6 +116,40 @@ Namespace ViewModels
             Set(value As String)
                 SetProperty(_editRole, value)
             End Set
+        End Property
+
+        Public Property EditImagePath As String
+            Get
+                Return _editImagePath
+            End Get
+            Set(value As String)
+                If SetProperty(_editImagePath, If(value, String.Empty)) Then
+                    OnPropertyChanged(NameOf(HasEditImage))
+                    OnPropertyChanged(NameOf(ChooseImageLabel))
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property HasEditImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(EditImagePath)
+            End Get
+        End Property
+
+        Public ReadOnly Property ChooseImageLabel As String
+            Get
+                Return If(HasEditImage, "Change photo", "Choose photo")
+            End Get
+        End Property
+
+        Public ReadOnly Property EditInitials As String
+            Get
+                Dim parts = New List(Of String)
+                If Not String.IsNullOrWhiteSpace(EditFirstName) Then parts.Add(EditFirstName.Trim())
+                If Not String.IsNullOrWhiteSpace(EditLastName) Then parts.Add(EditLastName.Trim())
+                If parts.Count = 0 Then Return "?"
+                Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
+            End Get
         End Property
 
         Public Property StatusMessage As String
@@ -124,6 +169,8 @@ Namespace ViewModels
         Public Property ArchiveStaffCommand As RelayCommand(Of StaffMember)
         Public Property UnarchiveStaffCommand As RelayCommand(Of StaffMember)
         Public Property ToggleShowArchivedCommand As RelayCommand
+        Public Property ChooseImageCommand As RelayCommand
+        Public Property RemoveImageCommand As RelayCommand
 
         Private Sub ToggleShowArchived()
             ShowArchived = Not ShowArchived
@@ -144,7 +191,9 @@ Namespace ViewModels
             EditFirstName = String.Empty
             EditLastName = String.Empty
             EditRole = "Stylist"
+            ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
+            OnPropertyChanged(NameOf(EditInitials))
             IsEditMode = True
         End Sub
 
@@ -156,7 +205,9 @@ Namespace ViewModels
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
             EditRole = member.Role
+            ResetImageEdit(member.ImagePath)
             OnPropertyChanged(NameOf(FormTitle))
+            OnPropertyChanged(NameOf(EditInitials))
             IsEditMode = True
         End Sub
 
@@ -173,11 +224,18 @@ Namespace ViewModels
             Dim fullName = $"{EditFirstName.Trim()} {EditLastName.Trim()}"
 
             If _isAdding Then
+                Dim staffId = If(_store.Staff.Count = 0, 1, _store.Staff.Max(Function(s) s.StaffId) + 1)
+                Dim imagePath = CommitImage(staffId.ToString())
+                If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
+                    StatusMessage = "Could not save the photo."
+                    Return
+                End If
                 Dim member As New StaffMember With {
-                    .StaffId = If(_store.Staff.Count = 0, 1, _store.Staff.Max(Function(s) s.StaffId) + 1),
+                    .StaffId = staffId,
                     .Name = fullName,
                     .Role = EditRole.Trim(),
-                    .IsActive = True
+                    .IsActive = True,
+                    .ImagePath = If(imagePath, String.Empty)
                 }
                 _store.Staff.Add(member)
                 StatusMessage = "Staff member added."
@@ -187,8 +245,14 @@ Namespace ViewModels
                     StatusMessage = "Staff member not found."
                     Return
                 End If
+                Dim imagePath = CommitImage(existing.StaffId.ToString())
+                If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
+                    StatusMessage = "Could not save the photo."
+                    Return
+                End If
                 existing.Name = fullName
                 existing.Role = EditRole.Trim()
+                existing.ImagePath = If(imagePath, String.Empty)
                 StatusMessage = "Staff member updated."
             End If
 
@@ -206,6 +270,7 @@ Namespace ViewModels
                 "Cancel",
                 AppDialogType.Warning) Then Return
 
+            _images.DeleteImage(member.ImagePath)
             _store.Staff.Remove(member)
             StatusMessage = $"{member.Name} removed."
             _store.RaiseStaffChanged()
@@ -240,6 +305,46 @@ Namespace ViewModels
             End If
 
             Return (trimmed.Substring(0, spaceIndex), trimmed.Substring(spaceIndex + 1).Trim())
+        End Function
+
+        Private Sub ChooseImage()
+            Dim picked = _images.PickImageFile()
+            If picked Is Nothing Then Return
+            _pendingSourcePath = picked
+            _imageRemoved = False
+            EditImagePath = picked
+        End Sub
+
+        Private Sub RemoveImage()
+            _pendingSourcePath = Nothing
+            _imageRemoved = True
+            EditImagePath = String.Empty
+        End Sub
+
+        Private Sub ResetImageEdit(existingPath As String)
+            _pendingSourcePath = Nothing
+            _imageRemoved = False
+            _originalImagePath = If(existingPath, String.Empty)
+            EditImagePath = _originalImagePath
+        End Sub
+
+        Private Function CommitImage(id As String) As String
+            If _pendingSourcePath IsNot Nothing Then
+                Dim saved = _images.SaveImage(_pendingSourcePath, CatalogImageService.StaffKind, id)
+                If saved Is Nothing Then Return Nothing
+                If Not String.IsNullOrWhiteSpace(_originalImagePath) AndAlso
+                   Not _originalImagePath.Equals(saved, StringComparison.OrdinalIgnoreCase) Then
+                    _images.DeleteImage(_originalImagePath)
+                End If
+                Return saved
+            End If
+
+            If _imageRemoved Then
+                _images.DeleteImage(_originalImagePath)
+                Return String.Empty
+            End If
+
+            Return _originalImagePath
         End Function
     End Class
 End Namespace

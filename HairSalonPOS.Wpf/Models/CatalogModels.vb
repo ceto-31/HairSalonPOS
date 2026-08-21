@@ -1,3 +1,4 @@
+Imports System.Text.Json.Serialization
 Imports CommunityToolkit.Mvvm.ComponentModel
 
 Namespace Models
@@ -42,6 +43,7 @@ Namespace Models
         Inherits ObservableObject
 
         Private _stockOnHand As Integer
+        Private _imagePath As String = String.Empty
 
         Public Property Sku As String = String.Empty
         Public Property Name As String = String.Empty
@@ -52,6 +54,23 @@ Namespace Models
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
         Public Property IsActive As Boolean = True
+        Public Property ImagePath As String
+            Get
+                Return _imagePath
+            End Get
+            Set(value As String)
+                If SetProperty(_imagePath, If(value, String.Empty)) Then
+                    OnPropertyChanged(NameOf(HasImage))
+                End If
+            End Set
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
 
         Public ReadOnly Property StatusLabel As String
             Get

@@ -7,4 +7,5 @@
     <helpers:StringEmptyToVisibilityConverter x:Key="StringEmptyToVis"/>
     <helpers:HourToDisplayConverter x:Key="HourToDisplay"/>
     <helpers:TimeSpanToDisplayConverter x:Key="TimeSpanToDisplay"/>
+    <helpers:CatalogImagePathConverter x:Key="CatalogImagePath"/>
 </ResourceDictionary>

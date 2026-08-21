@@ -15,20 +15,49 @@
                     <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
                                VerticalAlignment="Center" Margin="12,0,0,0"/>
                 </DockPanel>
-                <UniformGrid Columns="2" Margin="0,0,0,12">
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="First name" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditFirstName}" Style="{StaticResource ModernTextBox}"/>
+                <DockPanel Margin="0,0,0,12">
+                    <StackPanel DockPanel.Dock="Left" Width="120" Margin="0,0,20,0" VerticalAlignment="Top">
+                        <Grid Width="120" Height="120">
+                            <Border Width="120" Height="120" CornerRadius="60"
+                                    Background="{DynamicResource AvatarBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
+                            <TextBlock Text="{Binding EditInitials}" FontWeight="Bold" FontSize="28"
+                                       Foreground="{DynamicResource AvatarForegroundBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
+                            <Image Stretch="UniformToFill"
+                                   Source="{Binding EditImagePath, Converter={StaticResource CatalogImagePath}}"
+                                   Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="60,60" RadiusX="60" RadiusY="60"/>
+                                </Image.Clip>
+                            </Image>
+                        </Grid>
+                        <Button Content="{Binding ChooseImageLabel}" Style="{StaticResource SecondaryButton}"
+                                Padding="10,6" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                                Command="{Binding ChooseImageCommand}"/>
+                        <Button Content="Remove" Style="{StaticResource SecondaryButton}"
+                                Padding="10,6" Margin="0,6,0,0" HorizontalAlignment="Stretch"
+                                Command="{Binding RemoveImageCommand}"
+                                Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="Last name" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditLastName}" Style="{StaticResource ModernTextBox}"/>
+                        <UniformGrid Columns="2" Margin="0,0,0,12">
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="First name" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditFirstName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Last name" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditLastName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                        <StackPanel>
+                            <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
+                            <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
                     </StackPanel>
-                </UniformGrid>
-                <StackPanel Margin="0,0,0,12">
-                    <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
-                    <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
-                </StackPanel>
+                </DockPanel>
                 <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveStaffCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
@@ -60,10 +89,20 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,14,0">
-                                            <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
+                                        <Grid Width="44" Height="44" Margin="0,0,14,0">
+                                            <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AvatarBackgroundBrush}">
+                                                <TextBlock Text="{Binding Initials}" FontWeight="Bold" Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                            </Border>
+                                            <Image Stretch="UniformToFill"
+                                                   Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                <Image.Clip>
+                                                    <EllipseGeometry Center="22,22" RadiusX="22" RadiusY="22"/>
+                                                </Image.Clip>
+                                            </Image>
+                                        </Grid>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
                                             <TextBlock Text="{Binding Role}" Foreground="{DynamicResource MutedTextBrush}"/>

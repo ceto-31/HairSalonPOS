@@ -9,6 +9,7 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
+        Private ReadOnly _images As CatalogImageService = CatalogImageService.Instance
 
         Private _showArchived As Boolean
         Private _isEditMode As Boolean
@@ -22,6 +23,10 @@ Namespace ViewModels
         Private _editCost As Decimal
         Private _editCategory As String = String.Empty
         Private _editSubCategory As String = String.Empty
+        Private _editImagePath As String = String.Empty
+        Private _pendingSourcePath As String
+        Private _originalImagePath As String = String.Empty
+        Private _imageRemoved As Boolean
 
         Public Sub New()
             Products = New ObservableCollection(Of ProductItem)()
@@ -36,6 +41,8 @@ Namespace ViewModels
             ArchiveProductCommand = New RelayCommand(Of ProductItem)(AddressOf ArchiveProduct)
             UnarchiveProductCommand = New RelayCommand(Of ProductItem)(AddressOf UnarchiveProduct)
             ToggleShowArchivedCommand = New RelayCommand(AddressOf ToggleShowArchived)
+            ChooseImageCommand = New RelayCommand(AddressOf ChooseImage)
+            RemoveImageCommand = New RelayCommand(AddressOf RemoveImage)
 
             LoadProducts()
         End Sub
@@ -138,6 +145,30 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property EditImagePath As String
+            Get
+                Return _editImagePath
+            End Get
+            Set(value As String)
+                If SetProperty(_editImagePath, If(value, String.Empty)) Then
+                    OnPropertyChanged(NameOf(HasEditImage))
+                    OnPropertyChanged(NameOf(ChooseImageLabel))
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property HasEditImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(EditImagePath)
+            End Get
+        End Property
+
+        Public ReadOnly Property ChooseImageLabel As String
+            Get
+                Return If(HasEditImage, "Change photo", "Choose photo")
+            End Get
+        End Property
+
         Public Property StatusMessage As String
             Get
                 Return _statusMessage
@@ -155,6 +186,8 @@ Namespace ViewModels
         Public Property ArchiveProductCommand As RelayCommand(Of ProductItem)
         Public Property UnarchiveProductCommand As RelayCommand(Of ProductItem)
         Public Property ToggleShowArchivedCommand As RelayCommand
+        Public Property ChooseImageCommand As RelayCommand
+        Public Property RemoveImageCommand As RelayCommand
 
         Private Sub ToggleShowArchived()
             ShowArchived = Not ShowArchived
@@ -182,6 +215,7 @@ Namespace ViewModels
             EditPrice = 0D
             EditCost = 0D
             EditCategory = EditCategoryOptions.First()
+            ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -197,6 +231,7 @@ Namespace ViewModels
             EditCost = item.Cost
             EditCategory = item.Category
             EditSubCategory = item.SubCategory
+            ResetImageEdit(item.ImagePath)
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -244,8 +279,14 @@ Namespace ViewModels
             End If
 
             If _isAdding Then
+                Dim sku = NextCatalogProductSku()
+                Dim imagePath = CommitImage(sku)
+                If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
+                    StatusMessage = "Could not save the photo."
+                    Return
+                End If
                 Dim product As New ProductItem With {
-                    .Sku = NextCatalogProductSku(),
+                    .Sku = sku,
                     .Name = EditName.Trim(),
                     .Brand = If(EditBrand, String.Empty).Trim(),
                     .Price = EditPrice,
@@ -254,7 +295,8 @@ Namespace ViewModels
                     .SubCategory = subCat,
                     .StockOnHand = 0,
                     .ReorderLevel = 10,
-                    .IsActive = True
+                    .IsActive = True,
+                    .ImagePath = If(imagePath, String.Empty)
                 }
                 _store.Products.Add(product)
                 StatusMessage = "Product added."
@@ -264,12 +306,18 @@ Namespace ViewModels
                     StatusMessage = "Product not found."
                     Return
                 End If
+                Dim imagePath = CommitImage(existing.Sku)
+                If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
+                    StatusMessage = "Could not save the photo."
+                    Return
+                End If
                 existing.Name = EditName.Trim()
                 existing.Brand = If(EditBrand, String.Empty).Trim()
                 existing.Price = EditPrice
                 existing.Cost = EditCost
                 existing.Category = node.Name
                 existing.SubCategory = subCat
+                existing.ImagePath = If(imagePath, String.Empty)
                 StatusMessage = "Product updated."
             End If
 
@@ -281,6 +329,7 @@ Namespace ViewModels
         Private Sub DeleteProduct(item As ProductItem)
             If item Is Nothing Then Return
             If Not AppDialogService.ConfirmDelete(item.Name) Then Return
+            _images.DeleteImage(item.ImagePath)
             _store.Products.Remove(item)
             _store.PersistCatalog()
             StatusMessage = $"{item.Name} deleted."
@@ -335,5 +384,45 @@ Namespace ViewModels
                 EditSubCategory = EditSubCategoryOptions.First()
             End If
         End Sub
+
+        Private Sub ChooseImage()
+            Dim picked = _images.PickImageFile()
+            If picked Is Nothing Then Return
+            _pendingSourcePath = picked
+            _imageRemoved = False
+            EditImagePath = picked
+        End Sub
+
+        Private Sub RemoveImage()
+            _pendingSourcePath = Nothing
+            _imageRemoved = True
+            EditImagePath = String.Empty
+        End Sub
+
+        Private Sub ResetImageEdit(existingPath As String)
+            _pendingSourcePath = Nothing
+            _imageRemoved = False
+            _originalImagePath = If(existingPath, String.Empty)
+            EditImagePath = _originalImagePath
+        End Sub
+
+        Private Function CommitImage(id As String) As String
+            If _pendingSourcePath IsNot Nothing Then
+                Dim saved = _images.SaveImage(_pendingSourcePath, CatalogImageService.ProductsKind, id)
+                If saved Is Nothing Then Return Nothing
+                If Not String.IsNullOrWhiteSpace(_originalImagePath) AndAlso
+                   Not _originalImagePath.Equals(saved, StringComparison.OrdinalIgnoreCase) Then
+                    _images.DeleteImage(_originalImagePath)
+                End If
+                Return saved
+            End If
+
+            If _imageRemoved Then
+                _images.DeleteImage(_originalImagePath)
+                Return String.Empty
+            End If
+
+            Return _originalImagePath
+        End Function
     End Class
 End Namespace
