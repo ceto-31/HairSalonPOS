@@ -23,7 +23,8 @@
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,10,0" Padding="16">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
-                            <Path Data="{StaticResource IconSalesGeometry}" Style="{StaticResource DashboardKpiIcon}"/>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_sales.png"
+                                   Style="{StaticResource DashboardKpiImage}"/>
                         </Border>
                         <StackPanel>
                             <TextBlock Text="Today's sales" Style="{StaticResource SectionHeader}"/>
@@ -45,7 +46,8 @@
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,10,0" Padding="16">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
-                            <Path Data="{StaticResource IconReceiptGeometry}" Style="{StaticResource DashboardKpiIcon}"/>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_transactions.png"
+                                   Style="{StaticResource DashboardKpiImage}"/>
                         </Border>
                         <StackPanel>
                             <TextBlock Text="Transactions" Style="{StaticResource SectionHeader}"/>
@@ -67,7 +69,8 @@
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,10,0" Padding="16">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
-                            <Path Data="{StaticResource IconLowStockGeometry}" Style="{StaticResource DashboardKpiIcon}"/>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_lowstock.png"
+                                   Style="{StaticResource DashboardKpiImage}"/>
                         </Border>
                         <StackPanel>
                             <TextBlock Text="Low stock" Style="{StaticResource SectionHeader}"/>
@@ -79,7 +82,8 @@
                 <Border Style="{StaticResource CardBorder}" Padding="16">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
-                            <Path Data="{StaticResource IconCalendarGeometry}" Style="{StaticResource DashboardKpiIcon}"/>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_appointments.png"
+                                   Style="{StaticResource DashboardKpiImage}"/>
                         </Border>
                         <StackPanel>
                             <TextBlock Text="Appointments" Style="{StaticResource SectionHeader}"/>
