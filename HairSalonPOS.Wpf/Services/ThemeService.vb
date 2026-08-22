@@ -60,11 +60,15 @@ Namespace Services
             SetBrush("LinkEditHoverBrush", "#1D4ED8")
             SetBrush("LinkDeleteBrush", "#DC2626")
             SetBrush("LinkDeleteHoverBrush", "#B91C1C")
+            SetBrush("LinkStockInBrush", "#15803D")
+            SetBrush("LinkStockInHoverBrush", "#166534")
             SetBrush("SearchInputBackgroundBrush", "#FFFFFF")
             SetBrush("InputBorderFocusBrush", "#6B4423")
             SetBrush("ChipActiveBackgroundBrush", "#6B4423")
             SetBrush("ChipInactiveForegroundBrush", "#5C4033")
             SetBrush("ChartFillBrush", "#C8A97E")
+            SetBrush("InventorySelectedTintBrush", "#F5EDE4")
+            SetBrush("InventorySelectedAccentBrush", "#6B4423")
         End Sub
 
         Private Shared Sub ApplyDark()
@@ -116,6 +120,8 @@ Namespace Services
             SetBrush("LinkEditHoverBrush", "#93C5FD")
             SetBrush("LinkDeleteBrush", "#FB7185")
             SetBrush("LinkDeleteHoverBrush", "#FDA4AF")
+            SetBrush("LinkStockInBrush", "#4ADE80")
+            SetBrush("LinkStockInHoverBrush", "#86EFAC")
             SetBrush("SearchInputBackgroundBrush", "#4A4038")
             SetBrush("InputBorderFocusBrush", "#D4A574")
             SetBrush("ChipActiveBackgroundBrush", "#F0C674")
@@ -125,6 +131,8 @@ Namespace Services
             SetBrush("DialogPrimaryPressedBrush", "#B8875A")
             SetBrush("SoftGoldBrush", "#D4A574")
             SetBrush("ChartFillBrush", "#E0C090")
+            SetBrush("InventorySelectedTintBrush", "#352E28")
+            SetBrush("InventorySelectedAccentBrush", "#D4A574")
         End Sub
 
         Private Shared Sub SetBrush(key As String, hex As String)

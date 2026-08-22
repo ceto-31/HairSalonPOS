@@ -48,6 +48,8 @@
     <SolidColorBrush x:Key="LinkEditHoverBrush" Color="#1D4ED8"/>
     <SolidColorBrush x:Key="LinkDeleteBrush" Color="#DC2626"/>
     <SolidColorBrush x:Key="LinkDeleteHoverBrush" Color="#B91C1C"/>
+    <SolidColorBrush x:Key="LinkStockInBrush" Color="#15803D"/>
+    <SolidColorBrush x:Key="LinkStockInHoverBrush" Color="#166534"/>
     <SolidColorBrush x:Key="SearchInputBackgroundBrush" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="InputBorderFocusBrush" Color="#6B4423"/>
     <SolidColorBrush x:Key="ChipActiveBackgroundBrush" Color="#6B4423"/>
@@ -58,6 +60,8 @@
     <SolidColorBrush x:Key="SoftGoldBrush" Color="#C8A97E"/>
     <SolidColorBrush x:Key="ChartFillBrush" Color="#C8A97E"/>
     <SolidColorBrush x:Key="DialogOverlayBrush" Color="#66000000"/>
+    <SolidColorBrush x:Key="InventorySelectedTintBrush" Color="#F5EDE4"/>
+    <SolidColorBrush x:Key="InventorySelectedAccentBrush" Color="#6B4423"/>
 
     <!-- ComboBox dropdown item -->
     <Style x:Key="ModernComboBoxItem" TargetType="ComboBoxItem">
@@ -160,6 +164,30 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="GridActionStockInButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource LinkStockInBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      TextElement.Foreground="{TemplateBinding Foreground}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource LinkStockInHoverBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="GridActionStockOutButton" TargetType="Button" BasedOn="{StaticResource GridActionDeleteButton}"/>
+
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
@@ -187,6 +215,26 @@
                 <Setter Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
                 <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="StockInCtaButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="Background" Value="{DynamicResource LinkStockInBrush}"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource LinkStockInHoverBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="StockOutCtaButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="Background" Value="{DynamicResource LinkDeleteBrush}"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource LinkDeleteHoverBrush}"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -624,6 +672,22 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <Style x:Key="LargeCalendarStyle" TargetType="Calendar">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="MinWidth" Value="300"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style x:Key="LargeDatePicker" TargetType="DatePicker" BasedOn="{StaticResource ModernDatePicker}">
+        <Setter Property="MinWidth" Value="200"/>
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="CalendarStyle" Value="{StaticResource LargeCalendarStyle}"/>
+    </Style>
+
     <Style x:Key="DataGridStyle" TargetType="DataGrid">
         <Setter Property="AutoGenerateColumns" Value="False"/>
         <Setter Property="IsReadOnly" Value="True"/>
@@ -895,6 +959,57 @@
         <Setter Property="Foreground" Value="{DynamicResource HeaderStatBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="0,0,20,0"/>
+    </Style>
+
+    <Style x:Key="HeaderStatButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Margin" Value="0,0,16,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource HeaderStatBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource ShellHoverBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource InputBorderFocusBrush}"/>
+                            <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="InventoryStatCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <Style x:Key="StockStatusPill" TargetType="Border">
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
     </Style>
 
     <Style x:Key="PasswordRevealButton" TargetType="ToggleButton">

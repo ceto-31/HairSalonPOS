@@ -97,5 +97,85 @@ Namespace Services
             End If
             Return Nothing
         End Function
+
+        Public Function PromptStockMovement(product As Models.ProductItem,
+                                            isStockIn As Boolean,
+                                            Optional owner As Window = Nothing,
+                                            Optional initialQty As Integer = 1) As StockMovementPromptResult
+            If product Is Nothing Then Return Nothing
+            If Not isStockIn AndAlso product.StockOnHand <= 0 Then
+                ShowWarning($"{product.Name} has no stock to issue.", "Stock out")
+                Return Nothing
+            End If
+
+            Dim dialog As New Views.StockMovementWindow(product, isStockIn, initialQty)
+            Dim ownerWin = owner
+            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                ownerWin = Application.Current.MainWindow
+            End If
+            If ownerWin IsNot Nothing Then
+                dialog.Owner = ownerWin
+                SizeDialogToOwner(dialog, ownerWin)
+            End If
+            Dim result = dialog.ShowDialog()
+            If result = True AndAlso dialog.Confirmed Then
+                Return New StockMovementPromptResult With {
+                    .Quantity = dialog.ResultQuantity,
+                    .Reason = dialog.ResultReason,
+                    .Notes = dialog.ResultNotes
+                }
+            End If
+            Return Nothing
+        End Function
+
+        Private Sub SizeDialogToOwner(dialog As Window, ownerWin As Window)
+            dialog.WindowStartupLocation = WindowStartupLocation.Manual
+            Dim ownerWidth = If(ownerWin.ActualWidth > 0, ownerWin.ActualWidth, ownerWin.Width)
+            Dim ownerHeight = If(ownerWin.ActualHeight > 0, ownerWin.ActualHeight, ownerWin.Height)
+            dialog.Width = Math.Max(ownerWidth, 400)
+            dialog.Height = Math.Max(ownerHeight, 300)
+            dialog.Left = ownerWin.Left
+            dialog.Top = ownerWin.Top
+        End Sub
+
+        Public Sub ApplyOwnerOverlaySizing(dialog As Window)
+            Dim ownerWin = dialog.Owner
+            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing Then
+                ownerWin = Application.Current.MainWindow
+            End If
+            If ownerWin IsNot Nothing Then
+                SizeDialogToOwner(dialog, ownerWin)
+            End If
+        End Sub
+
+        Public Function PromptProductDetail(viewModel As ViewModels.InventoryViewModel,
+                                            Optional owner As Window = Nothing) As Boolean
+            If viewModel Is Nothing OrElse viewModel.SelectedProduct Is Nothing Then Return False
+
+            Dim dialog As New Views.InventoryProductWindow(viewModel)
+            Dim ownerWin = owner
+            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                ownerWin = Application.Current.MainWindow
+            End If
+            If ownerWin IsNot Nothing Then
+                dialog.Owner = ownerWin
+                SizeDialogToOwner(dialog, ownerWin)
+            End If
+            Return dialog.ShowDialog() = True
+        End Function
     End Module
+
+    Public Class StockMovementPromptResult
+        Public Property Quantity As Integer
+        Public Property Reason As String = String.Empty
+        Public Property Notes As String = String.Empty
+
+        Public ReadOnly Property CombinedNotes As String
+            Get
+                If String.IsNullOrWhiteSpace(Notes) Then Return Reason
+                If String.IsNullOrWhiteSpace(Reason) Then Return Notes
+                Return $"{Reason}. {Notes.Trim()}"
+            End Get
+        End Property
+    End Class
 End Namespace
