@@ -1,5 +1,6 @@
 Imports System.Text.Json.Serialization
 Imports CommunityToolkit.Mvvm.ComponentModel
+Imports HairSalonPOS.Wpf.Helpers
 
 Namespace Models
     Public Class UserAccount
@@ -50,7 +51,19 @@ Namespace Models
         Public Property Brand As String = String.Empty
         Public Property Price As Decimal
         Public Property Cost As Decimal
-        Public Property ReorderLevel As Integer = 10
+        Private _reorderLevel As Integer = 10
+
+        Public Property ReorderLevel As Integer
+            Get
+                Return _reorderLevel
+            End Get
+            Set(value As Integer)
+                If SetProperty(_reorderLevel, value) Then
+                    NotifyStockPresentationChanged()
+                End If
+            End Set
+        End Property
+
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
         Public Property IsActive As Boolean = True
@@ -83,23 +96,112 @@ Namespace Models
                 Return _stockOnHand
             End Get
             Set(value As Integer)
-                SetProperty(_stockOnHand, value)
-                OnPropertyChanged(NameOf(Status))
-                OnPropertyChanged(NameOf(IsLowStock))
+                If SetProperty(_stockOnHand, value) Then
+                    NotifyStockPresentationChanged()
+                End If
             End Set
         End Property
 
+        ''' <summary>Legacy flag: true when on hand is at or below reorder (includes Out).</summary>
         Public ReadOnly Property IsLowStock As Boolean
             Get
                 Return StockOnHand <= ReorderLevel
             End Get
         End Property
 
-        Public ReadOnly Property Status As String
+        Public ReadOnly Property IsOutOfStock As Boolean
             Get
-                Return If(IsLowStock, "Low stock", "OK")
+                Return StockOnHand <= 0
             End Get
         End Property
+
+        Public ReadOnly Property IsStockLow As Boolean
+            Get
+                Return StockOnHand > 0 AndAlso StockOnHand <= ReorderLevel
+            End Get
+        End Property
+
+        Public ReadOnly Property IsStockOk As Boolean
+            Get
+                Return StockOnHand > ReorderLevel
+            End Get
+        End Property
+
+        ''' <summary>OK, Low, or Out — used for pills and styling.</summary>
+        Public ReadOnly Property StockStatus As String
+            Get
+                If IsOutOfStock Then Return "Out"
+                If IsStockLow Then Return "Low"
+                Return "OK"
+            End Get
+        End Property
+
+        Public ReadOnly Property Status As String
+            Get
+                Return StockStatus
+            End Get
+        End Property
+
+        Public ReadOnly Property StockShortfall As Integer
+            Get
+                If StockOnHand >= ReorderLevel Then Return 0
+                Return ReorderLevel - StockOnHand
+            End Get
+        End Property
+
+        Public ReadOnly Property SuggestedOrderQty As Integer
+            Get
+                Return Math.Max(1, StockShortfall)
+            End Get
+        End Property
+
+        Public ReadOnly Property ShowStockWarning As Boolean
+            Get
+                Return IsOutOfStock OrElse IsStockLow
+            End Get
+        End Property
+
+        Public ReadOnly Property StockWarningMessage As String
+            Get
+                If IsOutOfStock Then
+                    Return $"Out of stock. Your reorder point is {ReorderLevel}."
+                End If
+                If IsStockLow Then
+                    Return $"{StockOnHand} on hand, {StockShortfall} below your reorder point of {ReorderLevel}."
+                End If
+                Return String.Empty
+            End Get
+        End Property
+
+        ''' <summary>0–1 fill ratio for stock level bar (relative to reorder point).</summary>
+        Public ReadOnly Property StockLevelFillRatio As Double
+            Get
+                If ReorderLevel <= 0 Then Return If(StockOnHand > 0, 1.0R, 0.0R)
+                If StockOnHand <= 0 Then Return 0.0R
+                Return Math.Min(1.0R, StockOnHand / ReorderLevel)
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property PlaceholderIcon As String
+            Get
+                Return ProductPlaceholderIcons.Resolve(Me)
+            End Get
+        End Property
+
+        Private Sub NotifyStockPresentationChanged()
+            OnPropertyChanged(NameOf(Status))
+            OnPropertyChanged(NameOf(StockStatus))
+            OnPropertyChanged(NameOf(IsLowStock))
+            OnPropertyChanged(NameOf(IsOutOfStock))
+            OnPropertyChanged(NameOf(IsStockLow))
+            OnPropertyChanged(NameOf(IsStockOk))
+            OnPropertyChanged(NameOf(StockShortfall))
+            OnPropertyChanged(NameOf(SuggestedOrderQty))
+            OnPropertyChanged(NameOf(ShowStockWarning))
+            OnPropertyChanged(NameOf(StockWarningMessage))
+            OnPropertyChanged(NameOf(StockLevelFillRatio))
+        End Sub
     End Class
 
     Public Class CartLine

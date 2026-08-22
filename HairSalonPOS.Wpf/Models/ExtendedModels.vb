@@ -12,6 +12,8 @@ Namespace Models
         Public Property StaffId As Integer
         Public Property Name As String = String.Empty
         Public Property Role As String = String.Empty
+        Public Property ContactNumber As String = String.Empty
+        Public Property Email As String = String.Empty
         Public Property IsActive As Boolean = True
         Public Property ImagePath As String
             Get
@@ -72,6 +74,12 @@ Namespace Models
         End Property
     End Class
 
+    Public Class AppointmentStatuses
+        Public Const Scheduled As String = "Scheduled"
+        Public Const Done As String = "Done"
+        Public Const NoShow As String = "NoShow"
+    End Class
+
     Public Class AppointmentItem
         Inherits ObservableObject
 
@@ -81,6 +89,10 @@ Namespace Models
         Private _serviceName As String = String.Empty
         Private _startTime As DateTime
         Private _durationMinutes As Integer
+        Private _status As String = AppointmentStatuses.Scheduled
+        Private _contactNumber As String = String.Empty
+        Private _email As String = String.Empty
+        Private _completedAt As DateTime?
 
         Public Property AppointmentId As Integer
             Get
@@ -150,6 +162,88 @@ Namespace Models
         Public ReadOnly Property EndTime As DateTime
             Get
                 Return StartTime.AddMinutes(DurationMinutes)
+            End Get
+        End Property
+
+        Public Property Status As String
+            Get
+                Return _status
+            End Get
+            Set(value As String)
+                If SetProperty(_status, If(value, AppointmentStatuses.Scheduled)) Then
+                    OnPropertyChanged(NameOf(StatusLabel))
+                    OnPropertyChanged(NameOf(IsScheduled))
+                    OnPropertyChanged(NameOf(IsDone))
+                    OnPropertyChanged(NameOf(IsNoShow))
+                End If
+            End Set
+        End Property
+
+        Public Property ContactNumber As String
+            Get
+                Return _contactNumber
+            End Get
+            Set(value As String)
+                SetProperty(_contactNumber, If(value, String.Empty))
+            End Set
+        End Property
+
+        Public Property Email As String
+            Get
+                Return _email
+            End Get
+            Set(value As String)
+                SetProperty(_email, If(value, String.Empty))
+            End Set
+        End Property
+
+        Public Property CompletedAt As DateTime?
+            Get
+                Return _completedAt
+            End Get
+            Set(value As DateTime?)
+                SetProperty(_completedAt, value)
+            End Set
+        End Property
+
+        Public ReadOnly Property StatusLabel As String
+            Get
+                Select Case Status
+                    Case AppointmentStatuses.Done
+                        Return "Done"
+                    Case AppointmentStatuses.NoShow
+                        Return "No Show"
+                    Case Else
+                        Return "Scheduled"
+                End Select
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsScheduled As Boolean
+            Get
+                Return Status = AppointmentStatuses.Scheduled
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsDone As Boolean
+            Get
+                Return Status = AppointmentStatuses.Done
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsNoShow As Boolean
+            Get
+                Return Status = AppointmentStatuses.NoShow
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsPastDue As Boolean
+            Get
+                Return IsScheduled AndAlso EndTime < DateTime.Now
             End Get
         End Property
     End Class

@@ -21,10 +21,11 @@
                             <Border Width="120" Height="120" CornerRadius="60"
                                     Background="{DynamicResource AvatarBackgroundBrush}"
                                     BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
-                            <TextBlock Text="{Binding EditInitials}" FontWeight="Bold" FontSize="28"
-                                       Foreground="{DynamicResource AvatarForegroundBrush}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
+                                   Width="48" Height="48" Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
                             <Image Stretch="UniformToFill"
                                    Source="{Binding EditImagePath, Converter={StaticResource CatalogImagePath}}"
                                    Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}">
@@ -52,12 +53,23 @@
                                 <TextBox Text="{Binding EditLastName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
                             </StackPanel>
                         </UniformGrid>
-                        <StackPanel>
+                        <StackPanel Margin="0,0,0,12">
                             <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
                             <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
                         </StackPanel>
+                        <UniformGrid Columns="2" Margin="0,0,0,12">
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Contact number (required)" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Email (required)" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                        </UniformGrid>
                     </StackPanel>
                 </DockPanel>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
                 <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveStaffCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
@@ -106,6 +118,11 @@
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
                                             <TextBlock Text="{Binding Role}" Foreground="{DynamicResource MutedTextBrush}"/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="12">
+                                                <Run Text="{Binding ContactNumber, Mode=OneWay}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{Binding Email, Mode=OneWay}"/>
+                                            </TextBlock>
                                         </StackPanel>
                                         <Border Grid.Column="2" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <TextBlock Text="{Binding StatusLabel}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>

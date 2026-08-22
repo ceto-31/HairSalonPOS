@@ -20,7 +20,6 @@ Namespace ViewModels
         Private _editName As String = String.Empty
         Private _editBrand As String = String.Empty
         Private _editPrice As Decimal
-        Private _editCost As Decimal
         Private _editCategory As String = String.Empty
         Private _editSubCategory As String = String.Empty
         Private _editImagePath As String = String.Empty
@@ -116,15 +115,6 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property EditCost As Decimal
-            Get
-                Return _editCost
-            End Get
-            Set(value As Decimal)
-                SetProperty(_editCost, value)
-            End Set
-        End Property
-
         Public Property EditCategory As String
             Get
                 Return _editCategory
@@ -213,7 +203,6 @@ Namespace ViewModels
             EditName = String.Empty
             EditBrand = String.Empty
             EditPrice = 0D
-            EditCost = 0D
             EditCategory = EditCategoryOptions.First()
             ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
@@ -228,7 +217,6 @@ Namespace ViewModels
             EditName = item.Name
             EditBrand = item.Brand
             EditPrice = item.Price
-            EditCost = item.Cost
             EditCategory = item.Category
             EditSubCategory = item.SubCategory
             ResetImageEdit(item.ImagePath)
@@ -247,10 +235,6 @@ Namespace ViewModels
             End If
             If EditPrice < 0D Then
                 StatusMessage = "Price must be zero or greater."
-                Return
-            End If
-            If EditCost < 0D Then
-                StatusMessage = "Cost must be zero or greater."
                 Return
             End If
             If String.IsNullOrWhiteSpace(EditCategory) Then
@@ -290,7 +274,6 @@ Namespace ViewModels
                     .Name = EditName.Trim(),
                     .Brand = If(EditBrand, String.Empty).Trim(),
                     .Price = EditPrice,
-                    .Cost = EditCost,
                     .Category = node.Name,
                     .SubCategory = subCat,
                     .StockOnHand = 0,
@@ -314,7 +297,6 @@ Namespace ViewModels
                 existing.Name = EditName.Trim()
                 existing.Brand = If(EditBrand, String.Empty).Trim()
                 existing.Price = EditPrice
-                existing.Cost = EditCost
                 existing.Category = node.Name
                 existing.SubCategory = subCat
                 existing.ImagePath = If(imagePath, String.Empty)

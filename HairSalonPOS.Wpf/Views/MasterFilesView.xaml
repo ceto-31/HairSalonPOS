@@ -140,10 +140,6 @@
                                         <TextBlock Text="Price" Style="{StaticResource SectionHeader}"/>
                                         <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
                                     </StackPanel>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="Cost" Style="{StaticResource SectionHeader}"/>
-                                        <TextBox Text="{Binding EditCost}" Style="{StaticResource ModernTextBox}"/>
-                                    </StackPanel>
                                     <StackPanel Margin="0,0,8,0">
                                         <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
                                         <ComboBox ItemsSource="{Binding EditCategoryOptions}" SelectedItem="{Binding EditCategory}" Style="{StaticResource ModernComboBox}"/>

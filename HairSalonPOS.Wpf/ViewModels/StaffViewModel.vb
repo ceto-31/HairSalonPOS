@@ -12,6 +12,8 @@ Namespace ViewModels
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
         Private _editRole As String = "Stylist"
+        Private _editContactNumber As String = String.Empty
+        Private _editEmail As String = String.Empty
         Private _isEditMode As Boolean
         Private _isAdding As Boolean = True
         Private _editingStaffId As Integer
@@ -118,6 +120,24 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property EditContactNumber As String
+            Get
+                Return _editContactNumber
+            End Get
+            Set(value As String)
+                SetProperty(_editContactNumber, value)
+            End Set
+        End Property
+
+        Public Property EditEmail As String
+            Get
+                Return _editEmail
+            End Get
+            Set(value As String)
+                SetProperty(_editEmail, value)
+            End Set
+        End Property
+
         Public Property EditImagePath As String
             Get
                 Return _editImagePath
@@ -191,6 +211,9 @@ Namespace ViewModels
             EditFirstName = String.Empty
             EditLastName = String.Empty
             EditRole = "Stylist"
+            EditContactNumber = String.Empty
+            EditEmail = String.Empty
+            StatusMessage = String.Empty
             ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
             OnPropertyChanged(NameOf(EditInitials))
@@ -205,6 +228,9 @@ Namespace ViewModels
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
             EditRole = member.Role
+            EditContactNumber = member.ContactNumber
+            EditEmail = member.Email
+            StatusMessage = String.Empty
             ResetImageEdit(member.ImagePath)
             OnPropertyChanged(NameOf(FormTitle))
             OnPropertyChanged(NameOf(EditInitials))
@@ -213,11 +239,19 @@ Namespace ViewModels
 
         Private Sub SaveStaff()
             If String.IsNullOrWhiteSpace(EditFirstName) Then
-                StatusMessage = "First name is required."
+                FailValidation("First name is required.")
                 Return
             End If
             If String.IsNullOrWhiteSpace(EditLastName) Then
-                StatusMessage = "Last name is required."
+                FailValidation("Last name is required.")
+                Return
+            End If
+            If String.IsNullOrWhiteSpace(EditContactNumber) Then
+                FailValidation("Contact number is required.")
+                Return
+            End If
+            If String.IsNullOrWhiteSpace(EditEmail) Then
+                FailValidation("Email is required.")
                 Return
             End If
 
@@ -234,6 +268,8 @@ Namespace ViewModels
                     .StaffId = staffId,
                     .Name = fullName,
                     .Role = EditRole.Trim(),
+                    .ContactNumber = EditContactNumber.Trim(),
+                    .Email = EditEmail.Trim(),
                     .IsActive = True,
                     .ImagePath = If(imagePath, String.Empty)
                 }
@@ -252,6 +288,8 @@ Namespace ViewModels
                 End If
                 existing.Name = fullName
                 existing.Role = EditRole.Trim()
+                existing.ContactNumber = EditContactNumber.Trim()
+                existing.Email = EditEmail.Trim()
                 existing.ImagePath = If(imagePath, String.Empty)
                 StatusMessage = "Staff member updated."
             End If
@@ -291,6 +329,11 @@ Namespace ViewModels
             StatusMessage = $"{member.Name} restored."
             _store.RaiseStaffChanged()
             RefreshList()
+        End Sub
+
+        Private Sub FailValidation(message As String)
+            StatusMessage = message
+            AppDialogService.ShowError(message, "Required fields")
         End Sub
 
         Private Shared Function SplitName(fullName As String) As (String, String)
