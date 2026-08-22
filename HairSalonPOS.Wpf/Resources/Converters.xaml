@@ -8,4 +8,9 @@
     <helpers:HourToDisplayConverter x:Key="HourToDisplay"/>
     <helpers:TimeSpanToDisplayConverter x:Key="TimeSpanToDisplay"/>
     <helpers:CatalogImagePathConverter x:Key="CatalogImagePath"/>
+    <helpers:StockStatusToBackgroundConverter x:Key="StockStatusBg"/>
+    <helpers:StockStatusToForegroundConverter x:Key="StockStatusFg"/>
+    <helpers:StockLevelBarFillConverter x:Key="StockLevelBarFill"/>
+    <helpers:RatioToWidthConverter x:Key="RatioToWidth"/>
+    <helpers:AppointmentStatusToBadgeBrushConverter x:Key="AppointmentStatusBg"/>
 </ResourceDictionary>

@@ -296,6 +296,10 @@ Namespace ViewModels
         Public Property GoToServicesCommand As RelayCommand
 
         Public Sub LoadDashboard()
+            If _store.RefreshAppointmentStatuses() Then
+                _store.PersistAppointments()
+            End If
+
             Dim today = Date.Today
             Dim fromDate = New Date(today.Year - 1, 1, 1)
             _allSales = _history.GetSales(fromDate, today.AddDays(1))
@@ -316,17 +320,18 @@ Namespace ViewModels
                                                                          TxChangeUp = u
                                                                      End Sub)
 
-            AppointmentCount = _store.Appointments.Where(Function(a) a.StartTime.Date = today).Count()
+            _store.RefreshAppointmentStatuses()
+            AppointmentCount = _store.Appointments.Where(Function(a) a.StartTime.Date = today AndAlso a.Status = AppointmentStatuses.Scheduled).Count()
             OnPropertyChanged(NameOf(AppointmentDateLabel))
 
             Dim upcoming = _store.Appointments.
-                Where(Function(a) a.StartTime >= DateTime.Now).
+                Where(Function(a) a.Status = AppointmentStatuses.Scheduled AndAlso a.StartTime >= DateTime.Now).
                 OrderBy(Function(a) a.StartTime).
                 Take(5).
                 ToList()
             If upcoming.Count = 0 Then
                 upcoming = _store.Appointments.
-                    Where(Function(a) a.StartTime.Date = today).
+                    Where(Function(a) a.StartTime.Date = today AndAlso a.Status = AppointmentStatuses.Scheduled).
                     OrderBy(Function(a) a.StartTime).
                     Take(5).
                     ToList()
@@ -337,8 +342,8 @@ Namespace ViewModels
                     .CustomerName = a.CustomerName,
                     .ServiceName = a.ServiceName,
                     .StaffName = a.StaffName,
-                    .IsConfirmed = Not String.IsNullOrWhiteSpace(a.StaffName),
-                    .StatusLabel = If(String.IsNullOrWhiteSpace(a.StaffName), "PENDING", "CONFIRMED")
+                    .StatusLabel = a.StatusLabel,
+                    .IsConfirmed = a.Status = AppointmentStatuses.Done
                 }))
             OnPropertyChanged(NameOf(Appointments))
             OnPropertyChanged(NameOf(HasUpcomingAppointments))

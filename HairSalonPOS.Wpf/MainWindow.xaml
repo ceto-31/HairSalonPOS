@@ -65,7 +65,9 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
                     <TextBlock Text="{Binding AppointmentsHeaderText}" Style="{StaticResource HeaderStatText}"/>
-                    <TextBlock Text="{Binding LowStockHeaderText}" Style="{StaticResource HeaderStatText}"/>
+                    <Button Content="{Binding LowStockHeaderText}" Style="{StaticResource HeaderStatButton}"
+                            Command="{Binding FilterLowStockCommand}"
+                            ToolTip="Filter inventory to low and out-of-stock items"/>
                     <TextBlock Text="{Binding BusinessHoursHeaderText}" Style="{StaticResource HeaderStatText}" Margin="0"/>
                 </StackPanel>
 

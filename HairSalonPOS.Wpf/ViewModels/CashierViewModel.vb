@@ -1223,7 +1223,7 @@ Namespace ViewModels
                 }
                 LastReceipt = _checkout.FinalizeSale(request)
                 If _pendingAppointmentId > 0 Then
-                    _store.CompleteAppointment(_pendingAppointmentId)
+                    _store.MarkAppointmentDone(_pendingAppointmentId)
                     _pendingAppointmentId = 0
                 End If
                 Dim preview As New Views.ReceiptPreviewWindow(LastReceipt)

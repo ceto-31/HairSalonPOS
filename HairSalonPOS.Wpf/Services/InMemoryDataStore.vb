@@ -82,9 +82,9 @@ Namespace Services
                 Staff.AddRange(persistedStaff)
             Else
                 Staff.AddRange({
-                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist"},
-                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist"},
-                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist"}
+                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .ContactNumber = "09171234567", .Email = "maria.santos@example.com"},
+                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .ContactNumber = "09181234567", .Email = "ana.reyes@example.com"},
+                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .ContactNumber = "09191234567", .Email = "luz.cruz@example.com"}
                 })
                 PersistStaff()
             End If
@@ -107,12 +107,14 @@ Namespace Services
                 Appointments.AddRange(persistedAppointments)
             Else
                 Appointments.AddRange({
-                    New AppointmentItem With {.AppointmentId = 1, .CustomerName = "Joy D.", .StaffName = "Maria Santos", .ServiceName = "Rebond", .StartTime = today.AddHours(9), .DurationMinutes = 120},
-                    New AppointmentItem With {.AppointmentId = 2, .CustomerName = "Anna C.", .StaffName = "Maria Santos", .ServiceName = "Hair Spa", .StartTime = today.AddHours(11), .DurationMinutes = 60},
-                    New AppointmentItem With {.AppointmentId = 3, .CustomerName = "Walk-in", .StaffName = "Ana Reyes", .ServiceName = "Haircut", .StartTime = today.AddHours(14), .DurationMinutes = 30}
+                    New AppointmentItem With {.AppointmentId = 1, .CustomerName = "Joy D.", .StaffName = "Maria Santos", .ServiceName = "Rebond", .StartTime = today.AddHours(9), .DurationMinutes = 120, .Status = AppointmentStatuses.Scheduled, .ContactNumber = "09171234567"},
+                    New AppointmentItem With {.AppointmentId = 2, .CustomerName = "Anna C.", .StaffName = "Maria Santos", .ServiceName = "Hair Spa", .StartTime = today.AddHours(11), .DurationMinutes = 60, .Status = AppointmentStatuses.Scheduled, .ContactNumber = "09181234567"},
+                    New AppointmentItem With {.AppointmentId = 3, .CustomerName = "Walk-in", .StaffName = "Ana Reyes", .ServiceName = "Haircut", .StartTime = today.AddHours(14), .DurationMinutes = 30, .Status = AppointmentStatuses.Scheduled, .ContactNumber = "09191234567"}
                 })
                 PersistAppointments()
             End If
+
+            RefreshAppointmentStatuses()
 
             SeedSampleSales()
         End Sub
@@ -263,14 +265,27 @@ Namespace Services
             PersistDiscounts()
         End Sub
 
-        Public Sub CompleteAppointment(appointmentId As Integer)
+        Public Sub MarkAppointmentDone(appointmentId As Integer)
             Dim appt = Appointments.FirstOrDefault(Function(a) a.AppointmentId = appointmentId)
-            If appt Is Nothing Then Return
-            Appointments.Remove(appt)
+            If appt Is Nothing OrElse appt.Status <> AppointmentStatuses.Scheduled Then Return
+            appt.Status = AppointmentStatuses.Done
+            appt.CompletedAt = DateTime.Now
             RaiseAppointmentsChanged()
         End Sub
 
+        Public Function RefreshAppointmentStatuses() As Boolean
+            Dim changed = False
+            For Each appt In Appointments
+                If appt.Status = AppointmentStatuses.Scheduled AndAlso appt.EndTime < DateTime.Now Then
+                    appt.Status = AppointmentStatuses.NoShow
+                    changed = True
+                End If
+            Next
+            Return changed
+        End Function
+
         Public Sub RaiseAppointmentsChanged()
+            RefreshAppointmentStatuses()
             PersistAppointments()
             RaiseEvent AppointmentsChanged(Me, EventArgs.Empty)
         End Sub

@@ -11,6 +11,7 @@ Namespace ViewModels
         Private Const DrawerWidth As Double = 260
 
         Private ReadOnly _clockTimer As DispatcherTimer
+        Private _lastAppointmentStatusRefresh As DateTime = DateTime.MinValue
         Private _isLoggedIn As Boolean
         Private _currentView As ViewModelBase
         Private _lowStockCount As Integer
@@ -45,6 +46,7 @@ Namespace ViewModels
             NavigateCashierCommand = New RelayCommand(AddressOf NavigateCashier, Function() IsLoggedIn)
             NavigateTransactionsCommand = New RelayCommand(AddressOf NavigateTransactions, Function() IsLoggedIn)
             NavigateInventoryCommand = New RelayCommand(AddressOf NavigateInventory, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
+            FilterLowStockCommand = New RelayCommand(AddressOf NavigateInventoryLowStock, Function() IsLoggedIn AndAlso SessionContext.IsAdmin AndAlso LowStockCount > 0)
             NavigateReportsCommand = New RelayCommand(AddressOf NavigateReports, Function() IsLoggedIn)
             NavigateMasterFilesCommand = New RelayCommand(AddressOf NavigateMasterFiles, Function() IsLoggedIn AndAlso SessionContext.IsAdmin)
             NavigateAppointmentsCommand = New RelayCommand(AddressOf NavigateAppointments, Function() IsLoggedIn)
@@ -54,7 +56,7 @@ Namespace ViewModels
             CloseDrawerCommand = New RelayCommand(AddressOf CloseDrawer, Function() IsLoggedIn)
 
             _clockTimer = New DispatcherTimer With {.Interval = TimeSpan.FromSeconds(1)}
-            AddHandler _clockTimer.Tick, Sub() RefreshHeaderTexts()
+            AddHandler _clockTimer.Tick, AddressOf OnClockTick
 
             _isDarkMode = AppSettingsService.Instance.Settings.IsDarkMode
             CurrentView = LoginViewModel
@@ -244,6 +246,7 @@ Namespace ViewModels
         Public Property NavigateCashierCommand As RelayCommand
         Public Property NavigateTransactionsCommand As RelayCommand
         Public Property NavigateInventoryCommand As RelayCommand
+        Public Property FilterLowStockCommand As RelayCommand
         Public Property NavigateReportsCommand As RelayCommand
         Public Property NavigateMasterFilesCommand As RelayCommand
         Public Property NavigateAppointmentsCommand As RelayCommand
@@ -283,7 +286,14 @@ Namespace ViewModels
         End Sub
 
         Private Sub NavigateInventory()
+            InventoryViewModel.ShowLowStockOnly = False
             InventoryViewModel.LoadAll()
+            CurrentView = InventoryViewModel
+            CurrentNavKey = "Inventory"
+        End Sub
+
+        Private Sub NavigateInventoryLowStock()
+            InventoryViewModel.ApplyLowStockFilter()
             CurrentView = InventoryViewModel
             CurrentNavKey = "Inventory"
         End Sub
@@ -347,9 +357,22 @@ Namespace ViewModels
             IsDrawerOpen = False
         End Sub
 
+        Private Sub OnClockTick()
+            RefreshHeaderTexts()
+            If (DateTime.Now - _lastAppointmentStatusRefresh).TotalMinutes >= 1 Then
+                _lastAppointmentStatusRefresh = DateTime.Now
+                Dim store = InMemoryDataStore.Instance
+                If store.RefreshAppointmentStatuses() Then
+                    store.PersistAppointments()
+                    UpdateStatus()
+                End If
+            End If
+        End Sub
+
         Private Sub UpdateStatus()
             LowStockCount = InMemoryDataStore.Instance.GetLowStockCount()
-            AppointmentCountToday = InMemoryDataStore.Instance.Appointments.Where(Function(a) a.StartTime.Date = Date.Today).Count()
+            AppointmentCountToday = InMemoryDataStore.Instance.Appointments.
+                Where(Function(a) a.StartTime.Date = Date.Today AndAlso a.Status = AppointmentStatuses.Scheduled).Count()
             CurrentDateText = Date.Today.ToString("yyyy-MM-dd")
             RefreshHeaderTexts()
             OnPropertyChanged(NameOf(CanViewAdminScreens))
@@ -383,6 +406,7 @@ Namespace ViewModels
             NavigateCashierCommand.NotifyCanExecuteChanged()
             NavigateTransactionsCommand.NotifyCanExecuteChanged()
             NavigateInventoryCommand.NotifyCanExecuteChanged()
+            FilterLowStockCommand.NotifyCanExecuteChanged()
             NavigateReportsCommand.NotifyCanExecuteChanged()
             NavigateMasterFilesCommand.NotifyCanExecuteChanged()
             NavigateAppointmentsCommand.NotifyCanExecuteChanged()

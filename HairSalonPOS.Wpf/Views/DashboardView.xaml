@@ -203,17 +203,8 @@
                                                    RenderOptions.BitmapScalingMode="HighQuality"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Margin="6,0,0,0">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{DynamicResource SuccessBadgeBrush}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsConfirmed}" Value="False">
-                                                            <Setter Property="Background" Value="{DynamicResource WarningBadgeBrush}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
+                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                Background="{Binding StatusLabel, Converter={StaticResource AppointmentStatusBg}}">
                                             <TextBlock Text="{Binding StatusLabel}" FontSize="9" FontWeight="Bold"/>
                                         </Border>
                                         <StackPanel VerticalAlignment="Center" MinWidth="0" Margin="0,0,4,0">

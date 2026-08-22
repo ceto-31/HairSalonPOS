@@ -84,7 +84,7 @@
                         </Style>
                     </Button.Style>
                 </Button>
-                <DatePicker SelectedDate="{Binding SelectedDate}" Width="160" VerticalAlignment="Center"/>
+                <DatePicker SelectedDate="{Binding SelectedDate}" Style="{StaticResource LargeDatePicker}" VerticalAlignment="Center"/>
             </StackPanel>
 
             <UniformGrid Columns="3" Margin="0,0,0,16">
