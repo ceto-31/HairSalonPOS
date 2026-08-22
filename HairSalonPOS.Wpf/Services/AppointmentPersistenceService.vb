@@ -24,6 +24,13 @@ Namespace Services
             Try
                 Dim loaded = JsonSerializer.Deserialize(Of List(Of AppointmentItem))(File.ReadAllText(_appointmentsPath))
                 If loaded Is Nothing Then Return Nothing
+                For Each appt In loaded
+                    If String.IsNullOrWhiteSpace(appt.Status) Then
+                        appt.Status = AppointmentStatuses.Scheduled
+                    End If
+                    If appt.ContactNumber Is Nothing Then appt.ContactNumber = String.Empty
+                    If appt.Email Is Nothing Then appt.Email = String.Empty
+                Next
                 Return loaded
             Catch
                 Return Nothing

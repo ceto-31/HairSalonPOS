@@ -12,6 +12,8 @@ Namespace ViewModels
         Private _selectedDate As Date = Date.Today
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
+        Private _editContactNumber As String = String.Empty
+        Private _editEmail As String = String.Empty
         Private _editAppointmentDate As Date = Date.Today
         Private _editService As String = String.Empty
         Private _editHour As Integer = 9
@@ -44,6 +46,7 @@ Namespace ViewModels
             CancelViewCommand = New RelayCommand(Sub() IsViewMode = False)
             DeleteAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf DeleteAppointment)
             ConvertToTransactionCommand = New RelayCommand(Of AppointmentItem)(AddressOf ConvertToTransaction)
+            MarkDoneCommand = New RelayCommand(Of AppointmentItem)(AddressOf MarkDone, AddressOf CanMarkDone)
 
             AddHandler _store.AppointmentsChanged, Sub() LoadAppointments()
             LoadAppointments()
@@ -195,6 +198,51 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property EditContactNumber As String
+            Get
+                Return _editContactNumber
+            End Get
+            Set(value As String)
+                SetProperty(_editContactNumber, value)
+            End Set
+        End Property
+
+        Public Property EditEmail As String
+            Get
+                Return _editEmail
+            End Get
+            Set(value As String)
+                SetProperty(_editEmail, value)
+            End Set
+        End Property
+
+        Public ReadOnly Property DatesWithAppointments As IEnumerable(Of Date)
+            Get
+                Return _store.Appointments.Select(Function(a) a.StartTime.Date).Distinct().OrderBy(Function(d) d)
+            End Get
+        End Property
+
+        Public ReadOnly Property ViewContactLabel As String
+            Get
+                If ViewAppointment Is Nothing OrElse String.IsNullOrWhiteSpace(ViewAppointment.ContactNumber) Then Return "—"
+                Return ViewAppointment.ContactNumber
+            End Get
+        End Property
+
+        Public ReadOnly Property ViewEmailLabel As String
+            Get
+                If ViewAppointment Is Nothing OrElse String.IsNullOrWhiteSpace(ViewAppointment.Email) Then Return "—"
+                Return ViewAppointment.Email
+            End Get
+        End Property
+
+        Public ReadOnly Property ViewStatusLabel As String
+            Get
+                If ViewAppointment Is Nothing Then Return String.Empty
+                Return ViewAppointment.StatusLabel
+            End Get
+        End Property
+
         Public Property EditAppointmentDate As Date
             Get
                 Return _editAppointmentDate
@@ -268,6 +316,7 @@ Namespace ViewModels
         Public Property CancelViewCommand As RelayCommand
         Public Property DeleteAppointmentCommand As RelayCommand(Of AppointmentItem)
         Public Property ConvertToTransactionCommand As RelayCommand(Of AppointmentItem)
+        Public Property MarkDoneCommand As RelayCommand(Of AppointmentItem)
 
         Private Sub RefreshServiceNames()
             Dim names = _store.Services.Select(Function(s) s.Name).Distinct().ToList()
@@ -333,10 +382,14 @@ Namespace ViewModels
         End Sub
 
         Public Sub LoadAppointments()
+            If _store.RefreshAppointmentStatuses() Then
+                _store.PersistAppointments()
+            End If
             Appointments = New ObservableCollection(Of AppointmentItem)(
                 _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date).
                 OrderBy(Function(a) a.StartTime))
             OnPropertyChanged(NameOf(Appointments))
+            OnPropertyChanged(NameOf(DatesWithAppointments))
         End Sub
 
         Public Sub StartNewBooking()
@@ -351,6 +404,8 @@ Namespace ViewModels
             _editingAppointmentId = 0
             EditFirstName = String.Empty
             EditLastName = String.Empty
+            EditContactNumber = String.Empty
+            EditEmail = String.Empty
             EditAppointmentDate = SelectedDate
             EditService = ServiceNames.FirstOrDefault()
             Dim open = BusinessHoursService.GetHours(EditAppointmentDate).Open
@@ -367,6 +422,10 @@ Namespace ViewModels
 
         Private Sub BeginEdit(appt As AppointmentItem)
             If appt Is Nothing Then Return
+            If Not appt.IsScheduled Then
+                StatusMessage = "Only scheduled appointments can be edited."
+                Return
+            End If
             IsViewMode = False
             RefreshServiceNames()
             If Not ServiceNames.Contains(appt.ServiceName) Then ServiceNames.Add(appt.ServiceName)
@@ -375,6 +434,8 @@ Namespace ViewModels
             Dim parts = SplitName(appt.CustomerName)
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
+            EditContactNumber = appt.ContactNumber
+            EditEmail = appt.Email
             EditAppointmentDate = appt.StartTime.Date
             EditService = appt.ServiceName
             EnsureMinuteOption(appt.StartTime.Minute)
@@ -410,7 +471,10 @@ Namespace ViewModels
                 .StaffName = String.Empty,
                 .ServiceName = draft.ServiceName,
                 .StartTime = draft.StartTime,
-                .DurationMinutes = draft.DurationMinutes
+                .DurationMinutes = draft.DurationMinutes,
+                .Status = AppointmentStatuses.Scheduled,
+                .ContactNumber = draft.ContactNumber,
+                .Email = draft.Email
             }
             _store.Appointments.Add(appt)
             _store.RaiseAppointmentsChanged()
@@ -439,6 +503,8 @@ Namespace ViewModels
             existing.ServiceName = draft.ServiceName
             existing.StartTime = draft.StartTime
             existing.DurationMinutes = draft.DurationMinutes
+            existing.ContactNumber = draft.ContactNumber
+            existing.Email = draft.Email
 
             If ViewAppointment IsNot Nothing AndAlso ViewAppointment.AppointmentId = existing.AppointmentId Then
                 NotifyViewLabels()
@@ -455,6 +521,12 @@ Namespace ViewModels
             End If
             If String.IsNullOrWhiteSpace(EditLastName) Then
                 Return FailValidation("Last name is required.")
+            End If
+            If String.IsNullOrWhiteSpace(EditContactNumber) Then
+                Return FailValidation("Contact number is required.")
+            End If
+            If Not String.IsNullOrWhiteSpace(EditEmail) AndAlso (Not EditEmail.Contains("@"c) OrElse Not EditEmail.Contains("."c)) Then
+                Return FailValidation("Enter a valid email address or leave it blank.")
             End If
             If String.IsNullOrWhiteSpace(EditService) Then
                 Return FailValidation("Service is required.")
@@ -483,7 +555,9 @@ Namespace ViewModels
                 .CustomerName = customerName,
                 .ServiceName = EditService,
                 .StartTime = startTime,
-                .DurationMinutes = EditDuration
+                .DurationMinutes = EditDuration,
+                .ContactNumber = EditContactNumber.Trim(),
+                .Email = EditEmail.Trim()
             }
         End Function
 
@@ -503,6 +577,9 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(ViewEndTimeLabel))
             OnPropertyChanged(NameOf(ViewDateLabel))
             OnPropertyChanged(NameOf(ViewDurationLabel))
+            OnPropertyChanged(NameOf(ViewContactLabel))
+            OnPropertyChanged(NameOf(ViewEmailLabel))
+            OnPropertyChanged(NameOf(ViewStatusLabel))
         End Sub
 
         Private Sub EnsureMinuteOption(minute As Integer)
@@ -538,9 +615,20 @@ Namespace ViewModels
         End Sub
 
         Private Sub ConvertToTransaction(appt As AppointmentItem)
-            If appt Is Nothing Then Return
+            If appt Is Nothing OrElse Not appt.IsScheduled Then Return
             IsViewMode = False
             _openAtPointOfSale?.Invoke(appt)
+        End Sub
+
+        Private Function CanMarkDone(appt As AppointmentItem) As Boolean
+            Return appt IsNot Nothing AndAlso appt.IsScheduled
+        End Function
+
+        Private Sub MarkDone(appt As AppointmentItem)
+            If appt Is Nothing OrElse Not appt.IsScheduled Then Return
+            _store.MarkAppointmentDone(appt.AppointmentId)
+            StatusMessage = $"Marked {appt.CustomerName} as done."
+            LoadAppointments()
         End Sub
     End Class
 End Namespace
