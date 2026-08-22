@@ -4,162 +4,270 @@
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             d:DesignHeight="640" d:DesignWidth="1000">
-    <Grid>
+             d:DesignHeight="640" d:DesignWidth="1100"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+    <UserControl.Resources>
+        <Style x:Key="InventorySearchTextBox" TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Background" Value="{DynamicResource SearchInputBackgroundBrush}"/>
+        </Style>
+
+        <Style x:Key="InventoryListItem" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid>
+                            <Border x:Name="row" Background="{TemplateBinding Background}" CornerRadius="10"
+                                    Padding="10,8" Margin="4,0,0,0" BorderThickness="0">
+                                <ContentPresenter/>
+                            </Border>
+                            <Border x:Name="accent" Width="4" HorizontalAlignment="Left" CornerRadius="2,0,0,2"
+                                    Background="Transparent" VerticalAlignment="Stretch"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="row" Property="Background" Value="{DynamicResource ShellHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="row" Property="Background" Value="{DynamicResource InventorySelectedTintBrush}"/>
+                                <Setter TargetName="accent" Property="Background" Value="{DynamicResource InventorySelectedAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="row" Property="BorderBrush" Value="{DynamicResource InputBorderFocusBrush}"/>
+                                <Setter TargetName="row" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
         <Border Style="{StaticResource CardBorder}"
                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,16">
-                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
-                            Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
-                    <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
-                               VerticalAlignment="Center" Margin="12,0,0,0"/>
-                </DockPanel>
-                <UniformGrid Columns="3" Margin="0,0,0,12">
-                    <StackPanel Margin="0,0,8,8">
-                        <TextBlock Text="SKU" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditSku}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,8,8">
-                        <TextBlock Text="Product name" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditName}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,0,8">
-                        <TextBlock Text="Brand" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditBrand}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="Price" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="Cost" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditCost}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="Qty on hand" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditQty}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Reorder level" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditReorder}" Style="{StaticResource ModernTextBox}"/>
-                    </StackPanel>
-                </UniformGrid>
-                <Button Content="Save product" Style="{StaticResource PrimaryButton}" Command="{Binding SaveProductCommand}" HorizontalAlignment="Left"/>
-            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,16">
+                        <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                                Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                        <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
+                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Left" Width="120" Margin="0,0,20,0" VerticalAlignment="Top">
+                            <Border Width="120" Height="120" CornerRadius="8"
+                                    Background="{DynamicResource CardMutedBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
+                                <Border.Clip>
+                                    <RectangleGeometry Rect="0,0,120,120" RadiusX="8" RadiusY="8"/>
+                                </Border.Clip>
+                                <Grid>
+                                    <TextBlock Text="{Binding EditPlaceholderIcon}" FontSize="36"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                    <Image Stretch="UniformToFill"
+                                           Source="{Binding EditImagePath, Converter={StaticResource CatalogImagePath}}"
+                                           Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}"/>
+                                </Grid>
+                            </Border>
+                            <Button Content="{Binding ChooseImageLabel}" Style="{StaticResource SecondaryButton}"
+                                    Padding="10,6" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                                    Command="{Binding ChooseImageCommand}"/>
+                            <Button Content="Remove" Style="{StaticResource SecondaryButton}"
+                                    Padding="10,6" Margin="0,6,0,0" HorizontalAlignment="Stretch"
+                                    Command="{Binding RemoveImageCommand}"
+                                    Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,8,8">
+                                <TextBlock Text="SKU" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditSku}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="Product name" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditName}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,8,8">
+                                <TextBlock Text="Brand" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditBrand}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="Price" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,8,0" Visibility="{Binding ShowEditQty, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Starting qty" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditQty}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Reorder level" Style="{StaticResource SectionHeader}"/>
+                                <TextBox Text="{Binding EditReorder}" Style="{StaticResource ModernTextBox}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </DockPanel>
+                    <Button Content="Save product" Style="{StaticResource PrimaryButton}" Command="{Binding SaveProductCommand}" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <Border Style="{StaticResource CardBorder}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
                 Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVis}}">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                    <DockPanel Margin="0,0,0,12">
-                        <TextBlock Text="Inventory Management" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="+ Add product" Style="{StaticResource PrimaryButton}" Command="{Binding AddProductCommand}" Margin="0,0,8,0"/>
-                            <Button Content="Edit selected" Style="{StaticResource SecondaryButton}" Command="{Binding EditProductCommand}" Margin="0,0,8,0"/>
-                            <Button Content="Export" Style="{StaticResource SecondaryButton}" Command="{Binding ExportCommand}"/>
-                        </StackPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="Inventory" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextBrush}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="+ Add product" Style="{StaticResource PrimaryButton}" Command="{Binding AddProductCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Export" Style="{StaticResource SecondaryButton}" Command="{Binding ExportCommand}"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <Grid Grid.Row="1" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource InventorySearchTextBox}"
+                             Tag="Search products..."/>
+                    <Button Grid.Column="1" Content="Refresh" Style="{StaticResource SecondaryButton}"
+                            Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
+                </Grid>
+
+                <Border Grid.Row="2" Background="{DynamicResource WarningBadgeBrush}" CornerRadius="8" Padding="10,8" Margin="0,0,0,12"
+                        Visibility="{Binding ShowLowStockOnly, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <Button Content="Clear filter" DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Padding="10,4"
+                                Command="{Binding ClearLowStockFilterCommand}"/>
+                        <TextBlock Text="Showing low and out-of-stock items only." VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}" FontSize="13"/>
                     </DockPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource SearchTextBox}" Tag="Search products..."/>
-                        <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Margin="0,0,8,0">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowProductsTab}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
-                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                        <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ShowMovementLog}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
-                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
+                    <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowProductsTab}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowMovementLog}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
 
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
-
-                <DataGrid ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct}"
-                          Style="{StaticResource DataGridStyle}" RowStyle="{StaticResource LowStockRowStyle}"
-                          Visibility="{Binding ShowProductsTab, Converter={StaticResource BoolToVis}}"
-                          CellEditEnding="ProductsGrid_CellEditEnding">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="70"/>
-                        <DataGridTextColumn Header="Product" Binding="{Binding Name}" Width="*"/>
-                        <DataGridTextColumn Header="Brand" Binding="{Binding Brand}" Width="90"/>
-                        <DataGridTextColumn Header="Price" Binding="{Binding Price, StringFormat=₱{0:N2}}" Width="80"/>
-                        <DataGridTextColumn Header="Cost" Binding="{Binding Cost, StringFormat=₱{0:N2}}" Width="80"/>
-                        <DataGridTextColumn Header="Qty on hand" Binding="{Binding StockOnHand, UpdateSourceTrigger=PropertyChanged}" Width="90" IsReadOnly="False"/>
-                        <DataGridTextColumn Header="Reorder at" Binding="{Binding ReorderLevel}" Width="80"/>
-                        <DataGridTemplateColumn Header="Status" Width="90">
-                            <DataGridTemplateColumn.CellTemplate>
+                <Border Grid.Row="4"
+                        Background="{DynamicResource PageBackgroundBrush}" CornerRadius="12"
+                        BorderBrush="{DynamicResource ShellBorderBrush}" BorderThickness="1" Padding="8"
+                        Visibility="{Binding ShowProductsTab, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <TextBlock Text="No products found." Foreground="{DynamicResource MutedTextBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding HasProducts, Converter={StaticResource InverseBoolToVis}}"/>
+                        <ListBox x:Name="ProductList"
+                                 ItemsSource="{Binding Products}"
+                                 SelectedItem="{Binding SelectedProduct}"
+                                 ItemContainerStyle="{StaticResource InventoryListItem}"
+                                 BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VerticalAlignment="Stretch"
+                                 PreviewMouseLeftButtonUp="ProductList_PreviewMouseLeftButtonUp"
+                                 Visibility="{Binding HasProducts, Converter={StaticResource BoolToVis}}">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="12" Padding="10,4" HorizontalAlignment="Left">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="{DynamicResource SuccessBadgeBrush}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsLowStock}" Value="True">
-                                                        <Setter Property="Background" Value="{DynamicResource ErrorBadgeBrush}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource StockStatusPill}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                Background="{Binding StockStatus, Converter={StaticResource StockStatusBg}}">
+                                            <TextBlock Text="{Binding StockStatus}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{Binding StockStatus, Converter={StaticResource StockStatusFg}}"/>
+                                        </Border>
+                                        <Border DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="8" Margin="0,0,10,0"
+                                                Background="{DynamicResource CardMutedBrush}">
+                                            <Border.Clip>
+                                                <RectangleGeometry Rect="0,0,44,44" RadiusX="8" RadiusY="8"/>
+                                            </Border.Clip>
+                                            <Grid>
+                                                <TextBlock Text="{Binding PlaceholderIcon}" FontSize="22"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                <Image Stretch="UniformToFill"
+                                                       Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                       Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"/>
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Sku, Mode=OneWay}"/>
+                                                <Run Text=" • "/>
+                                                <Run Text="{Binding StockOnHand, Mode=OneWay}"/>
+                                                <Run Text=" on hand"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
                                 </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Action" Width="140">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="Edit" Style="{StaticResource GridActionEditButton}"
-                                                Command="{Binding DataContext.EditProductRowCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}" Margin="0,0,8,0"/>
-                                        <Button Content="Delete" Style="{StaticResource GridActionDeleteButton}"
-                                                Command="{Binding DataContext.DeleteProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
 
-                <DataGrid ItemsSource="{Binding Movements}" Style="{StaticResource DataGridStyle}"
+                <DataGrid Grid.Row="4"
+                          ItemsSource="{Binding Movements}" Style="{StaticResource DataGridStyle}"
                           Visibility="{Binding ShowMovementLog, Converter={StaticResource BoolToVis}}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Date/Time" Binding="{Binding CreatedAt, StringFormat=g}" Width="150"/>
                         <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="70"/>
                         <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*"/>
                         <DataGridTextColumn Header="Change" Binding="{Binding ChangeQty}" Width="70"/>
-                        <DataGridTextColumn Header="Type" Binding="{Binding MovementType}" Width="90"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding MovementType}" Width="100"/>
                         <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="120"/>
                         <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
-            </DockPanel>
+
+                <TextBlock Grid.Row="5" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

@@ -156,6 +156,7 @@ Namespace Services
 
     Public Class InventoryService
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
+        Private ReadOnly _images As CatalogImageService = CatalogImageService.Instance
 
         Public Function SaveProduct(product As ProductItem, isNew As Boolean, userName As String) As ProductItem
             RequireAdmin()
@@ -171,9 +172,9 @@ Namespace Services
                 existing.Name = product.Name
                 existing.Brand = product.Brand
                 existing.Price = product.Price
-                existing.Cost = product.Cost
                 existing.ReorderLevel = product.ReorderLevel
                 existing.StockOnHand = product.StockOnHand
+                existing.ImagePath = If(product.ImagePath, String.Empty)
                 If delta <> 0 Then _store.LogMovement(product.Sku, delta, "Adjustment", userName, "Manual edit")
             End If
             _store.PersistCatalog()
@@ -189,9 +190,31 @@ Namespace Services
             _store.PersistCatalog()
         End Sub
 
+        Public Sub StockIn(sku As String, quantity As Integer, userName As String, notes As String)
+            RequireAdmin()
+            If quantity <= 0 Then Throw New InvalidOperationException("Stock in quantity must be positive.")
+            Dim product = _store.Products.First(Function(p) p.Sku = sku)
+            product.StockOnHand += quantity
+            _store.LogMovement(sku, quantity, "Stock In", userName, If(notes, String.Empty))
+            _store.PersistCatalog()
+        End Sub
+
+        Public Sub StockOut(sku As String, quantity As Integer, userName As String, notes As String)
+            RequireAdmin()
+            If quantity <= 0 Then Throw New InvalidOperationException("Stock out quantity must be positive.")
+            Dim product = _store.Products.First(Function(p) p.Sku = sku)
+            If quantity > product.StockOnHand Then
+                Throw New InvalidOperationException($"Insufficient stock for {product.Name}. Available: {product.StockOnHand}")
+            End If
+            product.StockOnHand -= quantity
+            _store.LogMovement(sku, -quantity, "Stock Out", userName, If(notes, String.Empty))
+            _store.PersistCatalog()
+        End Sub
+
         Public Sub DeleteProduct(product As ProductItem)
             RequireAdmin()
             If product Is Nothing Then Throw New ArgumentNullException(NameOf(product))
+            _images.DeleteImage(product.ImagePath)
             _store.Products.Remove(product)
             _store.PersistCatalog()
         End Sub
