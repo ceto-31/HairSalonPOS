@@ -14,6 +14,7 @@ Namespace ViewModels
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
         Private _editContactNumber As String = String.Empty
+        Private _editContactNumberError As String = String.Empty
         Private _editEmail As String = String.Empty
         Private _editAppointmentDate As Date = Date.Today
         Private _editService As String = String.Empty
@@ -276,7 +277,19 @@ Namespace ViewModels
                 Return _editContactNumber
             End Get
             Set(value As String)
-                SetProperty(_editContactNumber, value)
+                Dim normalized = NormalizeContactDigits(value)
+                If SetProperty(_editContactNumber, normalized) Then
+                    EditContactNumberError = String.Empty
+                End If
+            End Set
+        End Property
+
+        Public Property EditContactNumberError As String
+            Get
+                Return _editContactNumberError
+            End Get
+            Set(value As String)
+                SetProperty(_editContactNumberError, value)
             End Set
         End Property
 
@@ -507,6 +520,7 @@ Namespace ViewModels
             EditFirstName = String.Empty
             EditLastName = String.Empty
             EditContactNumber = String.Empty
+            EditContactNumberError = String.Empty
             EditEmail = String.Empty
             EditAppointmentDate = SelectedDate
             EditService = ServiceNames.FirstOrDefault()
@@ -537,6 +551,7 @@ Namespace ViewModels
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
             EditContactNumber = appt.ContactNumber
+            EditContactNumberError = String.Empty
             EditEmail = appt.Email
             EditAppointmentDate = appt.StartTime.Date
             EditService = appt.ServiceName
@@ -625,7 +640,12 @@ Namespace ViewModels
                 Return FailValidation("Last name is required.")
             End If
             If String.IsNullOrWhiteSpace(EditContactNumber) Then
-                Return FailValidation("Contact number is required.")
+                EditContactNumberError = "Contact number is required."
+                Return Nothing
+            End If
+            If EditContactNumber.Length <> 11 Then
+                EditContactNumberError = "Contact number must be exactly 11 digits."
+                Return Nothing
             End If
             If Not String.IsNullOrWhiteSpace(EditEmail) AndAlso (Not EditEmail.Contains("@"c) OrElse Not EditEmail.Contains("."c)) Then
                 Return FailValidation("Enter a valid email address or leave it blank.")
@@ -664,6 +684,12 @@ Namespace ViewModels
                 .ContactNumber = EditContactNumber.Trim(),
                 .Email = EditEmail.Trim()
             }
+        End Function
+
+        Private Shared Function NormalizeContactDigits(value As String) As String
+            If String.IsNullOrEmpty(value) Then Return String.Empty
+            Dim digits = New String(value.Where(Function(c) Char.IsDigit(c)).ToArray())
+            Return If(digits.Length <= 11, digits, digits.Substring(0, 11))
         End Function
 
         Private Function FailValidation(message As String, Optional title As String = "Cannot save appointment") As AppointmentItem

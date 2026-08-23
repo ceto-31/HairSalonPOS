@@ -1,6 +1,7 @@
 <UserControl x:Class="Views.AppointmentsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:HairSalonPOS.Wpf.Helpers"
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -106,7 +107,13 @@
                     </StackPanel>
                     <StackPanel Margin="0,0,8,8">
                         <TextBlock Text="Contact number" Style="{StaticResource SectionHeader}"/>
-                        <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                        <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}"
+                                 MaxLength="11"
+                                 Style="{StaticResource ValidatedModernTextBox}"
+                                 helpers:FormValidation.HasError="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                        <TextBlock Text="{Binding EditContactNumberError}"
+                                   Style="{StaticResource StaffFormFieldError}"
+                                   Visibility="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToVis}}"/>
                     </StackPanel>
                     <StackPanel Margin="0,0,0,8">
                         <TextBlock Text="Email (optional)" Style="{StaticResource SectionHeader}"/>
