@@ -185,7 +185,9 @@ Namespace ViewModels
 
         Private Sub LoadProducts()
             Dim query = _store.Products.AsEnumerable()
-            If Not ShowArchived Then
+            If ShowArchived Then
+                query = query.Where(Function(p) Not p.IsActive)
+            Else
                 query = query.Where(Function(p) p.IsActive)
             End If
             Products = New ObservableCollection(Of ProductItem)(query.OrderBy(Function(p) p.Name))
