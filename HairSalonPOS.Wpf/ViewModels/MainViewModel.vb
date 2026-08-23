@@ -39,6 +39,7 @@ Namespace ViewModels
                 AddressOf NavigateAppointments,
                 AddressOf NavigateTransactions,
                 AddressOf NavigateInventory,
+                AddressOf NavigateInventoryStockIn,
                 AddressOf NavigateReports,
                 AddressOf OpenServices)
 
@@ -295,6 +296,16 @@ Namespace ViewModels
 
         Private Sub NavigateInventoryLowStock()
             InventoryViewModel.ApplyLowStockFilter()
+            CurrentView = InventoryViewModel
+            CurrentNavKey = "Inventory"
+        End Sub
+
+        Private Sub NavigateInventoryStockIn(sku As String)
+            InventoryViewModel.ShowLowStockOnly = False
+            InventoryViewModel.SearchText = String.Empty
+            InventoryViewModel.ActiveTab = InventoryTabs.StockIn
+            InventoryViewModel.LoadAll()
+            InventoryViewModel.BeginStockInForSku(sku)
             CurrentView = InventoryViewModel
             CurrentNavKey = "Inventory"
         End Sub

@@ -358,10 +358,66 @@ Namespace Models
     End Class
 
     Public Class LowStockAlertRow
+        Public Property Sku As String = String.Empty
         Public Property ProductName As String = String.Empty
         Public Property StockOnHand As Integer
         Public Property ReorderLevel As Integer
         Public Property ImagePath As String = String.Empty
+    End Class
+
+    Public Class DashboardStaffPaymentRow
+        Public Property StaffName As String = String.Empty
+        Public Property ImagePath As String = String.Empty
+        Public Property CashRevenue As Decimal
+        Public Property GcashRevenue As Decimal
+        Public Property CashTransactionCount As Integer
+        Public Property GcashTransactionCount As Integer
+
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
+
+        Public ReadOnly Property Initials As String
+            Get
+                Dim parts = StaffName.Split(" "c, StringSplitOptions.RemoveEmptyEntries)
+                If parts.Length = 0 Then Return "?"
+                Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
+            End Get
+        End Property
+
+        Public ReadOnly Property TotalRevenue As Decimal
+            Get
+                Return CashRevenue + GcashRevenue
+            End Get
+        End Property
+
+        Public ReadOnly Property TotalTransactionCount As Integer
+            Get
+                Return CashTransactionCount + GcashTransactionCount
+            End Get
+        End Property
+    End Class
+
+    Public Class DashboardStaffPerformanceRow
+        Public Property StaffName As String = String.Empty
+        Public Property ImagePath As String = String.Empty
+        Public Property ServicesCompleted As Integer
+
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
+
+        Public ReadOnly Property Initials As String
+            Get
+                Dim parts = StaffName.Split(" "c, StringSplitOptions.RemoveEmptyEntries)
+                If parts.Length = 0 Then Return "?"
+                Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
+            End Get
+        End Property
     End Class
 
     Public Class DashboardTopServiceRow

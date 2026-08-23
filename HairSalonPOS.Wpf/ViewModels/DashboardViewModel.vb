@@ -9,9 +9,15 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Public Shared ReadOnly PeriodOptions As String() = {"This Day", "This Week", "This Month", "This Year"}
+        Public Shared ReadOnly StaffAnalyticsPeriodOptions As String() = {"This Day", "This Week", "This Month"}
         Public ReadOnly Property FilterOptions As String()
             Get
                 Return PeriodOptions
+            End Get
+        End Property
+        Public ReadOnly Property StaffPeriodOptions As String()
+            Get
+                Return StaffAnalyticsPeriodOptions
             End Get
         End Property
         Private Const OverviewChartWidth As Double = 420
@@ -35,6 +41,7 @@ Namespace ViewModels
         Private _overviewBestLabel As String = "—"
         Private _overviewChangeText As String = "vs prior  0.0%"
         Private _overviewChangeUp As Boolean
+        Private _staffAnalyticsPeriod As String = "This Week"
         Private _allSales As List(Of SaleRecord) = New List(Of SaleRecord)()
 
         Public Sub New()
@@ -43,11 +50,14 @@ Namespace ViewModels
             LowStockAlerts = New ObservableCollection(Of LowStockAlertRow)()
             TopServices = New ObservableCollection(Of DashboardTopServiceRow)()
             CategorySlices = New ObservableCollection(Of DashboardDonutSlice)()
+            StaffPaymentRows = New ObservableCollection(Of DashboardStaffPaymentRow)()
+            StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)()
             OverviewChart = New DashboardLineChart()
 
             NewSaleCommand = New RelayCommand(Sub() _goToPos?.Invoke())
             NewAppointmentCommand = New RelayCommand(Sub() _goToNewAppointment?.Invoke())
             GoToInventoryCommand = New RelayCommand(Sub() _goToInventory?.Invoke(), Function() CanViewAdminScreens)
+            ReorderProductCommand = New RelayCommand(Of String)(Sub(sku) _goToStockIn?.Invoke(sku), Function(sku) CanViewAdminScreens AndAlso Not String.IsNullOrWhiteSpace(sku))
             GoToReportsCommand = New RelayCommand(Sub() _goToReports?.Invoke())
             GoToAppointmentsCommand = New RelayCommand(Sub() _goToAppointments?.Invoke())
             GoToTransactionsCommand = New RelayCommand(Sub() _goToTransactions?.Invoke())
@@ -63,6 +73,7 @@ Namespace ViewModels
         Private _goToAppointments As Action
         Private _goToTransactions As Action
         Private _goToInventory As Action
+        Private _goToStockIn As Action(Of String)
         Private _goToReports As Action
         Private _goToServices As Action
 
@@ -71,6 +82,7 @@ Namespace ViewModels
                                   goToAppointments As Action,
                                   goToTransactions As Action,
                                   goToInventory As Action,
+                                  goToStockIn As Action(Of String),
                                   goToReports As Action,
                                   goToServices As Action)
             _goToPos = goToPos
@@ -78,6 +90,7 @@ Namespace ViewModels
             _goToAppointments = goToAppointments
             _goToTransactions = goToTransactions
             _goToInventory = goToInventory
+            _goToStockIn = goToStockIn
             _goToReports = goToReports
             _goToServices = goToServices
         End Sub
@@ -197,6 +210,17 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property StaffAnalyticsPeriod As String
+            Get
+                Return _staffAnalyticsPeriod
+            End Get
+            Set(value As String)
+                If SetProperty(_staffAnalyticsPeriod, If(value, "This Week")) Then
+                    RefreshStaffAnalytics()
+                End If
+            End Set
+        End Property
+
         Public Property OverviewChart As DashboardLineChart
             Get
                 Return _overviewChart
@@ -286,10 +310,13 @@ Namespace ViewModels
         Public Property LowStockAlerts As ObservableCollection(Of LowStockAlertRow)
         Public Property TopServices As ObservableCollection(Of DashboardTopServiceRow)
         Public Property CategorySlices As ObservableCollection(Of DashboardDonutSlice)
+        Public Property StaffPaymentRows As ObservableCollection(Of DashboardStaffPaymentRow)
+        Public Property StaffPerformanceRows As ObservableCollection(Of DashboardStaffPerformanceRow)
 
         Public Property NewSaleCommand As RelayCommand
         Public Property NewAppointmentCommand As RelayCommand
         Public Property GoToInventoryCommand As RelayCommand
+        Public Property ReorderProductCommand As RelayCommand(Of String)
         Public Property GoToReportsCommand As RelayCommand
         Public Property GoToAppointmentsCommand As RelayCommand
         Public Property GoToTransactionsCommand As RelayCommand
@@ -362,6 +389,7 @@ Namespace ViewModels
             LowStockCount = lowStockProducts.Count
             LowStockAlerts = New ObservableCollection(Of LowStockAlertRow)(
                 lowStockProducts.Select(Function(p) New LowStockAlertRow With {
+                    .Sku = p.Sku,
                     .ProductName = p.Name,
                     .StockOnHand = p.StockOnHand,
                     .ReorderLevel = p.ReorderLevel,
@@ -372,8 +400,10 @@ Namespace ViewModels
 
             RefreshPeriodVisuals()
             RefreshTopServices()
+            RefreshStaffAnalytics()
             OnPropertyChanged(NameOf(CanViewAdminScreens))
             GoToInventoryCommand.NotifyCanExecuteChanged()
+            ReorderProductCommand.NotifyCanExecuteChanged()
             GoToServicesCommand.NotifyCanExecuteChanged()
         End Sub
 
@@ -440,6 +470,44 @@ Namespace ViewModels
                 }))
             OnPropertyChanged(NameOf(TopServices))
             OnPropertyChanged(NameOf(HasTopServices))
+        End Sub
+
+        Private Sub RefreshStaffAnalytics()
+            Dim range = PeriodRange(StaffAnalyticsPeriod, Date.Today)
+            Dim sales = InRange(_allSales, range.FromDate, range.ToDateExclusive)
+            Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).OrderBy(Function(s) s.Name).ToList()
+
+            StaffPaymentRows = New ObservableCollection(Of DashboardStaffPaymentRow)(
+                activeStaff.Select(Function(staff)
+                                       Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
+                                                                        s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase)).ToList()
+                                       Dim cashSales = staffSales.Where(Function(s) s.PaymentMethod = "Cash").ToList()
+                                       Dim gcashSales = staffSales.Where(Function(s) s.PaymentMethod = "GCash").ToList()
+                                       Return New DashboardStaffPaymentRow With {
+                                           .StaffName = staff.Name,
+                                           .ImagePath = staff.ImagePath,
+                                           .CashRevenue = cashSales.Sum(Function(s) s.Total),
+                                           .GcashRevenue = gcashSales.Sum(Function(s) s.Total),
+                                           .CashTransactionCount = cashSales.Count,
+                                           .GcashTransactionCount = gcashSales.Count
+                                       }
+                                   End Function))
+            OnPropertyChanged(NameOf(StaffPaymentRows))
+
+            StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)(
+                activeStaff.Select(Function(staff)
+                                       Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
+                                                                        s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
+                                       Dim serviceCount = staffSales.
+                                           SelectMany(Function(s) SafeLines(s).Where(Function(l) l.IsService)).
+                                           Sum(Function(l) l.Quantity)
+                                       Return New DashboardStaffPerformanceRow With {
+                                           .StaffName = staff.Name,
+                                           .ImagePath = staff.ImagePath,
+                                           .ServicesCompleted = serviceCount
+                                       }
+                                   End Function))
+            OnPropertyChanged(NameOf(StaffPerformanceRows))
         End Sub
 
         Private Shared Function InRange(sales As IEnumerable(Of SaleRecord), fromDate As Date, toDateExclusive As Date) As List(Of SaleRecord)

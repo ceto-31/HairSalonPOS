@@ -285,7 +285,8 @@
                                                 Background="{DynamicResource CardMutedBrush}" Margin="0,0,10,0"
                                                 BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
                                         <Button DockPanel.Dock="Right" Content="Reorder" Style="{StaticResource PrimaryButton}" Padding="10,6"
-                                                Command="{Binding DataContext.GoToInventoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Command="{Binding DataContext.ReorderProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding Sku}"
                                                 Visibility="{Binding DataContext.CanViewAdminScreens, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
@@ -330,6 +331,90 @@
                     </DockPanel>
                 </Border>
             </Grid>
+
+            <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,12">
+                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding StaffPeriodOptions}" SelectedItem="{Binding StaffAnalyticsPeriod}"
+                                  Style="{StaticResource ModernComboBox}" Width="130" HorizontalAlignment="Right"/>
+                        <TextBlock Text="Staff analytics" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Payment by staff" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                            <DataGrid ItemsSource="{Binding StaffPaymentRows}" Style="{StaticResource DataGridStyle}" MaxHeight="280"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="52">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
+                                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
+                                                                   Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                    </Border>
+                                                    <Image Stretch="UniformToFill"
+                                                           Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                           Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                        <Image.Clip>
+                                                            <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
+                                                        </Image.Clip>
+                                                    </Image>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="*"/>
+                                    <DataGridTextColumn Header="Cash" Binding="{Binding CashRevenue, StringFormat=₱{0:N0}}" Width="80"/>
+                                    <DataGridTextColumn Header="Cash tx" Binding="{Binding CashTransactionCount}" Width="60"/>
+                                    <DataGridTextColumn Header="GCash" Binding="{Binding GcashRevenue, StringFormat=₱{0:N0}}" Width="80"/>
+                                    <DataGridTextColumn Header="GCash tx" Binding="{Binding GcashTransactionCount}" Width="70"/>
+                                    <DataGridTextColumn Header="Total" Binding="{Binding TotalRevenue, StringFormat=₱{0:N0}}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <TextBlock Text="Services by staff" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                            <DataGrid ItemsSource="{Binding StaffPerformanceRows}" Style="{StaticResource DataGridStyle}" MaxHeight="280"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="52">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
+                                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
+                                                                   Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                    </Border>
+                                                    <Image Stretch="UniformToFill"
+                                                           Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                           Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                        <Image.Clip>
+                                                            <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
+                                                        </Image.Clip>
+                                                    </Image>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="*"/>
+                                    <DataGridTextColumn Header="Services" Binding="{Binding ServicesCompleted}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
             <Border Style="{StaticResource CardBorder}">
                 <StackPanel>

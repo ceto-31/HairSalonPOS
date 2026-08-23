@@ -385,7 +385,7 @@ Namespace ViewModels
             Try
                 Select Case ActiveTab
                     Case InventoryTabs.StockIn
-                        CompleteStockIn(resolved)
+                        CompleteStockIn(resolved, resolved.SuggestedOrderQty)
                     Case InventoryTabs.StockOut
                         CompleteStockOut(resolved)
                 End Select
@@ -396,6 +396,35 @@ Namespace ViewModels
                     $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ErrorLogService.Describe(ex)}",
                     title)
             End Try
+        End Sub
+
+        Public Sub BeginStockInForSku(sku As String)
+            If String.IsNullOrWhiteSpace(sku) Then Return
+
+            ActiveTab = InventoryTabs.StockIn
+            Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
+            If product Is Nothing Then
+                product = _store.Products.FirstOrDefault(Function(p) p.IsActive AndAlso p.Sku = sku)
+            End If
+            If product Is Nothing Then
+                StatusMessage = $"Product {sku} was not found."
+                Return
+            End If
+
+            Dim resolved = ResolveListedProduct(product)
+            If resolved Is Nothing Then
+                StatusMessage = $"Product {product.Name} is not available for stock in."
+                Return
+            End If
+
+            _suppressStockPrompt = True
+            Try
+                SelectedProduct = resolved
+            Finally
+                _suppressStockPrompt = False
+            End Try
+
+            CompleteStockIn(resolved, resolved.SuggestedOrderQty)
         End Sub
 
         Private Function ResolveListedProduct(product As ProductItem) As ProductItem
