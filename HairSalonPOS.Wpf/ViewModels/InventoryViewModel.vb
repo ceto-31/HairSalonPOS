@@ -29,6 +29,8 @@ Namespace ViewModels
         Private _editPrice As Decimal
         Private _editQty As Integer
         Private _editReorder As Integer = 10
+        Private _editCategory As String = String.Empty
+        Private _editSubCategory As String = String.Empty
         Private _editImagePath As String = String.Empty
         Private _pendingSourcePath As String
         Private _originalImagePath As String = String.Empty
@@ -44,6 +46,8 @@ Namespace ViewModels
             Products = New ObservableCollection(Of ProductItem)()
             Movements = New ObservableCollection(Of StockMovement)()
             ProductMovements = New ObservableCollection(Of StockMovement)()
+            EditCategoryOptions = New ObservableCollection(Of String)()
+            EditSubCategoryOptions = New ObservableCollection(Of String)()
 
             RefreshCommand = New RelayCommand(AddressOf LoadAll)
             ShowProductsTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.Products)
@@ -68,6 +72,8 @@ Namespace ViewModels
         Public Property Products As ObservableCollection(Of ProductItem)
         Public Property Movements As ObservableCollection(Of StockMovement)
         Public Property ProductMovements As ObservableCollection(Of StockMovement)
+        Public Property EditCategoryOptions As ObservableCollection(Of String)
+        Public Property EditSubCategoryOptions As ObservableCollection(Of String)
 
         Public Property SearchText As String
             Get
@@ -278,6 +284,27 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property EditCategory As String
+            Get
+                Return _editCategory
+            End Get
+            Set(value As String)
+                If SetProperty(_editCategory, value) Then
+                    RefreshEditSubCategoryOptions()
+                    OnPropertyChanged(NameOf(EditPlaceholderIcon))
+                End If
+            End Set
+        End Property
+
+        Public Property EditSubCategory As String
+            Get
+                Return _editSubCategory
+            End Get
+            Set(value As String)
+                SetProperty(_editSubCategory, value)
+            End Set
+        End Property
+
         Public Property EditImagePath As String
             Get
                 Return _editImagePath
@@ -304,8 +331,7 @@ Namespace ViewModels
 
         Public ReadOnly Property EditPlaceholderIcon As String
             Get
-                Dim category = If(SelectedProduct?.Category, String.Empty)
-                Return ProductPlaceholderIcons.ResolveFromText($"{EditName} {EditBrand} {category}")
+                Return ProductPlaceholderIcons.ResolveFromText($"{EditName} {EditBrand} {EditCategory} {EditSubCategory}")
             End Get
         End Property
 
@@ -364,9 +390,11 @@ Namespace ViewModels
                         CompleteStockOut(resolved)
                 End Select
             Catch ex As Exception
+                Dim title = If(IsStockOutTab, "Stock out", "Stock in")
+                ErrorLogService.LogException($"OpenStockMovementForProduct — {resolved.Sku} {resolved.Name}", ex)
                 AppDialogService.ShowError(
-                    $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
-                    If(IsStockOutTab, "Stock out", "Stock in"))
+                    $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ErrorLogService.Describe(ex)}",
+                    title)
             End Try
         End Sub
 
@@ -455,6 +483,12 @@ Namespace ViewModels
         End Sub
 
         Private Sub BeginAddProduct()
+            RefreshEditCategoryOptions()
+            If EditCategoryOptions.Count = 0 Then
+                StatusMessage = "Add an active category first."
+                Return
+            End If
+
             _isAdding = True
             _suppressStockPrompt = True
             Try
@@ -463,12 +497,14 @@ Namespace ViewModels
                 _suppressStockPrompt = False
             End Try
             IsEditMode = True
-            EditSku = $"P{(_store.Products.Count + 1):D3}"
+            EditSku = ProductSkuService.NextProductSku(_store.Products)
             EditName = String.Empty
             EditBrand = String.Empty
             EditPrice = 0D
             EditQty = 0
             EditReorder = 10
+            EditCategory = EditCategoryOptions.First()
+            EditSubCategory = String.Empty
             ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
             OnPropertyChanged(NameOf(ShowEditQty))
@@ -476,6 +512,7 @@ Namespace ViewModels
 
         Private Sub BeginEditProduct()
             If SelectedProduct Is Nothing Then Return
+            RefreshEditCategoryOptions()
             _isAdding = False
             IsEditMode = True
             EditSku = SelectedProduct.Sku
@@ -484,12 +521,47 @@ Namespace ViewModels
             EditPrice = SelectedProduct.Price
             EditQty = SelectedProduct.StockOnHand
             EditReorder = SelectedProduct.ReorderLevel
+            EditCategory = SelectedProduct.Category
+            EditSubCategory = SelectedProduct.SubCategory
             ResetImageEdit(SelectedProduct.ImagePath)
             OnPropertyChanged(NameOf(FormTitle))
             OnPropertyChanged(NameOf(ShowEditQty))
         End Sub
 
         Private Sub SaveProduct()
+            If String.IsNullOrWhiteSpace(EditName) Then
+                StatusMessage = "Product name is required."
+                Return
+            End If
+            If EditPrice < 0D Then
+                StatusMessage = "Price must be zero or greater."
+                Return
+            End If
+            If String.IsNullOrWhiteSpace(EditCategory) Then
+                StatusMessage = "Category is required."
+                Return
+            End If
+
+            Dim node = _store.Categories.FirstOrDefault(Function(c) c.IsActive AndAlso c.Name.Equals(EditCategory.Trim(), StringComparison.OrdinalIgnoreCase))
+            If node Is Nothing Then
+                StatusMessage = "Selected category was not found."
+                Return
+            End If
+
+            Dim subCat = If(EditSubCategory, String.Empty).Trim()
+            If node.SubCategories IsNot Nothing AndAlso node.SubCategories.Count > 0 Then
+                If String.IsNullOrWhiteSpace(subCat) Then
+                    StatusMessage = "Subcategory is required for this category."
+                    Return
+                End If
+                If Not node.SubCategories.Any(Function(s) s.Equals(subCat, StringComparison.OrdinalIgnoreCase)) Then
+                    StatusMessage = "Selected subcategory was not found."
+                    Return
+                End If
+            Else
+                subCat = String.Empty
+            End If
+
             Try
                 Dim imagePath = CommitImage(EditSku.Trim())
                 If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
@@ -503,8 +575,8 @@ Namespace ViewModels
                     .Price = EditPrice,
                     .StockOnHand = If(_isAdding, EditQty, If(SelectedProduct?.StockOnHand, 0)),
                     .ReorderLevel = EditReorder,
-                    .Category = If(SelectedProduct?.Category, String.Empty),
-                    .SubCategory = If(SelectedProduct?.SubCategory, String.Empty),
+                    .Category = node.Name,
+                    .SubCategory = subCat,
                     .ImagePath = If(imagePath, String.Empty)
                 }
                 _inventory.SaveProduct(product, _isAdding, CurrentUserNameOrThrow())
@@ -556,9 +628,10 @@ Namespace ViewModels
         End Sub
 
         Private Function CompleteStockIn(product As ProductItem, Optional suggestedQty As Integer = 1) As Boolean
-            If product Is Nothing OrElse Not TryBeginStockCommand() Then Return False
+            If product Is Nothing OrElse Not TryBeginStockCommand(product) Then Return False
             _stockDialogOpen = True
             Try
+                product.EnsureDefaults()
                 Dim prompt = AppDialogService.PromptStockMovement(product, True, initialQty:=suggestedQty)
                 If prompt Is Nothing Then Return False
                 _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
@@ -569,7 +642,7 @@ Namespace ViewModels
                 AppDialogService.ShowError(ex.Message, "Stock in")
                 Return False
             Catch ex As Exception
-                AppDialogService.ShowError(ex.Message, "Stock in")
+                ReportStockFailure("Stock in", "CompleteStockIn", product, ex)
                 Return False
             Finally
                 _stockDialogOpen = False
@@ -577,9 +650,10 @@ Namespace ViewModels
         End Function
 
         Private Function CompleteStockOut(product As ProductItem) As Boolean
-            If product Is Nothing OrElse Not TryBeginStockCommand() Then Return False
+            If product Is Nothing OrElse Not TryBeginStockCommand(product) Then Return False
             _stockDialogOpen = True
             Try
+                product.EnsureDefaults()
                 Dim prompt = AppDialogService.PromptStockMovement(product, False)
                 If prompt Is Nothing Then Return False
                 _inventory.StockOut(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
@@ -590,20 +664,48 @@ Namespace ViewModels
                 AppDialogService.ShowError(ex.Message, "Stock out")
                 Return False
             Catch ex As Exception
-                AppDialogService.ShowError(ex.Message, "Stock out")
+                ReportStockFailure("Stock out", "CompleteStockOut", product, ex)
                 Return False
             Finally
                 _stockDialogOpen = False
             End Try
         End Function
 
-        Private Function TryBeginStockCommand() As Boolean
-            If SelectedProduct Is Nothing OrElse _stockDialogOpen Then Return False
+        Private Shared Sub ReportStockFailure(title As String, source As String, product As ProductItem, ex As Exception)
+            Dim label = If(product Is Nothing, "(no product)", $"{product.Sku} {product.Name}")
+            ErrorLogService.LogException($"{source} — {label}", ex)
+            AppDialogService.ShowError(
+                $"Could not complete {title.ToLowerInvariant()} for {label}.{Environment.NewLine}{Environment.NewLine}{ErrorLogService.Describe(ex)}",
+                title)
+        End Sub
+
+        Private Function TryBeginStockCommand(product As ProductItem) As Boolean
+            If product Is Nothing OrElse _stockDialogOpen Then Return False
             Dim now = DateTime.UtcNow
             If (now - _lastStockCommandUtc).TotalMilliseconds < 300 Then Return False
             _lastStockCommandUtc = now
             Return True
         End Function
+
+        Private Sub RefreshEditCategoryOptions()
+            EditCategoryOptions = New ObservableCollection(Of String)(
+                _store.Categories.Where(Function(c) c.IsActive).Select(Function(c) c.Name))
+            OnPropertyChanged(NameOf(EditCategoryOptions))
+            RefreshEditSubCategoryOptions()
+        End Sub
+
+        Private Sub RefreshEditSubCategoryOptions()
+            Dim node = _store.Categories.FirstOrDefault(Function(c) c.Name.Equals(EditCategory, StringComparison.OrdinalIgnoreCase))
+            Dim subs = If(node?.SubCategories, New List(Of String)())
+            EditSubCategoryOptions = New ObservableCollection(Of String)(subs)
+            OnPropertyChanged(NameOf(EditSubCategoryOptions))
+            If Not String.IsNullOrWhiteSpace(EditSubCategory) AndAlso
+               Not EditSubCategoryOptions.Any(Function(s) s.Equals(EditSubCategory, StringComparison.OrdinalIgnoreCase)) Then
+                EditSubCategory = If(EditSubCategoryOptions.FirstOrDefault(), String.Empty)
+            ElseIf String.IsNullOrWhiteSpace(EditSubCategory) AndAlso EditSubCategoryOptions.Count > 0 Then
+                EditSubCategory = EditSubCategoryOptions.First()
+            End If
+        End Sub
 
         Private Sub ChooseImage()
             Dim picked = _images.PickImageFile()

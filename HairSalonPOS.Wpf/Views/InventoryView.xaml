@@ -111,6 +111,14 @@
                                 <TextBlock Text="Starting qty" Style="{StaticResource SectionHeader}"/>
                                 <TextBox Text="{Binding EditQty}" Style="{StaticResource ModernTextBox}"/>
                             </StackPanel>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
+                                <ComboBox ItemsSource="{Binding EditCategoryOptions}" SelectedItem="{Binding EditCategory}" Style="{StaticResource ModernComboBox}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="Subcategory" Style="{StaticResource SectionHeader}"/>
+                                <ComboBox ItemsSource="{Binding EditSubCategoryOptions}" SelectedItem="{Binding EditSubCategory}" Style="{StaticResource ModernComboBox}"/>
+                            </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="Reorder level" Style="{StaticResource SectionHeader}"/>
                                 <TextBox Text="{Binding EditReorder}" Style="{StaticResource ModernTextBox}"/>
