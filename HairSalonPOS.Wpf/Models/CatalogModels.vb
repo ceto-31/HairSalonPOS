@@ -202,6 +202,18 @@ Namespace Models
             OnPropertyChanged(NameOf(StockWarningMessage))
             OnPropertyChanged(NameOf(StockLevelFillRatio))
         End Sub
+
+        ''' <summary>Coalesce null/legacy JSON values so inventory and stock dialogs never hit null fields.</summary>
+        Public Sub EnsureDefaults()
+            Sku = If(Sku, String.Empty).Trim()
+            Name = If(Name, String.Empty).Trim()
+            Brand = If(Brand, String.Empty).Trim()
+            Category = If(Category, String.Empty).Trim()
+            SubCategory = If(SubCategory, String.Empty).Trim()
+            ImagePath = If(ImagePath, String.Empty).Trim()
+            If ReorderLevel <= 0 Then ReorderLevel = 10
+            If StockOnHand < 0 Then StockOnHand = 0
+        End Sub
     End Class
 
     Public Class CartLine

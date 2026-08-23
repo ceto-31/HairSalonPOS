@@ -174,6 +174,8 @@ Namespace Services
                 existing.Price = product.Price
                 existing.ReorderLevel = product.ReorderLevel
                 existing.StockOnHand = product.StockOnHand
+                existing.Category = product.Category
+                existing.SubCategory = product.SubCategory
                 existing.ImagePath = If(product.ImagePath, String.Empty)
                 If delta <> 0 Then _store.LogMovement(product.Sku, delta, "Adjustment", userName, "Manual edit")
             End If

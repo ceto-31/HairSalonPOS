@@ -61,13 +61,13 @@ Namespace Services
                 Categories.AddRange(DefaultCategories())
             End If
 
-            ' Retail inventory products (Category blank = inventory-only). Only seed SKUs missing after load.
+            ' Default retail products. Only seed SKUs missing after load.
             Dim retailDefaults = {
-                New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10},
-                New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10},
-                New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8},
-                New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8},
-                New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10}
+                New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"}
             }
             For Each p In retailDefaults
                 If Not Products.Any(Function(x) x.Sku.Equals(p.Sku, StringComparison.OrdinalIgnoreCase)) Then
@@ -75,6 +75,7 @@ Namespace Services
                 End If
             Next
 
+            BackfillProductCategories()
             PersistCatalog()
 
             Dim persistedStaff = StaffPersistenceService.Instance.Load()
@@ -137,6 +138,33 @@ Namespace Services
 
         Public Sub PersistDiscounts()
             DiscountPersistenceService.Instance.Save(Discounts)
+        End Sub
+
+        Private Sub BackfillProductCategories()
+            Const defaultCategory = "HAIR SERVICES"
+            Const defaultSubCategory = "Hair Treatment"
+            Const hairColorSubCategory = "Hair Color"
+
+            Dim knownSkus As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase) From {
+                {"P001", defaultSubCategory},
+                {"P002", defaultSubCategory},
+                {"P003", hairColorSubCategory},
+                {"P004", hairColorSubCategory},
+                {"P005", defaultSubCategory}
+            }
+
+            For Each product In Products
+                product.EnsureDefaults()
+                If Not String.IsNullOrWhiteSpace(product.Category) Then Continue For
+
+                Dim subCategory = defaultSubCategory
+                If product.Sku IsNot Nothing AndAlso knownSkus.ContainsKey(product.Sku) Then
+                    subCategory = knownSkus(product.Sku)
+                End If
+
+                product.Category = defaultCategory
+                product.SubCategory = subCategory
+            Next
         End Sub
 
         Public Shared Function DefaultCategories() As List(Of CatalogCategoryNode)

@@ -184,7 +184,7 @@ Namespace ViewModels
         End Sub
 
         Private Sub LoadProducts()
-            Dim query = _store.Products.Where(Function(p) Not String.IsNullOrWhiteSpace(p.Category))
+            Dim query = _store.Products.AsEnumerable()
             If Not ShowArchived Then
                 query = query.Where(Function(p) p.IsActive)
             End If
@@ -263,7 +263,7 @@ Namespace ViewModels
             End If
 
             If _isAdding Then
-                Dim sku = NextCatalogProductSku()
+                Dim sku = ProductSkuService.NextProductSku(_store.Products)
                 Dim imagePath = CommitImage(sku)
                 If imagePath Is Nothing AndAlso _pendingSourcePath IsNot Nothing Then
                     StatusMessage = "Could not save the photo."
@@ -274,6 +274,7 @@ Namespace ViewModels
                     .Name = EditName.Trim(),
                     .Brand = If(EditBrand, String.Empty).Trim(),
                     .Price = EditPrice,
+                    .Cost = 0D,
                     .Category = node.Name,
                     .SubCategory = subCat,
                     .StockOnHand = 0,
@@ -281,6 +282,7 @@ Namespace ViewModels
                     .IsActive = True,
                     .ImagePath = If(imagePath, String.Empty)
                 }
+                product.EnsureDefaults()
                 _store.Products.Add(product)
                 StatusMessage = "Product added."
             Else
@@ -333,19 +335,6 @@ Namespace ViewModels
             StatusMessage = $"{item.Name} restored."
             LoadProducts()
         End Sub
-
-        Private Function NextCatalogProductSku() As String
-            Dim maxNum = 0
-            For Each p In _store.Products
-                If p.Sku Is Nothing OrElse p.Sku.Length < 3 Then Continue For
-                If Not p.Sku.StartsWith("CP", StringComparison.OrdinalIgnoreCase) Then Continue For
-                Dim n As Integer
-                If Integer.TryParse(p.Sku.Substring(2), n) Then
-                    maxNum = Math.Max(maxNum, n)
-                End If
-            Next
-            Return $"CP{(maxNum + 1):D3}"
-        End Function
 
         Private Sub RefreshEditCategoryOptions()
             EditCategoryOptions = New ObservableCollection(Of String)(
