@@ -14,6 +14,10 @@ Namespace ViewModels
         Private _editRole As String = "Stylist"
         Private _editContactNumber As String = String.Empty
         Private _editEmail As String = String.Empty
+        Private _editFirstNameError As String = String.Empty
+        Private _editLastNameError As String = String.Empty
+        Private _editContactNumberError As String = String.Empty
+        Private _editEmailError As String = String.Empty
         Private _isEditMode As Boolean
         Private _isAdding As Boolean = True
         Private _editingStaffId As Integer
@@ -95,6 +99,7 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_editFirstName, value) Then
+                    EditFirstNameError = String.Empty
                     OnPropertyChanged(NameOf(EditInitials))
                 End If
             End Set
@@ -106,6 +111,7 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_editLastName, value) Then
+                    EditLastNameError = String.Empty
                     OnPropertyChanged(NameOf(EditInitials))
                 End If
             End Set
@@ -125,7 +131,9 @@ Namespace ViewModels
                 Return _editContactNumber
             End Get
             Set(value As String)
-                SetProperty(_editContactNumber, value)
+                If SetProperty(_editContactNumber, value) Then
+                    EditContactNumberError = String.Empty
+                End If
             End Set
         End Property
 
@@ -134,7 +142,45 @@ Namespace ViewModels
                 Return _editEmail
             End Get
             Set(value As String)
-                SetProperty(_editEmail, value)
+                If SetProperty(_editEmail, value) Then
+                    EditEmailError = String.Empty
+                End If
+            End Set
+        End Property
+
+        Public Property EditFirstNameError As String
+            Get
+                Return _editFirstNameError
+            End Get
+            Set(value As String)
+                SetProperty(_editFirstNameError, value)
+            End Set
+        End Property
+
+        Public Property EditLastNameError As String
+            Get
+                Return _editLastNameError
+            End Get
+            Set(value As String)
+                SetProperty(_editLastNameError, value)
+            End Set
+        End Property
+
+        Public Property EditContactNumberError As String
+            Get
+                Return _editContactNumberError
+            End Get
+            Set(value As String)
+                SetProperty(_editContactNumberError, value)
+            End Set
+        End Property
+
+        Public Property EditEmailError As String
+            Get
+                Return _editEmailError
+            End Get
+            Set(value As String)
+                SetProperty(_editEmailError, value)
             End Set
         End Property
 
@@ -213,6 +259,7 @@ Namespace ViewModels
             EditRole = "Stylist"
             EditContactNumber = String.Empty
             EditEmail = String.Empty
+            ClearFieldErrors()
             StatusMessage = String.Empty
             ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
@@ -230,6 +277,7 @@ Namespace ViewModels
             EditRole = member.Role
             EditContactNumber = member.ContactNumber
             EditEmail = member.Email
+            ClearFieldErrors()
             StatusMessage = String.Empty
             ResetImageEdit(member.ImagePath)
             OnPropertyChanged(NameOf(FormTitle))
@@ -238,24 +286,30 @@ Namespace ViewModels
         End Sub
 
         Private Sub SaveStaff()
+            ClearFieldErrors()
+            Dim hasErrors = False
+
             If String.IsNullOrWhiteSpace(EditFirstName) Then
-                FailValidation("First name is required.")
-                Return
+                EditFirstNameError = "First name is required."
+                hasErrors = True
             End If
             If String.IsNullOrWhiteSpace(EditLastName) Then
-                FailValidation("Last name is required.")
-                Return
+                EditLastNameError = "Last name is required."
+                hasErrors = True
             End If
             If String.IsNullOrWhiteSpace(EditContactNumber) Then
-                FailValidation("Contact number is required.")
-                Return
+                EditContactNumberError = "Contact number is required."
+                hasErrors = True
             End If
-            If String.IsNullOrWhiteSpace(EditEmail) Then
-                FailValidation("Email is required.")
-                Return
+            If Not String.IsNullOrWhiteSpace(EditEmail) AndAlso (Not EditEmail.Contains("@"c) OrElse Not EditEmail.Contains("."c)) Then
+                EditEmailError = "Enter a valid email address or leave it blank."
+                hasErrors = True
             End If
 
+            If hasErrors Then Return
+
             Dim fullName = $"{EditFirstName.Trim()} {EditLastName.Trim()}"
+            Dim email = If(EditEmail, String.Empty).Trim()
 
             If _isAdding Then
                 Dim staffId = If(_store.Staff.Count = 0, 1, _store.Staff.Max(Function(s) s.StaffId) + 1)
@@ -269,7 +323,7 @@ Namespace ViewModels
                     .Name = fullName,
                     .Role = EditRole.Trim(),
                     .ContactNumber = EditContactNumber.Trim(),
-                    .Email = EditEmail.Trim(),
+                    .Email = email,
                     .IsActive = True,
                     .ImagePath = If(imagePath, String.Empty)
                 }
@@ -289,7 +343,7 @@ Namespace ViewModels
                 existing.Name = fullName
                 existing.Role = EditRole.Trim()
                 existing.ContactNumber = EditContactNumber.Trim()
-                existing.Email = EditEmail.Trim()
+                existing.Email = email
                 existing.ImagePath = If(imagePath, String.Empty)
                 StatusMessage = "Staff member updated."
             End If
@@ -331,9 +385,11 @@ Namespace ViewModels
             RefreshList()
         End Sub
 
-        Private Sub FailValidation(message As String)
-            StatusMessage = message
-            AppDialogService.ShowError(message, "Required fields")
+        Private Sub ClearFieldErrors()
+            EditFirstNameError = String.Empty
+            EditLastNameError = String.Empty
+            EditContactNumberError = String.Empty
+            EditEmailError = String.Empty
         End Sub
 
         Private Shared Function SplitName(fullName As String) As (String, String)
