@@ -346,71 +346,145 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                            <TextBlock Text="Payment by staff" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                            <DataGrid ItemsSource="{Binding StaffPaymentRows}" Style="{StaticResource DataGridStyle}" MaxHeight="280"
-                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
-                                <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="" Width="52">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
-                                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
-                                                                   Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
-                                                    </Border>
-                                                    <Image Stretch="UniformToFill"
-                                                           Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
-                                                           Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
-                                                        <Image.Clip>
-                                                            <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
-                                                        </Image.Clip>
-                                                    </Image>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="*"/>
-                                    <DataGridTextColumn Header="Cash" Binding="{Binding CashRevenue, StringFormat=₱{0:N0}}" Width="80"/>
-                                    <DataGridTextColumn Header="Cash tx" Binding="{Binding CashTransactionCount}" Width="60"/>
-                                    <DataGridTextColumn Header="GCash" Binding="{Binding GcashRevenue, StringFormat=₱{0:N0}}" Width="80"/>
-                                    <DataGridTextColumn Header="GCash tx" Binding="{Binding GcashTransactionCount}" Width="70"/>
-                                    <DataGridTextColumn Header="Total" Binding="{Binding TotalRevenue, StringFormat=₱{0:N0}}" Width="80"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <TextBlock Text="Payment methods" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                            <TextBlock Text="No Cash or GCash sales in this period." Foreground="{DynamicResource MutedTextBrush}"
+                                       Visibility="{Binding HasPaymentMethodData, Converter={StaticResource InverseBoolToVis}}"/>
+                            <StackPanel Visibility="{Binding HasPaymentMethodData, Converter={StaticResource BoolToVis}}">
+                                <DockPanel Margin="0,0,0,12">
+                                    <Canvas DockPanel.Dock="Left" Width="132" Height="132" Margin="0,0,12,0">
+                                        <ItemsControl ItemsSource="{Binding PaymentMethodSlices}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Path Data="{Binding SliceGeometry}" Fill="{Binding SliceBrush}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Canvas>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <DockPanel Margin="0,0,0,10">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding CashPercentLabel}"
+                                                       FontSize="11" VerticalAlignment="Center"/>
+                                            <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
+                                                    Background="{DynamicResource AccentBrush}"
+                                                    Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <StackPanel>
+                                                <TextBlock Text="Cash" FontSize="12" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding CashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                <TextBlock Text="{Binding CashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,10">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding GcashPercentLabel}"
+                                                       FontSize="11" VerticalAlignment="Center"/>
+                                            <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
+                                                    Background="{DynamicResource SoftGoldBrush}"
+                                                    Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <StackPanel>
+                                                <TextBlock Text="GCash" FontSize="12" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding GcashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                <TextBlock Text="{Binding GcashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,10,0,0">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold"
+                                                           Text="{Binding PaymentTotalRevenue, StringFormat=₱{0:N0}}"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="Overall total" FontSize="12" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding PaymentTotalTransactionCount, StringFormat={}{0} transactions}"
+                                                               FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                            <TextBlock Text="Services by staff" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
-                            <DataGrid ItemsSource="{Binding StaffPerformanceRows}" Style="{StaticResource DataGridStyle}" MaxHeight="280"
-                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
-                                <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="" Width="52">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
-                                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
-                                                                   Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                            <TextBlock Text="Top performing staff" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                            <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding StaffPerformanceRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="8,10" Margin="0,0,0,4" CornerRadius="8"
+                                                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource CardMutedBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="32" Height="32" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{DynamicResource ChipHoverBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding RankLabel}" FontWeight="Bold" FontSize="12"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                     </Border>
-                                                    <Image Stretch="UniformToFill"
-                                                           Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
-                                                           Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
-                                                        <Image.Clip>
-                                                            <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
-                                                        </Image.Clip>
-                                                    </Image>
+                                                    <Grid Grid.Column="1" Width="36" Height="36" Margin="8,0,10,0">
+                                                        <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
+                                                            <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
+                                                                       Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                        </Border>
+                                                        <Image Stretch="UniformToFill"
+                                                               Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                               Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                            <Image.Clip>
+                                                                <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
+                                                            </Image.Clip>
+                                                        </Image>
+                                                    </Grid>
+                                                    <TextBlock Grid.Column="2" Text="{Binding StaffName}" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding ServicesCompleted}" FontWeight="Bold" FontSize="16"
+                                                                   HorizontalAlignment="Right"/>
+                                                        <TextBlock Text="services" FontSize="10" Foreground="{DynamicResource MutedTextBrush}"
+                                                                   HorizontalAlignment="Right"/>
+                                                    </StackPanel>
                                                 </Grid>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="*"/>
-                                    <DataGridTextColumn Header="Services" Binding="{Binding ServicesCompleted}" Width="80"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

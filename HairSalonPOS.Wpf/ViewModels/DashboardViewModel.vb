@@ -42,6 +42,14 @@ Namespace ViewModels
         Private _overviewChangeText As String = "vs prior  0.0%"
         Private _overviewChangeUp As Boolean
         Private _staffAnalyticsPeriod As String = "This Week"
+        Private _cashRevenue As Decimal
+        Private _cashTransactionCount As Integer
+        Private _gcashRevenue As Decimal
+        Private _gcashTransactionCount As Integer
+        Private _paymentTotalRevenue As Decimal
+        Private _paymentTotalTransactionCount As Integer
+        Private _cashPercentLabel As String = "0%"
+        Private _gcashPercentLabel As String = "0%"
         Private _allSales As List(Of SaleRecord) = New List(Of SaleRecord)()
 
         Public Sub New()
@@ -50,7 +58,7 @@ Namespace ViewModels
             LowStockAlerts = New ObservableCollection(Of LowStockAlertRow)()
             TopServices = New ObservableCollection(Of DashboardTopServiceRow)()
             CategorySlices = New ObservableCollection(Of DashboardDonutSlice)()
-            StaffPaymentRows = New ObservableCollection(Of DashboardStaffPaymentRow)()
+            PaymentMethodSlices = New ObservableCollection(Of DashboardDonutSlice)()
             StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)()
             OverviewChart = New DashboardLineChart()
 
@@ -305,12 +313,92 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public ReadOnly Property HasPaymentMethodData As Boolean
+            Get
+                Return PaymentTotalRevenue > 0D OrElse PaymentTotalTransactionCount > 0
+            End Get
+        End Property
+
+        Public Property CashRevenue As Decimal
+            Get
+                Return _cashRevenue
+            End Get
+            Private Set(value As Decimal)
+                SetProperty(_cashRevenue, value)
+            End Set
+        End Property
+
+        Public Property CashTransactionCount As Integer
+            Get
+                Return _cashTransactionCount
+            End Get
+            Private Set(value As Integer)
+                SetProperty(_cashTransactionCount, value)
+            End Set
+        End Property
+
+        Public Property GcashRevenue As Decimal
+            Get
+                Return _gcashRevenue
+            End Get
+            Private Set(value As Decimal)
+                SetProperty(_gcashRevenue, value)
+            End Set
+        End Property
+
+        Public Property GcashTransactionCount As Integer
+            Get
+                Return _gcashTransactionCount
+            End Get
+            Private Set(value As Integer)
+                SetProperty(_gcashTransactionCount, value)
+            End Set
+        End Property
+
+        Public Property PaymentTotalRevenue As Decimal
+            Get
+                Return _paymentTotalRevenue
+            End Get
+            Private Set(value As Decimal)
+                SetProperty(_paymentTotalRevenue, value)
+                OnPropertyChanged(NameOf(HasPaymentMethodData))
+            End Set
+        End Property
+
+        Public Property PaymentTotalTransactionCount As Integer
+            Get
+                Return _paymentTotalTransactionCount
+            End Get
+            Private Set(value As Integer)
+                SetProperty(_paymentTotalTransactionCount, value)
+                OnPropertyChanged(NameOf(HasPaymentMethodData))
+            End Set
+        End Property
+
+        Public Property CashPercentLabel As String
+            Get
+                Return _cashPercentLabel
+            End Get
+            Private Set(value As String)
+                SetProperty(_cashPercentLabel, value)
+            End Set
+        End Property
+
+        Public Property GcashPercentLabel As String
+            Get
+                Return _gcashPercentLabel
+            End Get
+            Private Set(value As String)
+                SetProperty(_gcashPercentLabel, value)
+            End Set
+        End Property
+
         Public Property Appointments As ObservableCollection(Of DashboardAppointmentRow)
         Public Property RecentSales As ObservableCollection(Of DashboardSaleRow)
         Public Property LowStockAlerts As ObservableCollection(Of LowStockAlertRow)
         Public Property TopServices As ObservableCollection(Of DashboardTopServiceRow)
         Public Property CategorySlices As ObservableCollection(Of DashboardDonutSlice)
-        Public Property StaffPaymentRows As ObservableCollection(Of DashboardStaffPaymentRow)
+        Public Property PaymentMethodSlices As ObservableCollection(Of DashboardDonutSlice)
         Public Property StaffPerformanceRows As ObservableCollection(Of DashboardStaffPerformanceRow)
 
         Public Property NewSaleCommand As RelayCommand
@@ -479,38 +567,49 @@ Namespace ViewModels
         Private Sub RefreshStaffAnalytics()
             Dim range = PeriodRange(StaffAnalyticsPeriod, Date.Today)
             Dim sales = InRange(_allSales, range.FromDate, range.ToDateExclusive)
-            Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).OrderBy(Function(s) s.Name).ToList()
+            Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).ToList()
 
-            StaffPaymentRows = New ObservableCollection(Of DashboardStaffPaymentRow)(
-                activeStaff.Select(Function(staff)
-                                       Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
-                                                                        s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase)).ToList()
-                                       Dim cashSales = staffSales.Where(Function(s) s.PaymentMethod = "Cash").ToList()
-                                       Dim gcashSales = staffSales.Where(Function(s) s.PaymentMethod = "GCash").ToList()
-                                       Return New DashboardStaffPaymentRow With {
-                                           .StaffName = staff.Name,
-                                           .ImagePath = staff.ImagePath,
-                                           .CashRevenue = cashSales.Sum(Function(s) s.Total),
-                                           .GcashRevenue = gcashSales.Sum(Function(s) s.Total),
-                                           .CashTransactionCount = cashSales.Count,
-                                           .GcashTransactionCount = gcashSales.Count
-                                       }
-                                   End Function))
-            OnPropertyChanged(NameOf(StaffPaymentRows))
+            Dim cashSales = sales.Where(Function(s) String.Equals(s.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase)).ToList()
+            Dim gcashSales = sales.Where(Function(s) String.Equals(s.PaymentMethod, "GCash", StringComparison.OrdinalIgnoreCase)).ToList()
 
-            StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)(
-                activeStaff.Select(Function(staff)
-                                       Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
-                                                                        s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
-                                       Dim serviceCount = staffSales.
-                                           SelectMany(Function(s) SafeLines(s).Where(Function(l) l.IsService)).
-                                           Sum(Function(l) l.Quantity)
-                                       Return New DashboardStaffPerformanceRow With {
-                                           .StaffName = staff.Name,
-                                           .ImagePath = staff.ImagePath,
-                                           .ServicesCompleted = serviceCount
-                                       }
-                                   End Function))
+            CashRevenue = cashSales.Sum(Function(s) s.Total)
+            CashTransactionCount = cashSales.Count
+            GcashRevenue = gcashSales.Sum(Function(s) s.Total)
+            GcashTransactionCount = gcashSales.Count
+            PaymentTotalRevenue = CashRevenue + GcashRevenue
+            PaymentTotalTransactionCount = CashTransactionCount + GcashTransactionCount
+            CashPercentLabel = If(PaymentTotalRevenue > 0D, $"{CashRevenue / PaymentTotalRevenue:P0}", "0%")
+            GcashPercentLabel = If(PaymentTotalRevenue > 0D, $"{GcashRevenue / PaymentTotalRevenue:P0}", "0%")
+
+            PaymentMethodSlices = New ObservableCollection(Of DashboardDonutSlice)(
+                DonutChartBuilder.Build(New List(Of Tuple(Of String, Decimal)) From {
+                    Tuple.Create("Cash", CashRevenue),
+                    Tuple.Create("GCash", GcashRevenue)
+                }))
+            OnPropertyChanged(NameOf(PaymentMethodSlices))
+            OnPropertyChanged(NameOf(HasPaymentMethodData))
+
+            Dim performanceRows = activeStaff.Select(Function(staff)
+                                                         Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
+                                                                                          s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
+                                                         Dim serviceCount = staffSales.
+                                                             SelectMany(Function(s) SafeLines(s).Where(Function(l) l.IsService)).
+                                                             Sum(Function(l) l.Quantity)
+                                                         Return New DashboardStaffPerformanceRow With {
+                                                             .StaffName = staff.Name,
+                                                             .ImagePath = staff.ImagePath,
+                                                             .ServicesCompleted = serviceCount
+                                                         }
+                                                     End Function).
+                OrderByDescending(Function(r) r.ServicesCompleted).
+                ThenBy(Function(r) r.StaffName).
+                Select(Function(r, index)
+                           r.Rank = index + 1
+                           Return r
+                       End Function).
+                ToList()
+
+            StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)(performanceRows)
             OnPropertyChanged(NameOf(StaffPerformanceRows))
         End Sub
 
