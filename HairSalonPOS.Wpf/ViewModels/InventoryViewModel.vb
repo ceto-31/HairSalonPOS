@@ -341,21 +341,81 @@ Namespace ViewModels
         End Sub
 
         Public Sub PromptStockForSelectedProduct()
-            If SelectedProduct Is Nothing OrElse IsEditMode OrElse _stockDialogOpen Then Return
+            If IsEditMode OrElse _stockDialogOpen Then Return
+            If SelectedProduct Is Nothing Then
+                ShowSelectProductFirstMessage()
+                Return
+            End If
             OnProductSelectedForActiveTab(forcePrompt:=True)
         End Sub
 
+        Public Sub ActivateProductForStockMovement(product As ProductItem)
+            If IsEditMode Then Return
+            If Not IsStockInTab AndAlso Not IsStockOutTab Then Return
+
+            If product Is Nothing Then
+                ShowSelectProductFirstMessage()
+                Return
+            End If
+
+            Dim resolved = ResolveListedProduct(product)
+            If resolved Is Nothing Then
+                ShowSelectProductFirstMessage()
+                Return
+            End If
+
+            Try
+                If Object.ReferenceEquals(SelectedProduct, resolved) Then
+                    PromptStockForSelectedProduct()
+                Else
+                    SelectedProduct = resolved
+                End If
+            Catch ex As Exception
+                AppDialogService.ShowError(
+                    $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                    If(IsStockOutTab, "Stock out", "Stock in"))
+            End Try
+        End Sub
+
         Private Sub OnProductSelectedForActiveTab(Optional forcePrompt As Boolean = False)
-            If _suppressStockPrompt OrElse IsEditMode OrElse SelectedProduct Is Nothing Then Return
+            If _suppressStockPrompt OrElse IsEditMode Then Return
             If Not forcePrompt AndAlso _stockDialogOpen Then Return
 
-            Select Case ActiveTab
-                Case InventoryTabs.StockIn
-                    CompleteStockIn(SelectedProduct)
-                Case InventoryTabs.StockOut
-                    CompleteStockOut(SelectedProduct)
-            End Select
+            If SelectedProduct Is Nothing Then
+                If forcePrompt Then ShowSelectProductFirstMessage()
+                Return
+            End If
+
+            Try
+                Select Case ActiveTab
+                    Case InventoryTabs.StockIn
+                        CompleteStockIn(SelectedProduct)
+                    Case InventoryTabs.StockOut
+                        CompleteStockOut(SelectedProduct)
+                End Select
+            Catch ex As Exception
+                AppDialogService.ShowError(
+                    $"Could not complete stock movement.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                    If(IsStockOutTab, "Stock out", "Stock in"))
+            End Try
         End Sub
+
+        Private Function ResolveListedProduct(product As ProductItem) As ProductItem
+            If product Is Nothing OrElse Products Is Nothing Then Return Nothing
+            Return Products.FirstOrDefault(Function(p) p.Sku = product.Sku)
+        End Function
+
+        Private Sub ShowSelectProductFirstMessage()
+            AppDialogService.ShowWarning("Please select a product first.", If(IsStockOutTab, "Stock out", "Stock in"))
+        End Sub
+
+        Private Shared Function CurrentUserNameOrThrow() As String
+            Dim user = SessionContext.CurrentUser
+            If user Is Nothing OrElse String.IsNullOrWhiteSpace(user.FullName) Then
+                Throw New InvalidOperationException("You must be logged in to record stock movements.")
+            End If
+            Return user.FullName
+        End Function
 
         Private Sub NotifyTabPropertiesChanged()
             OnPropertyChanged(NameOf(ShowProductList))
@@ -481,7 +541,7 @@ Namespace ViewModels
                     .SubCategory = If(SelectedProduct?.SubCategory, String.Empty),
                     .ImagePath = If(imagePath, String.Empty)
                 }
-                _inventory.SaveProduct(product, _isAdding, SessionContext.CurrentUser.FullName)
+                _inventory.SaveProduct(product, _isAdding, CurrentUserNameOrThrow())
                 IsEditMode = False
                 _isAdding = False
                 StatusMessage = "Product saved."
@@ -535,12 +595,15 @@ Namespace ViewModels
             Try
                 Dim prompt = AppDialogService.PromptStockMovement(product, True, initialQty:=suggestedQty)
                 If prompt Is Nothing Then Return False
-                _inventory.StockIn(product.Sku, prompt.Quantity, SessionContext.CurrentUser.FullName, prompt.CombinedNotes)
+                _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
                 StatusMessage = $"Stocked in {prompt.Quantity} of {product.Name}."
                 LoadAll()
                 Return True
+            Catch ex As InvalidOperationException
+                AppDialogService.ShowError(ex.Message, "Stock in")
+                Return False
             Catch ex As Exception
-                StatusMessage = ex.Message
+                AppDialogService.ShowError(ex.Message, "Stock in")
                 Return False
             Finally
                 _stockDialogOpen = False
@@ -553,12 +616,15 @@ Namespace ViewModels
             Try
                 Dim prompt = AppDialogService.PromptStockMovement(product, False)
                 If prompt Is Nothing Then Return False
-                _inventory.StockOut(product.Sku, prompt.Quantity, SessionContext.CurrentUser.FullName, prompt.CombinedNotes)
+                _inventory.StockOut(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
                 StatusMessage = $"Stocked out {prompt.Quantity} of {product.Name}."
                 LoadAll()
                 Return True
+            Catch ex As InvalidOperationException
+                AppDialogService.ShowError(ex.Message, "Stock out")
+                Return False
             Catch ex As Exception
-                StatusMessage = ex.Message
+                AppDialogService.ShowError(ex.Message, "Stock out")
                 Return False
             Finally
                 _stockDialogOpen = False
