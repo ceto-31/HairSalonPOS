@@ -2,7 +2,6 @@ Imports System.Windows
 Imports System.Windows.Controls
 Imports System.Windows.Input
 Imports HairSalonPOS.Wpf.Models
-Imports HairSalonPOS.Wpf.Services
 Imports HairSalonPOS.Wpf.ViewModels
 
 Namespace Views
@@ -13,29 +12,20 @@ Namespace Views
             InitializeComponent()
         End Sub
 
-        Private Sub ProductList_PreviewMouseLeftButtonUp(sender As Object, e As MouseButtonEventArgs)
-            If e.ChangedButton <> MouseButton.Left Then Return
-
-            Dim vm = GetViewModel()
+        Private Sub ProductList_MouseDoubleClick(sender As Object, e As MouseButtonEventArgs)
+            Dim vm = TryCast(DataContext, InventoryViewModel)
             If vm Is Nothing OrElse vm.IsEditMode Then Return
             If Not vm.IsStockInTab AndAlso Not vm.IsStockOutTab Then Return
 
-            Try
-                Dim item = FindAncestor(Of ListBoxItem)(e.OriginalSource)
-                If item Is Nothing Then Return
+            Dim item = FindAncestor(Of ListBoxItem)(e.OriginalSource)
+            If item Is Nothing Then Return
 
-                Dim product = TryCast(item.DataContext, ProductItem)
-                vm.ActivateProductForStockMovement(product)
-            Catch ex As Exception
-                AppDialogService.ShowError(
-                    $"Something went wrong while opening stock movement.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
-                    If(vm?.IsStockOutTab, "Stock out", "Stock in"))
-            End Try
+            Dim product = TryCast(item.DataContext, ProductItem)
+            If product Is Nothing Then Return
+
+            vm.OpenStockMovementForProduct(product)
+            e.Handled = True
         End Sub
-
-        Private Function GetViewModel() As InventoryViewModel
-            Return TryCast(DataContext, InventoryViewModel)
-        End Function
 
         Private Shared Function FindAncestor(Of T As DependencyObject)(source As Object) As T
             Dim current = TryCast(source, DependencyObject)

@@ -251,7 +251,7 @@
                                  BorderThickness="0" Background="Transparent"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  VerticalAlignment="Stretch"
-                                 PreviewMouseLeftButtonUp="ProductList_PreviewMouseLeftButtonUp"
+                                 MouseDoubleClick="ProductList_MouseDoubleClick"
                                  Visibility="{Binding HasProducts, Converter={StaticResource BoolToVis}}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>

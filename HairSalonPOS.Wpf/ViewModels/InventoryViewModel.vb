@@ -91,7 +91,6 @@ Namespace ViewModels
                     OnPropertyChanged(NameOf(HasProductMovements))
                     OnPropertyChanged(NameOf(ShowProductQuickActions))
                     RefreshProductMovements()
-                    OnProductSelectedForActiveTab()
                 End If
             End Set
         End Property
@@ -159,9 +158,9 @@ Namespace ViewModels
             Get
                 Select Case ActiveTab
                     Case InventoryTabs.StockIn
-                        Return "Select a product to add stock."
+                        Return "Double-click a product to add stock."
                     Case InventoryTabs.StockOut
-                        Return "Select a product to deduct stock (damage, expired, used, etc.)."
+                        Return "Double-click a product to deduct stock (damage, expired, used, etc.)."
                     Case Else
                         Return String.Empty
                 End Select
@@ -340,62 +339,33 @@ Namespace ViewModels
             StatusMessage = "Showing products that are low or out of stock."
         End Sub
 
-        Public Sub PromptStockForSelectedProduct()
+        Public Sub OpenStockMovementForProduct(product As ProductItem)
             If IsEditMode OrElse _stockDialogOpen Then Return
-            If SelectedProduct Is Nothing Then
-                ShowSelectProductFirstMessage()
-                Return
-            End If
-            OnProductSelectedForActiveTab(forcePrompt:=True)
-        End Sub
-
-        Public Sub ActivateProductForStockMovement(product As ProductItem)
-            If IsEditMode Then Return
             If Not IsStockInTab AndAlso Not IsStockOutTab Then Return
-
-            If product Is Nothing Then
-                ShowSelectProductFirstMessage()
-                Return
-            End If
+            If product Is Nothing Then Return
 
             Dim resolved = ResolveListedProduct(product)
-            If resolved Is Nothing Then
-                ShowSelectProductFirstMessage()
-                Return
-            End If
+            If resolved Is Nothing Then Return
 
-            Try
-                If Object.ReferenceEquals(SelectedProduct, resolved) Then
-                    PromptStockForSelectedProduct()
-                Else
+            If Not Object.ReferenceEquals(SelectedProduct, resolved) Then
+                _suppressStockPrompt = True
+                Try
                     SelectedProduct = resolved
-                End If
-            Catch ex As Exception
-                AppDialogService.ShowError(
-                    $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
-                    If(IsStockOutTab, "Stock out", "Stock in"))
-            End Try
-        End Sub
-
-        Private Sub OnProductSelectedForActiveTab(Optional forcePrompt As Boolean = False)
-            If _suppressStockPrompt OrElse IsEditMode Then Return
-            If Not forcePrompt AndAlso _stockDialogOpen Then Return
-
-            If SelectedProduct Is Nothing Then
-                If forcePrompt Then ShowSelectProductFirstMessage()
-                Return
+                Finally
+                    _suppressStockPrompt = False
+                End Try
             End If
 
             Try
                 Select Case ActiveTab
                     Case InventoryTabs.StockIn
-                        CompleteStockIn(SelectedProduct)
+                        CompleteStockIn(resolved)
                     Case InventoryTabs.StockOut
-                        CompleteStockOut(SelectedProduct)
+                        CompleteStockOut(resolved)
                 End Select
             Catch ex As Exception
                 AppDialogService.ShowError(
-                    $"Could not complete stock movement.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                    $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
                     If(IsStockOutTab, "Stock out", "Stock in"))
             End Try
         End Sub
@@ -404,10 +374,6 @@ Namespace ViewModels
             If product Is Nothing OrElse Products Is Nothing Then Return Nothing
             Return Products.FirstOrDefault(Function(p) p.Sku = product.Sku)
         End Function
-
-        Private Sub ShowSelectProductFirstMessage()
-            AppDialogService.ShowWarning("Please select a product first.", If(IsStockOutTab, "Stock out", "Stock in"))
-        End Sub
 
         Private Shared Function CurrentUserNameOrThrow() As String
             Dim user = SessionContext.CurrentUser
