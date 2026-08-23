@@ -172,6 +172,7 @@ Namespace Models
             Set(value As String)
                 If SetProperty(_status, If(value, AppointmentStatuses.Scheduled)) Then
                     OnPropertyChanged(NameOf(StatusLabel))
+                    OnPropertyChanged(NameOf(DisplayStatusLabel))
                     OnPropertyChanged(NameOf(IsScheduled))
                     OnPropertyChanged(NameOf(IsDone))
                     OnPropertyChanged(NameOf(IsNoShow))
@@ -215,6 +216,20 @@ Namespace Models
                         Return "No Show"
                     Case Else
                         Return "Scheduled"
+                End Select
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property DisplayStatusLabel As String
+            Get
+                Select Case Status
+                    Case AppointmentStatuses.Done
+                        Return "Confirmed"
+                    Case AppointmentStatuses.NoShow
+                        Return "Cancelled"
+                    Case Else
+                        Return "Pending"
                 End Select
             End Get
         End Property

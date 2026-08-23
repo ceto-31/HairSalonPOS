@@ -1,4 +1,5 @@
 Imports System.Collections.ObjectModel
+Imports System.Windows.Threading
 Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
@@ -26,6 +27,9 @@ Namespace ViewModels
         Private _isAdding As Boolean = True
         Private _editingAppointmentId As Integer
         Private _statusMessage As String = String.Empty
+        Private _isDayLoading As Boolean
+        Private _selectedDayAppointmentCount As Integer
+        Private ReadOnly _dayLoadingTimer As DispatcherTimer
 
         Public Sub New(openAtPointOfSale As Action(Of AppointmentItem))
             _openAtPointOfSale = openAtPointOfSale
@@ -48,6 +52,9 @@ Namespace ViewModels
             ConvertToTransactionCommand = New RelayCommand(Of AppointmentItem)(AddressOf ConvertToTransaction)
             MarkDoneCommand = New RelayCommand(Of AppointmentItem)(AddressOf MarkDone, AddressOf CanMarkDone)
 
+            _dayLoadingTimer = New DispatcherTimer With {.Interval = TimeSpan.FromMilliseconds(150)}
+            AddHandler _dayLoadingTimer.Tick, AddressOf OnDayLoadingTimerTick
+
             AddHandler _store.AppointmentsChanged, Sub() LoadAppointments()
             LoadAppointments()
         End Sub
@@ -64,11 +71,56 @@ Namespace ViewModels
             End Get
             Set(value As Date)
                 If SetProperty(_selectedDate, value) Then
+                    BeginDayLoading()
                     LoadAppointments()
                     OnPropertyChanged(NameOf(DateLabel))
+                    OnPropertyChanged(NameOf(CalendarLinkLabel))
                     OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
                 End If
             End Set
+        End Property
+
+        Public Property IsDayLoading As Boolean
+            Get
+                Return _isDayLoading
+            End Get
+            Private Set(value As Boolean)
+                SetProperty(_isDayLoading, value)
+            End Set
+        End Property
+
+        Public Property SelectedDayAppointmentCount As Integer
+            Get
+                Return _selectedDayAppointmentCount
+            End Get
+            Private Set(value As Integer)
+                SetProperty(_selectedDayAppointmentCount, value)
+            End Set
+        End Property
+
+        Public ReadOnly Property SelectedDaySummaryLabel As String
+            Get
+                Select Case SelectedDayAppointmentCount
+                    Case 0
+                        Return "No appointments"
+                    Case 1
+                        Return "1 appointment"
+                    Case Else
+                        Return $"{SelectedDayAppointmentCount} appointments"
+                End Select
+            End Get
+        End Property
+
+        Public ReadOnly Property HasAppointmentsForSelectedDay As Boolean
+            Get
+                Return SelectedDayAppointmentCount > 0
+            End Get
+        End Property
+
+        Public ReadOnly Property CalendarLinkLabel As String
+            Get
+                Return $"Showing {If(SelectedDate.Date = Date.Today, "today", SelectedDate.ToString("MMMM d, yyyy"))}"
+            End Get
         End Property
 
         Public ReadOnly Property DateLabel As String
@@ -239,7 +291,7 @@ Namespace ViewModels
         Public ReadOnly Property ViewStatusLabel As String
             Get
                 If ViewAppointment Is Nothing Then Return String.Empty
-                Return ViewAppointment.StatusLabel
+                Return ViewAppointment.DisplayStatusLabel
             End Get
         End Property
 
@@ -388,8 +440,22 @@ Namespace ViewModels
             Appointments = New ObservableCollection(Of AppointmentItem)(
                 _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date).
                 OrderBy(Function(a) a.StartTime))
+            SelectedDayAppointmentCount = Appointments.Count
             OnPropertyChanged(NameOf(Appointments))
             OnPropertyChanged(NameOf(DatesWithAppointments))
+            OnPropertyChanged(NameOf(SelectedDaySummaryLabel))
+            OnPropertyChanged(NameOf(HasAppointmentsForSelectedDay))
+        End Sub
+
+        Private Sub BeginDayLoading()
+            IsDayLoading = True
+            _dayLoadingTimer.Stop()
+            _dayLoadingTimer.Start()
+        End Sub
+
+        Private Sub OnDayLoadingTimerTick(sender As Object, e As EventArgs)
+            _dayLoadingTimer.Stop()
+            IsDayLoading = False
         End Sub
 
         Public Sub StartNewBooking()

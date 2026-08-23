@@ -672,20 +672,156 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
-    <Style x:Key="LargeCalendarStyle" TargetType="Calendar">
-        <Setter Property="FontSize" Value="16"/>
+    <Style x:Key="BrandCalendarDayButtonStyle" TargetType="CalendarDayButton">
+        <Setter Property="MinWidth" Value="40"/>
+        <Setter Property="MinHeight" Value="40"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle">
+            <Setter.Value>
+                <Style>
+                    <Setter Property="Control.Template">
+                        <Setter.Value>
+                            <ControlTemplate>
+                                <Rectangle Margin="-2" SnapsToDevicePixels="True"
+                                           Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" RadiusX="8" RadiusY="8"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CalendarDayButton">
+                    <Grid>
+                        <Border x:Name="DayBorder" CornerRadius="8" Background="Transparent"
+                                BorderThickness="2" BorderBrush="Transparent"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                            <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsToday" Value="True"/>
+                                <Condition Property="IsSelected" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        </MultiTrigger>
+                        <Trigger Property="IsInactive" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.3"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource ShellHoverBrush}"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsSelected" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BrandCalendarButtonStyle" TargetType="CalendarButton">
+        <Setter Property="MinWidth" Value="32"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CalendarButton">
+                    <Border x:Name="Root" Background="Transparent" CornerRadius="6" Padding="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BrandCalendarStyle" TargetType="Calendar">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Padding" Value="8"/>
         <Setter Property="MinWidth" Value="300"/>
         <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CalendarDayButtonStyle" Value="{StaticResource BrandCalendarDayButtonStyle}"/>
+        <Setter Property="CalendarButtonStyle" Value="{StaticResource BrandCalendarButtonStyle}"/>
     </Style>
+
+    <Style x:Key="LargeCalendarStyle" TargetType="Calendar" BasedOn="{StaticResource BrandCalendarStyle}"/>
 
     <Style x:Key="LargeDatePicker" TargetType="DatePicker" BasedOn="{StaticResource ModernDatePicker}">
         <Setter Property="MinWidth" Value="200"/>
         <Setter Property="FontSize" Value="15"/>
-        <Setter Property="CalendarStyle" Value="{StaticResource LargeCalendarStyle}"/>
+        <Setter Property="CalendarStyle" Value="{StaticResource BrandCalendarStyle}"/>
+    </Style>
+
+    <Style x:Key="DashedAddSlotButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="16,14"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Rectangle RadiusX="12" RadiusY="12" Stroke="{DynamicResource AccentBrush}"
+                                   StrokeThickness="1" StrokeDashArray="4 3" Fill="Transparent"/>
+                        <Border x:Name="Root" Background="Transparent" CornerRadius="12"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource CardMutedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource NavActiveBackgroundBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource CardMutedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="DataGridStyle" TargetType="DataGrid">

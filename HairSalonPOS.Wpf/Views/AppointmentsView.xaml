@@ -5,6 +5,66 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              d:DesignHeight="600" d:DesignWidth="900">
+    <UserControl.Resources>
+        <Style x:Key="AppointmentsCalendarDayButtonStyle" TargetType="CalendarDayButton" BasedOn="{StaticResource BrandCalendarDayButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CalendarDayButton">
+                        <Grid>
+                            <Border x:Name="DayBorder" CornerRadius="8" Background="Transparent"
+                                    BorderThickness="2" BorderBrush="Transparent"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,6"/>
+                            <Ellipse Width="5" Height="5" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                                     Fill="{DynamicResource AccentBrush}">
+                                <Ellipse.Visibility>
+                                    <MultiBinding Converter="{StaticResource DateHasAppointments}">
+                                        <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Date"/>
+                                        <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="DataContext.DatesWithAppointments"/>
+                                    </MultiBinding>
+                                </Ellipse.Visibility>
+                            </Ellipse>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsToday" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsInactive" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.3"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource ShellHoverBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AppointmentsSidebarCalendarStyle" TargetType="Calendar" BasedOn="{StaticResource BrandCalendarStyle}">
+            <Setter Property="CalendarDayButtonStyle" Value="{StaticResource AppointmentsCalendarDayButtonStyle}"/>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Border Style="{StaticResource CardBorder}"
                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
@@ -210,87 +270,137 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="12" Padding="12">
-                    <Calendar SelectedDate="{Binding SelectedDate, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource LargeCalendarStyle}"
-                              HorizontalAlignment="Stretch"/>
+                <Border Grid.Column="0" Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="12"
+                        Padding="12" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Browse dates" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding CalendarLinkLabel}" FontSize="12"
+                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12"/>
+                        <Calendar SelectedDate="{Binding SelectedDate, UpdateSourceTrigger=PropertyChanged}"
+                                  Style="{StaticResource AppointmentsSidebarCalendarStyle}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
                 </Border>
 
-                <DockPanel Grid.Column="2">
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                        <TextBlock Text="{Binding DateLabel}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button Content="◀" Style="{StaticResource SecondaryButton}" Width="44" Command="{Binding PrevDayCommand}" Margin="0,0,4,0"/>
-                            <Button Content="▶" Style="{StaticResource SecondaryButton}" Width="44" Command="{Binding NextDayCommand}" Margin="0,0,12,0"/>
-                            <Button Content="+ Book" Style="{StaticResource PrimaryButton}" Command="{Binding BookCommand}"/>
-                        </StackPanel>
-                    </DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Margin="0,0,0,16"
-                               Text="{Binding SelectedDayBusinessHoursLabel}"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding Appointments}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,0,0,10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="70"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding TimeLabel}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <Border Grid.Column="1" Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="10" Padding="14,10">
-                                            <StackPanel>
-                                                <TextBlock>
-                                                    <Run Text="{Binding CustomerName}" FontWeight="SemiBold"/>
-                                                    <Run Text=" — "/>
-                                                    <Run Text="{Binding ServiceName}"/>
-                                                    <Run Text=" ("/>
-                                                    <Run Text="{Binding DurationMinutes}"/>
-                                                    <Run Text=" mins)"/>
-                                                </TextBlock>
-                                                <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" Margin="0,2,0,0">
-                                                    <Run Text="{Binding ContactNumber, Mode=OneWay}"/>
-                                                    <Run Text=" · "/>
-                                                    <Run Text="{Binding StatusLabel, Mode=OneWay}"/>
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Column="2" CornerRadius="10" Padding="8,4" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                Background="{Binding StatusLabel, Converter={StaticResource AppointmentStatusBg}}">
-                                            <TextBlock Text="{Binding StatusLabel}" FontSize="10" FontWeight="Bold"/>
-                                        </Border>
-                                        <Button Grid.Column="3" Content="Done" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Padding="10,6"
-                                                Command="{Binding DataContext.MarkDoneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                Visibility="{Binding IsScheduled, Converter={StaticResource BoolToVis}}"/>
-                                        <Button Grid.Column="4" Content="View" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Padding="12,6"
-                                                Command="{Binding DataContext.ViewAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Grid.Column="5" Content="Edit" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Padding="12,6"
-                                                Command="{Binding DataContext.EditAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                IsEnabled="{Binding IsScheduled}"/>
-                                        <Button Grid.Column="6" Content="Delete" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Padding="12,6"
-                                                Command="{Binding DataContext.DeleteAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Grid.Column="7" Content="→ Point of Sale" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
-                                                Command="{Binding DataContext.ConvertToTransactionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                IsEnabled="{Binding IsScheduled}"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
+                <Border Grid.Column="2" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="0,2,0,0" Padding="0,4,0,0">
+                    <Grid>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                                <DockPanel Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding DateLabel}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                ToolTip="Navigate days">
+                                        <Button Content="‹ Previous day" Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding PrevDayCommand}" Margin="0,0,8,0" Padding="12,8"
+                                                ToolTip="Previous day"/>
+                                        <Button Content="Next day ›" Style="{StaticResource SecondaryButton}"
+                                                Command="{Binding NextDayCommand}" Margin="0,0,12,0" Padding="12,8"
+                                                ToolTip="Next day"/>
+                                        <Button Content="+ Book" Style="{StaticResource PrimaryButton}" Command="{Binding BookCommand}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding SelectedDaySummaryLabel}" FontWeight="SemiBold" FontSize="14"
+                                               Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0"/>
+                                    <TextBlock Text="{Binding SelectedDayBusinessHoursLabel}" FontSize="13"
+                                               Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+
+                            <Grid DockPanel.Dock="Top">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              Visibility="{Binding HasAppointmentsForSelectedDay, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <ItemsControl ItemsSource="{Binding Appointments}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource CardMutedBrush}" CornerRadius="12"
+                                                            Padding="16" Margin="0,0,0,10">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="84"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding TimeLabel}" FontWeight="SemiBold" FontSize="15"
+                                                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Top"/>
+                                                            <StackPanel Grid.Column="1" Margin="8,0,12,0">
+                                                                <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" FontSize="15"/>
+                                                                <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource MutedTextBrush}">
+                                                                    <Run Text="{Binding ServiceName, Mode=OneWay}"/>
+                                                                    <Run Text=" · "/>
+                                                                    <Run Text="{Binding DurationMinutes, Mode=OneWay}"/>
+                                                                    <Run Text=" min"/>
+                                                                </TextBlock>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                                    <Button Content="View" Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,6,0"
+                                                                            Command="{Binding DataContext.ViewAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                    <Button Content="Edit" Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,6,0"
+                                                                            Command="{Binding DataContext.EditAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            IsEnabled="{Binding IsScheduled}"/>
+                                                                    <Button Content="Done" Style="{StaticResource PrimaryButton}" Padding="10,6" Margin="0,0,6,0"
+                                                                            Command="{Binding DataContext.MarkDoneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            Visibility="{Binding IsScheduled, Converter={StaticResource BoolToVis}}"/>
+                                                                    <Button Content="→ POS" Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,6,0"
+                                                                            Command="{Binding DataContext.ConvertToTransactionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            IsEnabled="{Binding IsScheduled}"/>
+                                                                    <Button Content="Delete" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                                                                            Command="{Binding DataContext.DeleteAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                            <Border Grid.Column="2" CornerRadius="10" Padding="10,5" VerticalAlignment="Top"
+                                                                    Background="{Binding DisplayStatusLabel, Converter={StaticResource AppointmentStatusBg}}">
+                                                                <TextBlock Text="{Binding DisplayStatusLabel}" FontSize="11" FontWeight="Bold"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Style="{StaticResource DashedAddSlotButton}" Margin="0,4,0,0"
+                                                Content="+ Add appointment for this day"
+                                                Command="{Binding BookCommand}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"
+                                            Visibility="{Binding HasAppointmentsForSelectedDay, Converter={StaticResource InverseBoolToVis}}">
+                                    <Path Data="{StaticResource IconCalendarGeometry}" Width="48" Height="48" Stretch="Uniform"
+                                          Stroke="{DynamicResource MutedTextBrush}" StrokeThickness="1.5" Fill="Transparent"
+                                          HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                                    <TextBlock Text="No appointments for this day" FontSize="18" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding SelectedDayBusinessHoursLabel}" FontSize="13"
+                                               Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center"
+                                               TextAlignment="Center" Margin="0,0,0,20"/>
+                                    <Button Content="Book appointment" Style="{StaticResource PrimaryButton}"
+                                            Command="{Binding BookCommand}" HorizontalAlignment="Center" Padding="20,10"/>
+                                    <Button Style="{StaticResource DashedAddSlotButton}" Margin="0,16,0,0"
+                                            Content="+ Add appointment for this day"
+                                            Command="{Binding BookCommand}"/>
+                                </StackPanel>
+                            </Grid>
+                        </DockPanel>
+
+                        <Border Background="#CCFAF7F4" Visibility="{Binding IsDayLoading, Converter={StaticResource BoolToVis}}"
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Width="160" Height="4" Margin="0,0,0,12"/>
+                                <TextBlock Text="Loading appointments…" Foreground="{DynamicResource MutedTextBrush}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
     </Grid>
