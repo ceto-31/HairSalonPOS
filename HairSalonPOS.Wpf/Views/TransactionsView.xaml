@@ -12,7 +12,7 @@
                 <TextBlock Text="Browse and reprint past sales" FontSize="14" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource SearchTextBox}" Margin="0,0,12,0"
+                             Style="{StaticResource SearchTextBox}" Width="260" Margin="0,0,12,0"
                              Tag="Search transactions..."/>
                     <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}"/>
                 </StackPanel>

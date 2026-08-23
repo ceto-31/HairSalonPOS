@@ -115,7 +115,7 @@
                     <StackPanel Margin="0,0,8,8">
                         <TextBlock Text="Date" Style="{StaticResource SectionHeader}"/>
                         <DatePicker SelectedDate="{Binding EditAppointmentDate, UpdateSourceTrigger=PropertyChanged}"
-                                    DisplayDateStart="{Binding MinBookableDate}"
+                                    DisplayDateStart="{Binding MinBookableDate, Mode=OneWay}"
                                     Style="{StaticResource LargeDatePicker}"
                                     SelectedDateFormat="Short"/>
                     </StackPanel>

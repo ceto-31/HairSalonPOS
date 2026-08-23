@@ -517,7 +517,6 @@
     </Style>
 
     <Style x:Key="SearchTextBox" TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
-        <Setter Property="Width" Value="260"/>
         <Setter Property="MinHeight" Value="40"/>
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

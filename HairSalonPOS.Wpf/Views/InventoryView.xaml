@@ -8,16 +8,6 @@
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch">
     <UserControl.Resources>
-        <Style x:Key="InventorySearchTextBox" TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
-            <Setter Property="MinHeight" Value="40"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Background" Value="{DynamicResource SearchInputBackgroundBrush}"/>
-        </Style>
-
         <Style x:Key="InventoryListItem" TargetType="ListBoxItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Padding" Value="0"/>
@@ -164,7 +154,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0"
                              Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource InventorySearchTextBox}"
+                             Style="{StaticResource SearchTextBox}"
                              Tag="Search products..."/>
                     <Button Grid.Column="1" Content="Refresh" Style="{StaticResource SecondaryButton}"
                             Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
