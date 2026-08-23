@@ -1,6 +1,7 @@
 Imports System.Windows
 Imports System.Windows.Controls
 Imports System.Windows.Input
+Imports HairSalonPOS.Wpf.Services
 
 Namespace Views
     Partial Public Class BirthdatePromptWindow
@@ -17,6 +18,7 @@ Namespace Views
         End Sub
 
         Private Sub Window_Loaded(sender As Object, e As RoutedEventArgs)
+            AppDialogService.ApplyOwnerOverlaySizing(Me)
             Dispatcher.BeginInvoke(Sub()
                                        BirthdatePicker.IsDropDownOpen = True
                                        BirthdatePicker.Focus()

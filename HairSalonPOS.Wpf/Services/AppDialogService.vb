@@ -103,22 +103,50 @@ Namespace Services
                                             Optional owner As Window = Nothing,
                                             Optional initialQty As Integer = 1) As StockMovementPromptResult
             If product Is Nothing Then Return Nothing
+
+            Try
+                product.EnsureDefaults()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockMovement/EnsureDefaults", ex)
+                Throw
+            End Try
+
             If Not isStockIn AndAlso product.StockOnHand <= 0 Then
-                ShowWarning($"{product.Name} has no stock to issue.", "Stock out")
+                ShowWarning($"{If(product.Name, "This product")} has no stock to issue.", "Stock out")
                 Return Nothing
             End If
 
-            Dim dialog As New Views.StockMovementWindow(product, isStockIn, initialQty)
-            Dim ownerWin = owner
-            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
-                ownerWin = Application.Current.MainWindow
-            End If
-            If ownerWin IsNot Nothing Then
-                dialog.Owner = ownerWin
-                SizeDialogToOwner(dialog, ownerWin)
-            End If
-            Dim result = dialog.ShowDialog()
-            If result = True AndAlso dialog.Confirmed Then
+            Dim dialog As Views.StockMovementWindow
+            Try
+                dialog = New Views.StockMovementWindow(product, isStockIn, initialQty)
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockMovement/ConstructWindow", ex)
+                Throw
+            End Try
+
+            Try
+                Dim ownerWin = owner
+                If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                    ownerWin = Application.Current.MainWindow
+                End If
+                If ownerWin IsNot Nothing Then
+                    dialog.Owner = ownerWin
+                    SizeDialogToOwner(dialog, ownerWin)
+                End If
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockMovement/OwnerSizing", ex)
+                Throw
+            End Try
+
+            Dim result As Boolean?
+            Try
+                result = dialog.ShowDialog()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockMovement/ShowDialog", ex)
+                Throw
+            End Try
+
+            If result = True AndAlso dialog.Confirmed AndAlso dialog.LoadSucceeded Then
                 Return New StockMovementPromptResult With {
                     .Quantity = dialog.ResultQuantity,
                     .Reason = dialog.ResultReason,
@@ -128,23 +156,57 @@ Namespace Services
             Return Nothing
         End Function
 
-        Private Sub SizeDialogToOwner(dialog As Window, ownerWin As Window)
-            dialog.WindowStartupLocation = WindowStartupLocation.Manual
+        Private Function TrySizeDialogToOwner(dialog As Window, ownerWin As Window) As Boolean
             Dim ownerWidth = If(ownerWin.ActualWidth > 0, ownerWin.ActualWidth, ownerWin.Width)
             Dim ownerHeight = If(ownerWin.ActualHeight > 0, ownerWin.ActualHeight, ownerWin.Height)
+            If Double.IsNaN(ownerWidth) OrElse Double.IsNaN(ownerHeight) OrElse
+               Double.IsNaN(ownerWin.Left) OrElse Double.IsNaN(ownerWin.Top) Then
+                Return False
+            End If
+
+            dialog.WindowStartupLocation = WindowStartupLocation.Manual
             dialog.Width = Math.Max(ownerWidth, 400)
             dialog.Height = Math.Max(ownerHeight, 300)
             dialog.Left = ownerWin.Left
             dialog.Top = ownerWin.Top
+            Return True
+        End Function
+
+        Private Sub SizeDialogToWorkArea(dialog As Window)
+            Dim area = SystemParameters.WorkArea
+            dialog.WindowStartupLocation = WindowStartupLocation.Manual
+            dialog.Width = area.Width
+            dialog.Height = area.Height
+            dialog.Left = area.Left
+            dialog.Top = area.Top
         End Sub
 
+        Private Sub SizeDialogToOwner(dialog As Window, ownerWin As Window)
+            If Not TrySizeDialogToOwner(dialog, ownerWin) Then
+                SizeDialogToWorkArea(dialog)
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' Stretches a dialog over its owner so its scrim reads as a full-window dim rather than a
+        ''' rectangle hugging the rounded card.
+        ''' </summary>
         Public Sub ApplyOwnerOverlaySizing(dialog As Window)
+            If dialog Is Nothing Then Return
+
             Dim ownerWin = dialog.Owner
-            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing Then
+            If ownerWin Is Nothing AndAlso
+               Application.Current?.MainWindow IsNot Nothing AndAlso
+               Application.Current.MainWindow.IsLoaded AndAlso
+               Not ReferenceEquals(Application.Current.MainWindow, dialog) Then
                 ownerWin = Application.Current.MainWindow
             End If
-            If ownerWin IsNot Nothing Then
-                SizeDialogToOwner(dialog, ownerWin)
+
+            ' Without explicit bounds the window keeps its NaN size and collapses, so an
+            ' unmeasurable owner (or none at all, as on the login screen) falls back to the
+            ' work area. Either way the scrim covers a full window rather than hugging the card.
+            If ownerWin Is Nothing OrElse Not TrySizeDialogToOwner(dialog, ownerWin) Then
+                SizeDialogToWorkArea(dialog)
             End If
         End Sub
     End Module

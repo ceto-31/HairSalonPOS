@@ -2,9 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title=""
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         ResizeMode="NoResize"
-        SizeToContent="WidthAndHeight"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -39,7 +38,7 @@
     </Window.Resources>
 
     <Grid>
-        <Border x:Name="Overlay" Background="#66000000" Opacity="0"/>
+        <Border x:Name="Overlay" Background="{DynamicResource DialogOverlayBrush}" Opacity="0"/>
 
         <Grid x:Name="DialogCard"
               HorizontalAlignment="Center"

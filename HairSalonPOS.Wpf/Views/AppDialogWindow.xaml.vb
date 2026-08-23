@@ -70,7 +70,8 @@ Namespace Views
         End Sub
 
         Private Sub Window_Loaded(sender As Object, e As RoutedEventArgs)
-            Dim storyboard = TryCast(FindResource("OpenStoryboard"), Storyboard)
+            AppDialogService.ApplyOwnerOverlaySizing(Me)
+            Dim storyboard = TryCast(TryFindResource("OpenStoryboard"), Storyboard)
             storyboard?.Begin(Me)
         End Sub
 
