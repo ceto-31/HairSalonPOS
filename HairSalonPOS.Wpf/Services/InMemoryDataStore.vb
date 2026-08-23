@@ -295,7 +295,8 @@ Namespace Services
 
         Public Sub MarkAppointmentDone(appointmentId As Integer)
             Dim appt = Appointments.FirstOrDefault(Function(a) a.AppointmentId = appointmentId)
-            If appt Is Nothing OrElse appt.Status <> AppointmentStatuses.Scheduled Then Return
+            If appt Is Nothing Then Return
+            If appt.Status <> AppointmentStatuses.Scheduled AndAlso appt.Status <> AppointmentStatuses.Confirmed Then Return
             appt.Status = AppointmentStatuses.Done
             appt.CompletedAt = DateTime.Now
             RaiseAppointmentsChanged()
@@ -304,7 +305,8 @@ Namespace Services
         Public Function RefreshAppointmentStatuses() As Boolean
             Dim changed = False
             For Each appt In Appointments
-                If appt.Status = AppointmentStatuses.Scheduled AndAlso appt.EndTime < DateTime.Now Then
+                If (appt.Status = AppointmentStatuses.Scheduled OrElse appt.Status = AppointmentStatuses.Confirmed) AndAlso
+                   appt.EndTime < DateTime.Now Then
                     appt.Status = AppointmentStatuses.NoShow
                     changed = True
                 End If

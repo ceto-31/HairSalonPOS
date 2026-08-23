@@ -348,17 +348,21 @@ Namespace ViewModels
                                                                      End Sub)
 
             _store.RefreshAppointmentStatuses()
-            AppointmentCount = _store.Appointments.Where(Function(a) a.StartTime.Date = today AndAlso a.Status = AppointmentStatuses.Scheduled).Count()
+            AppointmentCount = _store.Appointments.Where(
+                Function(a) a.StartTime.Date = today AndAlso
+                              (a.Status = AppointmentStatuses.Scheduled OrElse a.Status = AppointmentStatuses.Confirmed)).Count()
             OnPropertyChanged(NameOf(AppointmentDateLabel))
 
             Dim upcoming = _store.Appointments.
-                Where(Function(a) a.Status = AppointmentStatuses.Scheduled AndAlso a.StartTime >= DateTime.Now).
+                Where(Function(a) (a.Status = AppointmentStatuses.Scheduled OrElse a.Status = AppointmentStatuses.Confirmed) AndAlso
+                                  a.StartTime >= DateTime.Now).
                 OrderBy(Function(a) a.StartTime).
                 Take(5).
                 ToList()
             If upcoming.Count = 0 Then
                 upcoming = _store.Appointments.
-                    Where(Function(a) a.StartTime.Date = today AndAlso a.Status = AppointmentStatuses.Scheduled).
+                    Where(Function(a) a.StartTime.Date = today AndAlso
+                                      (a.Status = AppointmentStatuses.Scheduled OrElse a.Status = AppointmentStatuses.Confirmed)).
                     OrderBy(Function(a) a.StartTime).
                     Take(5).
                     ToList()
@@ -370,7 +374,7 @@ Namespace ViewModels
                     .ServiceName = a.ServiceName,
                     .StaffName = a.StaffName,
                     .StatusLabel = a.StatusLabel,
-                    .IsConfirmed = a.Status = AppointmentStatuses.Done
+                    .IsConfirmed = a.Status = AppointmentStatuses.Confirmed
                 }))
             OnPropertyChanged(NameOf(Appointments))
             OnPropertyChanged(NameOf(HasUpcomingAppointments))

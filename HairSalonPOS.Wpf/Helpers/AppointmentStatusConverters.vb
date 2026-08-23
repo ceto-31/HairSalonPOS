@@ -9,8 +9,10 @@ Namespace Helpers
         Public Function Convert(value As Object, targetType As Type, parameter As Object, culture As CultureInfo) As Object Implements IValueConverter.Convert
             Dim status = TryCast(value, String)
             Select Case status
-                Case "Confirmed", "Done"
+                Case "Done"
                     Return Application.Current.TryFindResource("SuccessBadgeBrush")
+                Case "Confirmed"
+                    Return Application.Current.TryFindResource("NavActiveBackgroundBrush")
                 Case "Cancelled", "No Show"
                     Return Application.Current.TryFindResource("ErrorBadgeBrush")
                 Case "Pending", "Scheduled"

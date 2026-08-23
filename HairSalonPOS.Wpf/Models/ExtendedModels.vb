@@ -76,6 +76,7 @@ Namespace Models
 
     Public Class AppointmentStatuses
         Public Const Scheduled As String = "Scheduled"
+        Public Const Confirmed As String = "Confirmed"
         Public Const Done As String = "Done"
         Public Const NoShow As String = "NoShow"
     End Class
@@ -174,8 +175,11 @@ Namespace Models
                     OnPropertyChanged(NameOf(StatusLabel))
                     OnPropertyChanged(NameOf(DisplayStatusLabel))
                     OnPropertyChanged(NameOf(IsScheduled))
+                    OnPropertyChanged(NameOf(IsConfirmed))
+                    OnPropertyChanged(NameOf(IsOpen))
                     OnPropertyChanged(NameOf(IsDone))
                     OnPropertyChanged(NameOf(IsNoShow))
+                    OnPropertyChanged(NameOf(IsPastDue))
                 End If
             End Set
         End Property
@@ -212,10 +216,12 @@ Namespace Models
                 Select Case Status
                     Case AppointmentStatuses.Done
                         Return "Done"
+                    Case AppointmentStatuses.Confirmed
+                        Return "Confirmed"
                     Case AppointmentStatuses.NoShow
-                        Return "No Show"
+                        Return "Cancelled"
                     Case Else
-                        Return "Scheduled"
+                        Return "Pending"
                 End Select
             End Get
         End Property
@@ -225,6 +231,8 @@ Namespace Models
             Get
                 Select Case Status
                     Case AppointmentStatuses.Done
+                        Return "Done"
+                    Case AppointmentStatuses.Confirmed
                         Return "Confirmed"
                     Case AppointmentStatuses.NoShow
                         Return "Cancelled"
@@ -238,6 +246,20 @@ Namespace Models
         Public ReadOnly Property IsScheduled As Boolean
             Get
                 Return Status = AppointmentStatuses.Scheduled
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsConfirmed As Boolean
+            Get
+                Return Status = AppointmentStatuses.Confirmed
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsOpen As Boolean
+            Get
+                Return Status = AppointmentStatuses.Scheduled OrElse Status = AppointmentStatuses.Confirmed
             End Get
         End Property
 
@@ -258,7 +280,7 @@ Namespace Models
         <JsonIgnore>
         Public ReadOnly Property IsPastDue As Boolean
             Get
-                Return IsScheduled AndAlso EndTime < DateTime.Now
+                Return IsOpen AndAlso EndTime < DateTime.Now
             End Get
         End Property
     End Class
@@ -348,6 +370,18 @@ Namespace Models
                 Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
             End Get
         End Property
+    End Class
+
+    Public Class AppointmentHistoryRow
+        Public Property AppointmentId As Integer
+        Public Property DateLabel As String = String.Empty
+        Public Property TimeLabel As String = String.Empty
+        Public Property CustomerName As String = String.Empty
+        Public Property ServiceName As String = String.Empty
+        Public Property StaffLabel As String = String.Empty
+        Public Property StatusLabel As String = String.Empty
+        Public Property AmountLabel As String = String.Empty
+        Public Property SourceAppointment As AppointmentItem
     End Class
 
     Public Class DashboardSaleRow

@@ -384,7 +384,8 @@ Namespace ViewModels
         Private Sub UpdateStatus()
             LowStockCount = InMemoryDataStore.Instance.GetLowStockCount()
             AppointmentCountToday = InMemoryDataStore.Instance.Appointments.
-                Where(Function(a) a.StartTime.Date = Date.Today AndAlso a.Status = AppointmentStatuses.Scheduled).Count()
+                Where(Function(a) a.StartTime.Date = Date.Today AndAlso
+                                  (a.Status = AppointmentStatuses.Scheduled OrElse a.Status = AppointmentStatuses.Confirmed)).Count()
             CurrentDateText = Date.Today.ToString("yyyy-MM-dd")
             RefreshHeaderTexts()
             OnPropertyChanged(NameOf(CanViewAdminScreens))
