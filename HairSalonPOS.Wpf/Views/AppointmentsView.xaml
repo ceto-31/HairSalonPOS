@@ -25,12 +25,30 @@
                             </Ellipse>
                         </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
+                            <DataTrigger Binding="{Binding Date, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource DateIsPast}}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" Value="True"/>
+                                    <Condition Binding="{Binding Date, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource DateIsPast}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
+                                <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                                <Setter Property="FontWeight" Value="Normal"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" Value="True"/>
+                                    <Condition Binding="{Binding Date, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource DateIsPast}}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter TargetName="DayBorder" Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
                                 <Setter TargetName="DayBorder" Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Trigger>
+                            </MultiDataTrigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsToday" Value="True"/>
@@ -63,6 +81,8 @@
 
         <Style x:Key="AppointmentsSidebarCalendarStyle" TargetType="Calendar" BasedOn="{StaticResource BrandCalendarStyle}">
             <Setter Property="CalendarDayButtonStyle" Value="{StaticResource AppointmentsCalendarDayButtonStyle}"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
     </UserControl.Resources>
     <Grid>
@@ -95,6 +115,7 @@
                     <StackPanel Margin="0,0,8,8">
                         <TextBlock Text="Date" Style="{StaticResource SectionHeader}"/>
                         <DatePicker SelectedDate="{Binding EditAppointmentDate, UpdateSourceTrigger=PropertyChanged}"
+                                    DisplayDateStart="{Binding MinBookableDate}"
                                     Style="{StaticResource LargeDatePicker}"
                                     SelectedDateFormat="Short"/>
                     </StackPanel>
@@ -270,7 +291,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="12"
+                <Border Grid.Column="0" VerticalAlignment="Top"
+                        Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="12"
                         Padding="12" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                     <StackPanel>
                         <TextBlock Text="Browse dates" FontWeight="SemiBold" FontSize="14"
@@ -278,8 +300,7 @@
                         <TextBlock Text="{Binding CalendarLinkLabel}" FontSize="12"
                                    Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12"/>
                         <Calendar SelectedDate="{Binding SelectedDate, UpdateSourceTrigger=PropertyChanged}"
-                                  Style="{StaticResource AppointmentsSidebarCalendarStyle}"
-                                  HorizontalAlignment="Stretch"/>
+                                  Style="{StaticResource AppointmentsSidebarCalendarStyle}"/>
                     </StackPanel>
                 </Border>
 
@@ -297,7 +318,9 @@
                                         <Button Content="Next day ›" Style="{StaticResource SecondaryButton}"
                                                 Command="{Binding NextDayCommand}" Margin="0,0,12,0" Padding="12,8"
                                                 ToolTip="Next day"/>
-                                        <Button Content="+ Book" Style="{StaticResource PrimaryButton}" Command="{Binding BookCommand}"/>
+                                        <Button Content="+ Book" Style="{StaticResource PrimaryButton}" Command="{Binding BookCommand}"
+                                                IsEnabled="{Binding IsSelectedDateBookable}"
+                                                ToolTip="Can't book appointments in the past"/>
                                     </StackPanel>
                                 </DockPanel>
                                 <StackPanel Orientation="Horizontal">
@@ -306,6 +329,9 @@
                                     <TextBlock Text="{Binding SelectedDayBusinessHoursLabel}" FontSize="13"
                                                Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
+                                <TextBlock Text="{Binding PastDateBookingMessage}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,0"
+                                           Visibility="{Binding PastDateBookingMessage, Converter={StaticResource StringNotEmptyToVis}}"/>
                             </StackPanel>
 
                             <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0"
@@ -368,7 +394,9 @@
                                         </ItemsControl>
                                         <Button Style="{StaticResource DashedAddSlotButton}" Margin="0,4,0,0"
                                                 Content="+ Add appointment for this day"
-                                                Command="{Binding BookCommand}"/>
+                                                Command="{Binding BookCommand}"
+                                                IsEnabled="{Binding IsSelectedDateBookable}"
+                                                ToolTip="Can't book appointments in the past"/>
                                     </StackPanel>
                                 </ScrollViewer>
 
@@ -383,10 +411,14 @@
                                                Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center"
                                                TextAlignment="Center" Margin="0,0,0,20"/>
                                     <Button Content="Book appointment" Style="{StaticResource PrimaryButton}"
-                                            Command="{Binding BookCommand}" HorizontalAlignment="Center" Padding="20,10"/>
+                                            Command="{Binding BookCommand}" HorizontalAlignment="Center" Padding="20,10"
+                                            IsEnabled="{Binding IsSelectedDateBookable}"
+                                            ToolTip="Can't book appointments in the past"/>
                                     <Button Style="{StaticResource DashedAddSlotButton}" Margin="0,16,0,0"
                                             Content="+ Add appointment for this day"
-                                            Command="{Binding BookCommand}"/>
+                                            Command="{Binding BookCommand}"
+                                            IsEnabled="{Binding IsSelectedDateBookable}"
+                                            ToolTip="Can't book appointments in the past"/>
                                 </StackPanel>
                             </Grid>
                         </DockPanel>

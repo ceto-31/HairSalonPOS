@@ -41,7 +41,7 @@ Namespace ViewModels
 
             PrevDayCommand = New RelayCommand(Sub() SelectedDate = SelectedDate.AddDays(-1))
             NextDayCommand = New RelayCommand(Sub() SelectedDate = SelectedDate.AddDays(1))
-            BookCommand = New RelayCommand(AddressOf BeginBook)
+            BookCommand = New RelayCommand(AddressOf BeginBook, AddressOf CanBookOnSelectedDate)
             EditAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf BeginEdit)
             SaveAppointmentCommand = New RelayCommand(AddressOf SaveAppointment)
             UpdateAppointmentCommand = New RelayCommand(AddressOf UpdateAppointment)
@@ -76,8 +76,29 @@ Namespace ViewModels
                     OnPropertyChanged(NameOf(DateLabel))
                     OnPropertyChanged(NameOf(CalendarLinkLabel))
                     OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+                    OnPropertyChanged(NameOf(IsSelectedDateBookable))
+                    OnPropertyChanged(NameOf(PastDateBookingMessage))
+                    BookCommand.NotifyCanExecuteChanged()
                 End If
             End Set
+        End Property
+
+        Public ReadOnly Property IsSelectedDateBookable As Boolean
+            Get
+                Return BusinessHoursService.IsBookableDate(SelectedDate)
+            End Get
+        End Property
+
+        Public ReadOnly Property PastDateBookingMessage As String
+            Get
+                Return If(IsSelectedDateBookable, String.Empty, "Can't book appointments in the past.")
+            End Get
+        End Property
+
+        Public ReadOnly Property MinBookableDate As Date
+            Get
+                Return Date.Today
+            End Get
         End Property
 
         Public Property IsDayLoading As Boolean
@@ -300,8 +321,13 @@ Namespace ViewModels
                 Return _editAppointmentDate
             End Get
             Set(value As Date)
-                If SetProperty(_editAppointmentDate, value) Then
-                    RefreshAvailableBusinessHours(value)
+                Dim normalized = value.Date
+                If _isAdding AndAlso Not BusinessHoursService.IsBookableDate(normalized) Then
+                    normalized = Date.Today
+                    StatusMessage = PastDateBookingMessage
+                End If
+                If SetProperty(_editAppointmentDate, normalized) Then
+                    RefreshAvailableBusinessHours(normalized)
                     OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
                 End If
             End Set
@@ -463,7 +489,17 @@ Namespace ViewModels
             BeginBook()
         End Sub
 
+        Private Function CanBookOnSelectedDate() As Boolean
+            Return IsSelectedDateBookable
+        End Function
+
         Private Sub BeginBook()
+            If Not IsSelectedDateBookable Then
+                StatusMessage = PastDateBookingMessage
+                AppDialogService.ShowError(PastDateBookingMessage, "Cannot book")
+                Return
+            End If
+
             RefreshServiceNames()
             IsViewMode = False
             _isAdding = True
@@ -598,6 +634,9 @@ Namespace ViewModels
                 Return FailValidation("Service is required.")
             End If
             If AvailableBusinessHours.Count = 0 Then
+                If _isAdding AndAlso Not BusinessHoursService.IsBookableDate(EditAppointmentDate) Then
+                    Return FailValidation(PastDateBookingMessage, "Cannot book")
+                End If
                 Return FailValidation("No available time slots for the selected date. Choose a later day or time.", "No available slots")
             End If
             If Not HourOptions.Contains(EditHour) OrElse Not MinuteOptions.Contains(EditMinute) Then

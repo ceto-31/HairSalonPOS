@@ -34,12 +34,16 @@ Namespace Services
             Return startOfDay >= hours.Open AndAlso endOfDay <= hours.Close AndAlso endTime > startTime
         End Function
 
+        Public Function IsBookableDate(day As Date) As Boolean
+            Return day.Date >= Date.Today
+        End Function
+
         Public Function ValidateAppointment(startTime As DateTime, durationMinutes As Integer) As String
             If durationMinutes <= 0 Then
                 Return "Duration must be greater than zero."
             End If
 
-            If startTime.Date < Date.Today Then
+            If Not IsBookableDate(startTime.Date) Then
                 Return "Cannot book an appointment on a past date."
             End If
 

@@ -3,6 +3,25 @@ Imports System.Windows
 Imports System.Windows.Data
 
 Namespace Helpers
+    Public Class DateIsPastConverter
+        Implements IValueConverter
+
+        Public Function Convert(value As Object, targetType As Type, parameter As Object, culture As CultureInfo) As Object Implements IValueConverter.Convert
+            Dim day As Date? = Nothing
+            If TypeOf value Is DateTime Then
+                day = CType(value, DateTime).Date
+            ElseIf TypeOf value Is Date Then
+                day = CType(value, Date)
+            End If
+            If Not day.HasValue Then Return False
+            Return day.Value.Date < Date.Today
+        End Function
+
+        Public Function ConvertBack(value As Object, targetType As Type, parameter As Object, culture As CultureInfo) As Object Implements IValueConverter.ConvertBack
+            Throw New NotSupportedException()
+        End Function
+    End Class
+
     Public Class DateHasAppointmentsConverter
         Implements IMultiValueConverter
 
