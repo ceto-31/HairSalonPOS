@@ -3,7 +3,15 @@ Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
 Imports HairSalonPOS.Wpf.Helpers
+
 Namespace ViewModels
+    Public NotInheritable Class InventoryTabs
+        Public Const Products As String = "Products"
+        Public Const StockIn As String = "StockIn"
+        Public Const StockOut As String = "StockOut"
+        Public Const MovementLog As String = "MovementLog"
+    End Class
+
     Public Class InventoryViewModel
         Inherits ViewModelBase
 
@@ -13,7 +21,7 @@ Namespace ViewModels
 
         Private _searchText As String = String.Empty
         Private _selectedProduct As ProductItem
-        Private _showMovementLog As Boolean
+        Private _activeTab As String = InventoryTabs.Products
         Private _showLowStockOnly As Boolean
         Private _editSku As String = String.Empty
         Private _editName As String = String.Empty
@@ -28,7 +36,7 @@ Namespace ViewModels
         Private _isEditMode As Boolean
         Private _isAdding As Boolean
         Private _statusMessage As String = String.Empty
-        Private _suppressProductPopup As Boolean
+        Private _suppressStockPrompt As Boolean
         Private _stockDialogOpen As Boolean
         Private _lastStockCommandUtc As DateTime = DateTime.MinValue
 
@@ -38,19 +46,18 @@ Namespace ViewModels
             ProductMovements = New ObservableCollection(Of StockMovement)()
 
             RefreshCommand = New RelayCommand(AddressOf LoadAll)
-            ShowProductsTabCommand = New RelayCommand(Sub() ShowMovementLog = False)
-            ShowMovementLogCommand = New RelayCommand(Sub() ShowMovementLog = True)
+            ShowProductsTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.Products)
+            ShowStockInTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.StockIn)
+            ShowStockOutTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.StockOut)
+            ShowMovementLogCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.MovementLog)
             AddProductCommand = New RelayCommand(AddressOf BeginAddProduct)
-            EditProductCommand = New RelayCommand(AddressOf BeginEditProduct, Function() SelectedProduct IsNot Nothing)
+            EditProductCommand = New RelayCommand(AddressOf BeginEditProduct, Function() SelectedProduct IsNot Nothing AndAlso IsProductsTab)
             SaveProductCommand = New RelayCommand(AddressOf SaveProduct)
             CancelEditCommand = New RelayCommand(AddressOf CancelEdit)
-            DeleteProductCommand = New RelayCommand(AddressOf DeleteSelected)
+            DeleteProductCommand = New RelayCommand(AddressOf DeleteSelected, Function() SelectedProduct IsNot Nothing AndAlso IsProductsTab)
             ExportCommand = New RelayCommand(AddressOf ExportInventory)
             ChooseImageCommand = New RelayCommand(AddressOf ChooseImage)
             RemoveImageCommand = New RelayCommand(AddressOf RemoveImage)
-            StockInCommand = New RelayCommand(AddressOf StockInSelected, AddressOf CanRunStockCommand)
-            StockOutCommand = New RelayCommand(AddressOf StockOutSelected, AddressOf CanRunStockCommand)
-            CreateOrderCommand = New RelayCommand(AddressOf CreateOrderSelected, AddressOf CanRunCreateOrderCommand)
             ClearLowStockFilterCommand = New RelayCommand(AddressOf ClearLowStockFilter, Function() ShowLowStockOnly)
 
             AddHandler _store.SaleCompleted, Sub() LoadAll()
@@ -79,10 +86,23 @@ Namespace ViewModels
             Set(value As ProductItem)
                 If SetProperty(_selectedProduct, value) Then
                     EditProductCommand.NotifyCanExecuteChanged()
-                    NotifyStockCommands()
+                    DeleteProductCommand.NotifyCanExecuteChanged()
                     OnPropertyChanged(NameOf(HasSelectedProduct))
                     OnPropertyChanged(NameOf(HasProductMovements))
+                    OnPropertyChanged(NameOf(ShowProductQuickActions))
                     RefreshProductMovements()
+                    OnProductSelectedForActiveTab()
+                End If
+            End Set
+        End Property
+
+        Public Property ActiveTab As String
+            Get
+                Return _activeTab
+            End Get
+            Set(value As String)
+                If SetProperty(_activeTab, value) Then
+                    NotifyTabPropertiesChanged()
                 End If
             End Set
         End Property
@@ -105,14 +125,59 @@ Namespace ViewModels
             End Get
         End Property
 
-        Public Property ShowMovementLog As Boolean
+        Public ReadOnly Property ShowProductList As Boolean
             Get
-                Return _showMovementLog
+                Return IsProductsTab OrElse IsStockInTab OrElse IsStockOutTab
             End Get
-            Set(value As Boolean)
-                SetProperty(_showMovementLog, value)
-                OnPropertyChanged(NameOf(ShowProductsTab))
-            End Set
+        End Property
+
+        Public ReadOnly Property ShowMovementLog As Boolean
+            Get
+                Return ActiveTab = InventoryTabs.MovementLog
+            End Get
+        End Property
+
+        Public ReadOnly Property IsProductsTab As Boolean
+            Get
+                Return ActiveTab = InventoryTabs.Products
+            End Get
+        End Property
+
+        Public ReadOnly Property IsStockInTab As Boolean
+            Get
+                Return ActiveTab = InventoryTabs.StockIn
+            End Get
+        End Property
+
+        Public ReadOnly Property IsStockOutTab As Boolean
+            Get
+                Return ActiveTab = InventoryTabs.StockOut
+            End Get
+        End Property
+
+        Public ReadOnly Property TabHintText As String
+            Get
+                Select Case ActiveTab
+                    Case InventoryTabs.StockIn
+                        Return "Select a product to add stock."
+                    Case InventoryTabs.StockOut
+                        Return "Select a product to deduct stock (damage, expired, used, etc.)."
+                    Case Else
+                        Return String.Empty
+                End Select
+            End Get
+        End Property
+
+        Public ReadOnly Property ShowTabHint As Boolean
+            Get
+                Return IsStockInTab OrElse IsStockOutTab
+            End Get
+        End Property
+
+        Public ReadOnly Property ShowProductQuickActions As Boolean
+            Get
+                Return IsProductsTab AndAlso HasSelectedProduct AndAlso Not IsEditMode
+            End Get
         End Property
 
         Public Property ShowLowStockOnly As Boolean
@@ -133,18 +198,16 @@ Namespace ViewModels
             End Get
         End Property
 
-        Public ReadOnly Property ShowProductsTab As Boolean
-            Get
-                Return Not ShowMovementLog
-            End Get
-        End Property
-
         Public Property IsEditMode As Boolean
             Get
                 Return _isEditMode
             End Get
             Set(value As Boolean)
-                SetProperty(_isEditMode, value)
+                If SetProperty(_isEditMode, value) Then
+                    OnPropertyChanged(NameOf(ShowProductQuickActions))
+                    EditProductCommand.NotifyCanExecuteChanged()
+                    DeleteProductCommand.NotifyCanExecuteChanged()
+                End If
             End Set
         End Property
 
@@ -258,6 +321,8 @@ Namespace ViewModels
 
         Public Property RefreshCommand As RelayCommand
         Public Property ShowProductsTabCommand As RelayCommand
+        Public Property ShowStockInTabCommand As RelayCommand
+        Public Property ShowStockOutTabCommand As RelayCommand
         Public Property ShowMovementLogCommand As RelayCommand
         Public Property AddProductCommand As RelayCommand
         Public Property EditProductCommand As RelayCommand
@@ -267,79 +332,42 @@ Namespace ViewModels
         Public Property ExportCommand As RelayCommand
         Public Property ChooseImageCommand As RelayCommand
         Public Property RemoveImageCommand As RelayCommand
-        Public Property StockInCommand As RelayCommand
-        Public Property StockOutCommand As RelayCommand
-        Public Property CreateOrderCommand As RelayCommand
         Public Property ClearLowStockFilterCommand As RelayCommand
 
         Public Sub ApplyLowStockFilter()
-            ShowMovementLog = False
+            ActiveTab = InventoryTabs.Products
             ShowLowStockOnly = True
             StatusMessage = "Showing products that are low or out of stock."
         End Sub
 
-        Public Sub OpenProductDetailPopup()
-            If SelectedProduct Is Nothing OrElse IsEditMode OrElse Not ShowProductsTab Then Return
-            AppDialogService.PromptProductDetail(Me)
+        Public Sub PromptStockForSelectedProduct()
+            If SelectedProduct Is Nothing OrElse IsEditMode OrElse _stockDialogOpen Then Return
+            OnProductSelectedForActiveTab(forcePrompt:=True)
         End Sub
 
-        Public Sub RefreshSelectedProductFromStore()
-            If SelectedProduct Is Nothing Then Return
-            Dim sku = SelectedProduct.Sku
-            _suppressProductPopup = True
-            Try
-                Dim updated = _store.Products.FirstOrDefault(Function(p) p.Sku = sku)
-                If updated IsNot Nothing Then
-                    SelectedProduct = updated
-                End If
-            Finally
-                _suppressProductPopup = False
-            End Try
-            RefreshProductMovements()
+        Private Sub OnProductSelectedForActiveTab(Optional forcePrompt As Boolean = False)
+            If _suppressStockPrompt OrElse IsEditMode OrElse SelectedProduct Is Nothing Then Return
+            If Not forcePrompt AndAlso _stockDialogOpen Then Return
+
+            Select Case ActiveTab
+                Case InventoryTabs.StockIn
+                    CompleteStockIn(SelectedProduct)
+                Case InventoryTabs.StockOut
+                    CompleteStockOut(SelectedProduct)
+            End Select
         End Sub
 
-        Public Function RunStockInFromPopup() As Boolean
-            Return CompleteStockIn(SelectedProduct)
-        End Function
-
-        Public Function RunStockOutFromPopup() As Boolean
-            Return CompleteStockOut(SelectedProduct)
-        End Function
-
-        Public Function RunCreateOrderFromPopup() As Boolean
-            Dim product = SelectedProduct
-            If product Is Nothing OrElse Not product.ShowStockWarning Then Return False
-            Return CompleteStockIn(product, product.SuggestedOrderQty)
-        End Function
-
-        Public Sub BeginEditFromPopup()
-            BeginEditProduct()
-        End Sub
-
-        Public Sub DeleteFromPopup()
-            DeleteSelected()
-        End Sub
-
-        Private Function CanRunStockCommand() As Boolean
-            Return SelectedProduct IsNot Nothing AndAlso Not _stockDialogOpen
-        End Function
-
-        Private Function CanRunCreateOrderCommand() As Boolean
-            Return CanRunStockCommand() AndAlso SelectedProduct.ShowStockWarning
-        End Function
-
-        Private Function TryBeginStockCommand() As Boolean
-            If Not CanRunStockCommand() Then Return False
-            Dim now = DateTime.UtcNow
-            If (now - _lastStockCommandUtc).TotalMilliseconds < 300 Then Return False
-            _lastStockCommandUtc = now
-            Return True
-        End Function
-
-        Private Sub NotifyStockCommands()
-            StockInCommand.NotifyCanExecuteChanged()
-            StockOutCommand.NotifyCanExecuteChanged()
-            CreateOrderCommand.NotifyCanExecuteChanged()
+        Private Sub NotifyTabPropertiesChanged()
+            OnPropertyChanged(NameOf(ShowProductList))
+            OnPropertyChanged(NameOf(ShowMovementLog))
+            OnPropertyChanged(NameOf(IsProductsTab))
+            OnPropertyChanged(NameOf(IsStockInTab))
+            OnPropertyChanged(NameOf(IsStockOutTab))
+            OnPropertyChanged(NameOf(TabHintText))
+            OnPropertyChanged(NameOf(ShowTabHint))
+            OnPropertyChanged(NameOf(ShowProductQuickActions))
+            EditProductCommand.NotifyCanExecuteChanged()
+            DeleteProductCommand.NotifyCanExecuteChanged()
         End Sub
 
         Private Sub ClearLowStockFilter()
@@ -370,13 +398,12 @@ Namespace ViewModels
             If match Is Nothing AndAlso Products.Count > 0 Then
                 match = Products(0)
             End If
-            _suppressProductPopup = True
+            _suppressStockPrompt = True
             Try
                 SelectedProduct = match
             Finally
-                _suppressProductPopup = False
+                _suppressStockPrompt = False
             End Try
-            NotifyStockCommands()
         End Sub
 
         Public Sub LoadMovements()
@@ -403,7 +430,12 @@ Namespace ViewModels
 
         Private Sub BeginAddProduct()
             _isAdding = True
-            SelectedProduct = Nothing
+            _suppressStockPrompt = True
+            Try
+                SelectedProduct = Nothing
+            Finally
+                _suppressStockPrompt = False
+            End Try
             IsEditMode = True
             EditSku = $"P{(_store.Products.Count + 1):D3}"
             EditName = String.Empty
@@ -462,13 +494,13 @@ Namespace ViewModels
         Private Sub CancelEdit()
             IsEditMode = False
             _isAdding = False
-            _suppressProductPopup = True
+            _suppressStockPrompt = True
             Try
                 If SelectedProduct Is Nothing AndAlso Products.Count > 0 Then
                     SelectedProduct = Products(0)
                 End If
             Finally
-                _suppressProductPopup = False
+                _suppressStockPrompt = False
             End Try
         End Sub
 
@@ -497,18 +529,9 @@ Namespace ViewModels
             End If
         End Sub
 
-        Private Sub StockInSelected()
-            CompleteStockIn(SelectedProduct)
-        End Sub
-
-        Private Sub StockOutSelected()
-            CompleteStockOut(SelectedProduct)
-        End Sub
-
         Private Function CompleteStockIn(product As ProductItem, Optional suggestedQty As Integer = 1) As Boolean
             If product Is Nothing OrElse Not TryBeginStockCommand() Then Return False
             _stockDialogOpen = True
-            NotifyStockCommands()
             Try
                 Dim prompt = AppDialogService.PromptStockMovement(product, True, initialQty:=suggestedQty)
                 If prompt Is Nothing Then Return False
@@ -521,20 +544,12 @@ Namespace ViewModels
                 Return False
             Finally
                 _stockDialogOpen = False
-                NotifyStockCommands()
             End Try
         End Function
-
-        Private Sub CreateOrderSelected()
-            Dim product = SelectedProduct
-            If product Is Nothing OrElse Not product.ShowStockWarning Then Return
-            CompleteStockIn(product, product.SuggestedOrderQty)
-        End Sub
 
         Private Function CompleteStockOut(product As ProductItem) As Boolean
             If product Is Nothing OrElse Not TryBeginStockCommand() Then Return False
             _stockDialogOpen = True
-            NotifyStockCommands()
             Try
                 Dim prompt = AppDialogService.PromptStockMovement(product, False)
                 If prompt Is Nothing Then Return False
@@ -547,8 +562,15 @@ Namespace ViewModels
                 Return False
             Finally
                 _stockDialogOpen = False
-                NotifyStockCommands()
             End Try
+        End Function
+
+        Private Function TryBeginStockCommand() As Boolean
+            If SelectedProduct Is Nothing OrElse _stockDialogOpen Then Return False
+            Dim now = DateTime.UtcNow
+            If (now - _lastStockCommandUtc).TotalMilliseconds < 300 Then Return False
+            _lastStockCommandUtc = now
+            Return True
         End Function
 
         Private Sub ChooseImage()

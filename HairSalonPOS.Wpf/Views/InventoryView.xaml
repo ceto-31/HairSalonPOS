@@ -140,6 +140,10 @@
                     <TextBlock Text="Inventory" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextBrush}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Edit" Style="{StaticResource SecondaryButton}" Command="{Binding EditProductCommand}"
+                                Margin="0,0,8,0" Visibility="{Binding ShowProductQuickActions, Converter={StaticResource BoolToVis}}"/>
+                        <Button Content="Delete" Style="{StaticResource SecondaryButton}" Command="{Binding DeleteProductCommand}"
+                                Margin="0,0,8,0" Visibility="{Binding ShowProductQuickActions, Converter={StaticResource BoolToVis}}"/>
                         <Button Content="+ Add product" Style="{StaticResource PrimaryButton}" Command="{Binding AddProductCommand}" Margin="0,0,8,0"/>
                         <Button Content="Export" Style="{StaticResource SecondaryButton}" Command="{Binding ExportCommand}"/>
                     </StackPanel>
@@ -168,39 +172,74 @@
                     </DockPanel>
                 </Border>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
-                    <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Margin="0,0,8,0">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ShowProductsTab}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ShowMovementLog}" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                </StackPanel>
+                <Grid Grid.Row="3" Margin="0,0,0,8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Products" Command="{Binding ShowProductsTabCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsProductsTab}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Stock in" Command="{Binding ShowStockInTabCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsStockInTab}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Stock out" Command="{Binding ShowStockOutTabCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsStockOutTab}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowMovementLog}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Text="{Binding TabHintText}" FontSize="13"
+                               Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,4"
+                               Visibility="{Binding ShowTabHint, Converter={StaticResource BoolToVis}}"/>
+                </Grid>
 
                 <Border Grid.Row="4"
                         Background="{DynamicResource PageBackgroundBrush}" CornerRadius="12"
                         BorderBrush="{DynamicResource ShellBorderBrush}" BorderThickness="1" Padding="8"
-                        Visibility="{Binding ShowProductsTab, Converter={StaticResource BoolToVis}}">
+                        Visibility="{Binding ShowProductList, Converter={StaticResource BoolToVis}}">
                     <Grid>
                         <TextBlock Text="No products found." Foreground="{DynamicResource MutedTextBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"

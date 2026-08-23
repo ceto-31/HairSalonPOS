@@ -147,22 +147,6 @@ Namespace Services
                 SizeDialogToOwner(dialog, ownerWin)
             End If
         End Sub
-
-        Public Function PromptProductDetail(viewModel As ViewModels.InventoryViewModel,
-                                            Optional owner As Window = Nothing) As Boolean
-            If viewModel Is Nothing OrElse viewModel.SelectedProduct Is Nothing Then Return False
-
-            Dim dialog As New Views.InventoryProductWindow(viewModel)
-            Dim ownerWin = owner
-            If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
-                ownerWin = Application.Current.MainWindow
-            End If
-            If ownerWin IsNot Nothing Then
-                dialog.Owner = ownerWin
-                SizeDialogToOwner(dialog, ownerWin)
-            End If
-            Return dialog.ShowDialog() = True
-        End Function
     End Module
 
     Public Class StockMovementPromptResult

@@ -13,7 +13,8 @@ Namespace Views
 
         Private Sub ProductList_PreviewMouseLeftButtonUp(sender As Object, e As MouseButtonEventArgs)
             Dim vm = TryCast(DataContext, InventoryViewModel)
-            If vm Is Nothing OrElse vm.IsEditMode OrElse Not vm.ShowProductsTab Then Return
+            If vm Is Nothing OrElse vm.IsEditMode Then Return
+            If Not vm.IsStockInTab AndAlso Not vm.IsStockOutTab Then Return
 
             Dim item = TryCast(FindAncestor(Of ListBoxItem)(e.OriginalSource), ListBoxItem)
             If item Is Nothing OrElse item.DataContext Is Nothing Then Return
@@ -21,11 +22,9 @@ Namespace Views
             Dim product = TryCast(item.DataContext, HairSalonPOS.Wpf.Models.ProductItem)
             If product Is Nothing Then Return
 
-            If Not Object.ReferenceEquals(vm.SelectedProduct, product) Then
-                vm.SelectedProduct = product
+            If Object.ReferenceEquals(vm.SelectedProduct, product) Then
+                vm.PromptStockForSelectedProduct()
             End If
-
-            vm.OpenProductDetailPopup()
         End Sub
 
         Private Shared Function FindAncestor(Of T As DependencyObject)(source As Object) As T

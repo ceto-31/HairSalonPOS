@@ -287,6 +287,7 @@ Namespace ViewModels
 
         Private Sub NavigateInventory()
             InventoryViewModel.ShowLowStockOnly = False
+            InventoryViewModel.ActiveTab = InventoryTabs.Products
             InventoryViewModel.LoadAll()
             CurrentView = InventoryViewModel
             CurrentNavKey = "Inventory"
