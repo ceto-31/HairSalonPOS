@@ -26,8 +26,8 @@ Namespace ViewModels
 
             RefreshCommand = New RelayCommand(AddressOf LoadTransactions)
             SetAllCommand = New RelayCommand(Sub() Period = "All")
-            SetDailyCommand = New RelayCommand(Sub() Period = "Daily")
-            SetWeeklyCommand = New RelayCommand(Sub() Period = "Weekly")
+            SetDailyCommand = New RelayCommand(AddressOf SelectDailyPeriod)
+            SetWeeklyCommand = New RelayCommand(AddressOf SelectWeeklyPeriod)
             SetMonthlyCommand = New RelayCommand(Sub() Period = "Monthly")
             SetYearlyCommand = New RelayCommand(Sub() Period = "Yearly")
             PreviewReceiptCommand = New RelayCommand(Of SaleRecord)(AddressOf PreviewReceipt)
@@ -49,6 +49,7 @@ Namespace ViewModels
                 OnPropertyChanged(NameOf(IsWeekly))
                 OnPropertyChanged(NameOf(IsMonthly))
                 OnPropertyChanged(NameOf(IsYearly))
+                OnPropertyChanged(NameOf(IsMonthlyOrYearly))
             End Set
         End Property
 
@@ -139,6 +140,12 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public ReadOnly Property IsMonthlyOrYearly As Boolean
+            Get
+                Return Period = "Monthly" OrElse Period = "Yearly"
+            End Get
+        End Property
+
         Public Property RefreshCommand As RelayCommand
         Public Property SetAllCommand As RelayCommand
         Public Property SetDailyCommand As RelayCommand
@@ -213,12 +220,24 @@ Namespace ViewModels
             Return 0
         End Function
 
+        Private Sub SelectDailyPeriod()
+            _selectedDate = Date.Today
+            OnPropertyChanged(NameOf(SelectedDate))
+            Period = "Daily"
+        End Sub
+
+        Private Sub SelectWeeklyPeriod()
+            _selectedDate = Date.Today
+            OnPropertyChanged(NameOf(SelectedDate))
+            Period = "Weekly"
+        End Sub
+
         Private Function GetDateRange() As (FromDate As Date, ToDateExclusive As Date)
             Select Case Period
                 Case "All"
                     Return (Date.MinValue, Date.Today.AddDays(1))
                 Case "Weekly"
-                    Dim start = SelectedDate.Date.AddDays(-CInt(SelectedDate.DayOfWeek))
+                    Dim start = Date.Today.AddDays(-CInt(Date.Today.DayOfWeek))
                     Return (start, start.AddDays(7))
                 Case "Monthly"
                     Dim start = New Date(SelectedDate.Year, SelectedDate.Month, 1)
@@ -227,7 +246,8 @@ Namespace ViewModels
                     Dim start = New Date(SelectedDate.Year, 1, 1)
                     Return (start, start.AddYears(1))
                 Case Else
-                    Return (SelectedDate.Date, SelectedDate.Date.AddDays(1))
+                    Dim day = Date.Today
+                    Return (day, day.AddDays(1))
             End Select
         End Function
     End Class
