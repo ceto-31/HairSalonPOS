@@ -84,7 +84,7 @@
                         </Style>
                     </Button.Style>
                 </Button>
-                <DatePicker SelectedDate="{Binding SelectedDate}" IsEnabled="{Binding IsMonthlyOrYearly}"
+                <DatePicker SelectedDate="{Binding SelectedDate, UpdateSourceTrigger=PropertyChanged}"
                             Style="{StaticResource LargeDatePicker}" VerticalAlignment="Center"/>
             </StackPanel>
 

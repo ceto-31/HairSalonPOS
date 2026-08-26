@@ -69,6 +69,9 @@ Namespace Services
             SetBrush("ChartFillBrush", "#C8A97E")
             SetBrush("InventorySelectedTintBrush", "#F5EDE4")
             SetBrush("InventorySelectedAccentBrush", "#6B4423")
+            SetBrush("PaymentMethodCashBrush", "#6B4423")
+            SetBrush("PaymentMethodGcashBrush", "#C8A97E")
+            SetBrush("ReceiptPaperForegroundBrush", "#3D2B1F")
         End Sub
 
         Private Shared Sub ApplyDark()
@@ -129,10 +132,13 @@ Namespace Services
             SetBrush("DialogPrimaryBrush", "#D4A574")
             SetBrush("DialogPrimaryHoverBrush", "#C4956A")
             SetBrush("DialogPrimaryPressedBrush", "#B8875A")
-            SetBrush("SoftGoldBrush", "#D4A574")
+            SetBrush("SoftGoldBrush", "#E0C090")
             SetBrush("ChartFillBrush", "#E0C090")
             SetBrush("InventorySelectedTintBrush", "#352E28")
             SetBrush("InventorySelectedAccentBrush", "#D4A574")
+            SetBrush("PaymentMethodCashBrush", "#5C4033")
+            SetBrush("PaymentMethodGcashBrush", "#E0C090")
+            SetBrush("ReceiptPaperForegroundBrush", "#3D2B1F")
         End Sub
 
         Private Shared Sub SetBrush(key As String, hex As String)

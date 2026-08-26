@@ -61,6 +61,9 @@
     <SolidColorBrush x:Key="SoftGoldBrush" Color="#C8A97E"/>
     <SolidColorBrush x:Key="ChartFillBrush" Color="#C8A97E"/>
     <SolidColorBrush x:Key="DialogOverlayBrush" Color="#66000000"/>
+    <SolidColorBrush x:Key="PaymentMethodCashBrush" Color="#6B4423"/>
+    <SolidColorBrush x:Key="PaymentMethodGcashBrush" Color="#C8A97E"/>
+    <SolidColorBrush x:Key="ReceiptPaperForegroundBrush" Color="#3D2B1F"/>
     <SolidColorBrush x:Key="InventorySelectedTintBrush" Color="#F5EDE4"/>
     <SolidColorBrush x:Key="InventorySelectedAccentBrush" Color="#6B4423"/>
 
@@ -697,6 +700,16 @@
         </Setter>
     </Style>
 
+    <Style x:Key="ModernDatePickerTextBox" TargetType="DatePickerTextBox">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    </Style>
+
     <Style x:Key="ModernDatePicker" TargetType="DatePicker">
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="MinHeight" Value="36"/>
@@ -706,6 +719,76 @@
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DatePicker">
+                    <Grid>
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <DatePickerTextBox x:Name="PART_TextBox"
+                                                   Grid.Column="0"
+                                                   Style="{StaticResource ModernDatePickerTextBox}"
+                                                   Foreground="{TemplateBinding Foreground}"
+                                                   FontSize="{TemplateBinding FontSize}"
+                                                   HorizontalContentAlignment="Stretch"
+                                                   VerticalContentAlignment="Center"
+                                                   Focusable="{TemplateBinding Focusable}"/>
+                                <Button x:Name="PART_Button"
+                                        Grid.Column="1"
+                                        Width="24" Height="24"
+                                        Margin="4,0,0,0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Focusable="False"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Right"
+                                        Cursor="Hand">
+                                    <Path Data="M0,0 L0,14 L14,14 L14,0 Z M1,1 L13,1 L13,13 L1,13 Z M3,0 L3,2 M11,0 L11,2 M0,4 L14,4"
+                                          Stroke="{DynamicResource MutedTextBrush}"
+                                          StrokeThickness="1.2"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Width="14" Height="14"
+                                          Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <Popup x:Name="PART_Popup"
+                               AllowsTransparency="True"
+                               Placement="Bottom"
+                               PlacementTarget="{Binding ElementName=border}"
+                               StaysOpen="False">
+                            <Border Background="{DynamicResource CardBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="4">
+                                <Calendar x:Name="PART_Calendar"
+                                          Style="{TemplateBinding CalendarStyle}"/>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource InputBorderFocusBrush}"/>
+                            <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Opacity" Value="0.55"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="BrandCalendarDayButtonStyle" TargetType="CalendarDayButton">

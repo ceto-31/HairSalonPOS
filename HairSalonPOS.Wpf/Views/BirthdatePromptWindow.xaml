@@ -36,7 +36,7 @@
 
                     <TextBlock Text="Birthdate" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
                     <DatePicker x:Name="BirthdatePicker"
-                                Style="{StaticResource ModernDatePicker}"
+                                Style="{StaticResource LargeDatePicker}"
                                 SelectedDateFormat="Short"
                                 HorizontalAlignment="Stretch"
                                 Margin="0,0,0,20"/>

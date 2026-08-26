@@ -49,7 +49,7 @@ Namespace Services
 
             Dim folder = If(String.Equals(kind, StaffKind, StringComparison.OrdinalIgnoreCase), StaffKind, ProductsKind)
             Directory.CreateDirectory(Path.Combine(_root, folder))
-            Dim fileName = $"{SanitizeFileStem(id)}.jpg"
+            Dim fileName = $"{SanitizeFileStem(id)}_{DateTime.UtcNow.Ticks}.jpg"
             Dim destAbs = Path.Combine(_root, folder, fileName)
 
             Dim source = LoadBitmap(sourcePath)

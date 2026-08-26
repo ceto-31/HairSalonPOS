@@ -42,14 +42,7 @@ Namespace ViewModels
                 Return _period
             End Get
             Set(value As String)
-                SetProperty(_period, value)
-                LoadTransactions()
-                OnPropertyChanged(NameOf(IsAll))
-                OnPropertyChanged(NameOf(IsDaily))
-                OnPropertyChanged(NameOf(IsWeekly))
-                OnPropertyChanged(NameOf(IsMonthly))
-                OnPropertyChanged(NameOf(IsYearly))
-                OnPropertyChanged(NameOf(IsMonthlyOrYearly))
+                ApplyPeriod(value)
             End Set
         End Property
 
@@ -58,8 +51,12 @@ Namespace ViewModels
                 Return _selectedDate
             End Get
             Set(value As Date)
-                SetProperty(_selectedDate, value)
-                LoadTransactions()
+                If Not SetProperty(_selectedDate, value.Date) Then Return
+                If Period = "All" Then
+                    ApplyPeriod("Daily")
+                Else
+                    LoadTransactions()
+                End If
             End Set
         End Property
 
@@ -140,12 +137,6 @@ Namespace ViewModels
             End Get
         End Property
 
-        Public ReadOnly Property IsMonthlyOrYearly As Boolean
-            Get
-                Return Period = "Monthly" OrElse Period = "Yearly"
-            End Get
-        End Property
-
         Public Property RefreshCommand As RelayCommand
         Public Property SetAllCommand As RelayCommand
         Public Property SetDailyCommand As RelayCommand
@@ -221,15 +212,23 @@ Namespace ViewModels
         End Function
 
         Private Sub SelectDailyPeriod()
-            _selectedDate = Date.Today
-            OnPropertyChanged(NameOf(SelectedDate))
-            Period = "Daily"
+            SelectedDate = Date.Today
+            ApplyPeriod("Daily")
         End Sub
 
         Private Sub SelectWeeklyPeriod()
-            _selectedDate = Date.Today
-            OnPropertyChanged(NameOf(SelectedDate))
-            Period = "Weekly"
+            SelectedDate = Date.Today
+            ApplyPeriod("Weekly")
+        End Sub
+
+        Private Sub ApplyPeriod(value As String)
+            If Not SetProperty(_period, value) Then Return
+            LoadTransactions()
+            OnPropertyChanged(NameOf(IsAll))
+            OnPropertyChanged(NameOf(IsDaily))
+            OnPropertyChanged(NameOf(IsWeekly))
+            OnPropertyChanged(NameOf(IsMonthly))
+            OnPropertyChanged(NameOf(IsYearly))
         End Sub
 
         Private Function GetDateRange() As (FromDate As Date, ToDateExclusive As Date)
@@ -237,7 +236,7 @@ Namespace ViewModels
                 Case "All"
                     Return (Date.MinValue, Date.Today.AddDays(1))
                 Case "Weekly"
-                    Dim start = Date.Today.AddDays(-CInt(Date.Today.DayOfWeek))
+                    Dim start = SelectedDate.Date.AddDays(-CInt(SelectedDate.DayOfWeek))
                     Return (start, start.AddDays(7))
                 Case "Monthly"
                     Dim start = New Date(SelectedDate.Year, SelectedDate.Month, 1)
@@ -246,7 +245,7 @@ Namespace ViewModels
                     Dim start = New Date(SelectedDate.Year, 1, 1)
                     Return (start, start.AddYears(1))
                 Case Else
-                    Dim day = Date.Today
+                    Dim day = SelectedDate.Date
                     Return (day, day.AddDays(1))
             End Select
         End Function
