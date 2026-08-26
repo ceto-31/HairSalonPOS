@@ -50,7 +50,8 @@ Namespace Services
                 .FontFamily = New FontFamily("Consolas"),
                 .FontSize = 11,
                 .PagePadding = New Thickness(24),
-                .TextAlignment = TextAlignment.Left
+                .TextAlignment = TextAlignment.Left,
+                .Foreground = ResolveReceiptForeground()
             }
 
             AddCenter(doc, appSettings.SalonName, 16, True)
@@ -131,6 +132,12 @@ Namespace Services
             lines.Add(New String("-"c, width))
             lines.Add("[[C]]Thank you!")
             Return lines
+        End Function
+
+        Private Shared Function ResolveReceiptForeground() As Brush
+            Dim themed = TryCast(Application.Current?.Resources("ReceiptPaperForegroundBrush"), Brush)
+            If themed IsNot Nothing Then Return themed
+            Return New SolidColorBrush(Color.FromRgb(&H3D, &H2B, &H1F))
         End Function
 
         Private Shared Sub AddCenter(doc As FlowDocument, text As String, Optional fontSize As Double = 11, Optional isBold As Boolean = False)

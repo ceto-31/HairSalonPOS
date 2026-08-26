@@ -74,12 +74,18 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <TextBox DockPanel.Dock="Top" Margin="0,0,0,12"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource SearchTextBox}"
+                         Tag="Search services..."
+                         Visibility="{Binding IsBrowseMode, Converter={StaticResource BoolToVis}}"/>
+
                 <TextBlock DockPanel.Dock="Top" Text="{Binding CatalogLeafLabel}" FontWeight="SemiBold" FontSize="14"
                            Foreground="{DynamicResource MutedTextBrush}" Margin="0,0,0,12"/>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="No items yet. Add services in the Services tab."
+                        <TextBlock Text="No services yet. Add services in Master Files."
                                    Foreground="{DynamicResource MutedTextBrush}" Margin="0,8,0,12"
                                    Visibility="{Binding ShowEmptyCatalogMessage, Converter={StaticResource BoolToVis}}"/>
                         <ItemsControl ItemsSource="{Binding CatalogTiles}">
@@ -156,7 +162,7 @@
                         <DataGrid ItemsSource="{Binding Cart}" Style="{StaticResource DataGridStyle}"
                                   MaxHeight="140" MinHeight="72" Margin="0,0,8,12">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Item" Binding="{Binding Name}" Width="*"/>
+                                <DataGridTextColumn Header="Item" Binding="{Binding CartDisplayName}" Width="*"/>
                                 <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="48"/>
                                 <DataGridTextColumn Header="Price" Binding="{Binding UnitPrice, StringFormat=₱{0:N2}}" Width="80"/>
                                 <DataGridTextColumn Header="Total" Binding="{Binding LineTotal, StringFormat=₱{0:N2}}" Width="90"/>

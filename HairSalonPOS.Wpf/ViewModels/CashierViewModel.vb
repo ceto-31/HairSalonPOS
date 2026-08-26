@@ -39,7 +39,6 @@ Namespace ViewModels
         Private _editingSku As String = String.Empty
         Private _editCatalogName As String = String.Empty
         Private _editCatalogPrice As Decimal
-        Private _editCatalogType As String = "Service"
         Private _lastReceipt As ReceiptModel
         Private _selectedManageCategory As CatalogCategoryNode
         Private _selectedManageSubCategory As String
@@ -49,6 +48,7 @@ Namespace ViewModels
         Private _lastFocusedCategoryName As String = String.Empty
         Private _lastFocusedSubCategoryName As String = String.Empty
         Private _pendingAppointmentId As Integer
+        Private _searchText As String = String.Empty
 
         Public Sub New()
             CatalogTiles = New ObservableCollection(Of CatalogTile)()
@@ -57,7 +57,6 @@ Namespace ViewModels
             Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories.Where(Function(c) c.IsActive))
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
             SubCategoryChips = New ObservableCollection(Of SelectableChip)()
-            CatalogTypes = New ObservableCollection(Of String) From {"Service", "Product"}
 
             AddTileCommand = New RelayCommand(Of CatalogTile)(AddressOf AddFromTile)
             RemoveLineCommand = New RelayCommand(Of CartLine)(AddressOf RemoveLine)
@@ -193,9 +192,20 @@ Namespace ViewModels
         Public Property Categories As ObservableCollection(Of CatalogCategoryNode)
         Public Property CategoryChips As ObservableCollection(Of SelectableChip)
         Public Property SubCategoryChips As ObservableCollection(Of SelectableChip)
-        Public Property CatalogTypes As ObservableCollection(Of String)
         Public Property ManageCategories As ObservableCollection(Of CatalogCategoryNode)
         Public Property ManageSubCategories As ObservableCollection(Of String)
+
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    LoadCatalogTiles()
+                    OnPropertyChanged(NameOf(CatalogLeafLabel))
+                End If
+            End Set
+        End Property
 
         Public Property CustomerName As String
             Get
@@ -379,6 +389,9 @@ Namespace ViewModels
 
         Public ReadOnly Property CatalogLeafLabel As String
             Get
+                If Not String.IsNullOrWhiteSpace(SearchText) Then
+                    Return $"Search results for ""{SearchText.Trim()}"""
+                End If
                 If HasSubCategories AndAlso Not String.IsNullOrWhiteSpace(SelectedSubCategory) Then
                     Return SelectedSubCategory
                 End If
@@ -456,13 +469,7 @@ Namespace ViewModels
 
         Public ReadOnly Property CatalogFormTitle As String
             Get
-                Return If(_isAddingCatalog, "Add item", "Edit item")
-            End Get
-        End Property
-
-        Public ReadOnly Property CanChangeCatalogType As Boolean
-            Get
-                Return _isAddingCatalog
+                Return If(_isAddingCatalog, "Add service", "Edit service")
             End Get
         End Property
 
@@ -481,15 +488,6 @@ Namespace ViewModels
             End Get
             Set(value As Decimal)
                 SetProperty(_editCatalogPrice, value)
-            End Set
-        End Property
-
-        Public Property EditCatalogType As String
-            Get
-                Return _editCatalogType
-            End Get
-            Set(value As String)
-                SetProperty(_editCatalogType, value)
             End Set
         End Property
 
@@ -857,19 +855,24 @@ Namespace ViewModels
 
         Private Sub LoadCatalogTiles()
             CatalogTiles.Clear()
-            Dim cat = SelectedCategory
-            Dim subCat = CurrentSubCategoryValue()
+            Dim query = _store.Services.Where(Function(x) x.IsActive)
 
-            For Each s In _store.Services.Where(Function(x) x.IsActive AndAlso MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(x) x.Name.ToLowerInvariant().Contains(term) OrElse
+                    x.Sku.ToLowerInvariant().Contains(term) OrElse
+                    (Not String.IsNullOrWhiteSpace(x.Category) AndAlso x.Category.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(x.SubCategory) AndAlso x.SubCategory.ToLowerInvariant().Contains(term)))
+            Else
+                Dim cat = SelectedCategory
+                Dim subCat = CurrentSubCategoryValue()
+                query = query.Where(Function(x) MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
+            End If
+
+            For Each s In query.OrderBy(Function(x) x.Name)
                 CatalogTiles.Add(New CatalogTile With {
                     .Sku = s.Sku, .Name = s.Name, .Price = s.Price, .Icon = s.Icon,
                     .TileType = "Service", .Category = s.Category, .SubCategory = s.SubCategory
-                })
-            Next
-            For Each p In _store.Products.Where(Function(x) x.IsActive AndAlso MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
-                CatalogTiles.Add(New CatalogTile With {
-                    .Sku = p.Sku, .Name = p.Name, .Price = p.Price, .Icon = "🧴",
-                    .TileType = "Product", .Category = p.Category, .SubCategory = p.SubCategory
                 })
             Next
             OnPropertyChanged(NameOf(HasCatalogItems))
@@ -890,9 +893,7 @@ Namespace ViewModels
             _editingSku = String.Empty
             EditCatalogName = String.Empty
             EditCatalogPrice = 0D
-            EditCatalogType = "Service"
             OnPropertyChanged(NameOf(CatalogFormTitle))
-            OnPropertyChanged(NameOf(CanChangeCatalogType))
             IsCatalogEditMode = True
         End Sub
 
@@ -902,9 +903,7 @@ Namespace ViewModels
             _editingSku = tile.Sku
             EditCatalogName = tile.Name
             EditCatalogPrice = tile.Price
-            EditCatalogType = tile.TileType
             OnPropertyChanged(NameOf(CatalogFormTitle))
-            OnPropertyChanged(NameOf(CanChangeCatalogType))
             IsCatalogEditMode = True
         End Sub
 
@@ -928,53 +927,30 @@ Namespace ViewModels
             Dim subCat = CurrentSubCategoryValue()
 
             If _isAddingCatalog Then
-                If EditCatalogType = "Product" Then
-                    Dim sku = $"CP{(_store.Products.Count + 1):D3}"
-                    _store.Products.Add(New ProductItem With {
-                        .Sku = sku,
-                        .Name = EditCatalogName.Trim(),
-                        .Brand = "Salon",
-                        .Price = EditCatalogPrice,
-                        .Cost = 0D,
-                        .StockOnHand = 100,
-                        .ReorderLevel = 5,
-                        .Category = cat,
-                        .SubCategory = subCat,
-                        .IsActive = True
-                    })
-                Else
-                    Dim sku = $"CS{(_store.Services.Count + 1):D3}"
-                    _store.Services.Add(New ServiceItem With {
-                        .Sku = sku,
-                        .Name = EditCatalogName.Trim(),
-                        .Price = EditCatalogPrice,
-                        .DurationMinutes = 60,
-                        .Icon = "✨",
-                        .Category = cat,
-                        .SubCategory = subCat,
-                        .CommissionPercent = 0D,
-                        .IsActive = True
-                    })
-                End If
-                StatusMessage = "Item added."
+                Dim sku = $"CS{(_store.Services.Count + 1):D3}"
+                _store.Services.Add(New ServiceItem With {
+                    .Sku = sku,
+                    .Name = EditCatalogName.Trim(),
+                    .Price = EditCatalogPrice,
+                    .DurationMinutes = 60,
+                    .Icon = "✨",
+                    .Category = cat,
+                    .SubCategory = subCat,
+                    .CommissionPercent = 0D,
+                    .IsActive = True
+                })
+                StatusMessage = "Service added."
             Else
                 Dim svc = _store.Services.FirstOrDefault(Function(s) s.Sku = _editingSku)
-                Dim prod = _store.Products.FirstOrDefault(Function(p) p.Sku = _editingSku)
-                If svc IsNot Nothing Then
-                    svc.Name = EditCatalogName.Trim()
-                    svc.Price = EditCatalogPrice
-                    svc.Category = cat
-                    svc.SubCategory = subCat
-                ElseIf prod IsNot Nothing Then
-                    prod.Name = EditCatalogName.Trim()
-                    prod.Price = EditCatalogPrice
-                    prod.Category = cat
-                    prod.SubCategory = subCat
-                Else
-                    StatusMessage = "Item not found."
+                If svc Is Nothing Then
+                    StatusMessage = "Service not found."
                     Return
                 End If
-                StatusMessage = "Item updated."
+                svc.Name = EditCatalogName.Trim()
+                svc.Price = EditCatalogPrice
+                svc.Category = cat
+                svc.SubCategory = subCat
+                StatusMessage = "Service updated."
             End If
 
             _store.PersistCatalog()
@@ -993,12 +969,11 @@ Namespace ViewModels
             If Not AppDialogService.ConfirmDelete(tile.Name) Then Return
 
             Dim svc = _store.Services.FirstOrDefault(Function(s) s.Sku = tile.Sku)
-            If svc IsNot Nothing Then
-                _store.Services.Remove(svc)
-            Else
-                Dim prod = _store.Products.FirstOrDefault(Function(p) p.Sku = tile.Sku)
-                If prod IsNot Nothing Then _store.Products.Remove(prod)
+            If svc Is Nothing Then
+                StatusMessage = "Service not found."
+                Return
             End If
+            _store.Services.Remove(svc)
             _store.PersistCatalog()
             StatusMessage = $"{tile.Name} deleted."
             LoadCatalogTiles()
@@ -1006,29 +981,47 @@ Namespace ViewModels
 
         Private Sub AddFromTile(tile As CatalogTile)
             If tile Is Nothing Then Return
-            Select Case tile.TileType
-                Case "Service"
-                    AddToCart(tile.Sku, tile.Name, tile.Price, True)
-                Case "Product"
-                    Dim product = _store.Products.FirstOrDefault(Function(p) p.Sku = tile.Sku)
-                    If product Is Nothing OrElse product.StockOnHand <= 0 Then
-                        StatusMessage = $"{tile.Name} is out of stock."
-                        Return
-                    End If
-                    AddToCart(tile.Sku, tile.Name, tile.Price, False)
-            End Select
+
+            Dim service = _store.Services.FirstOrDefault(Function(s) s.Sku = tile.Sku)
+            If service IsNot Nothing AndAlso service.HasPickOneConsumables Then
+                Dim selections = AppDialogService.PromptServiceConsumables(service)
+                If selections Is Nothing OrElse selections.Count = 0 Then Return
+                AddToCartWithConsumables(tile.Sku, tile.Name, tile.Price, selections)
+                Return
+            End If
+
+            AddToCart(tile.Sku, tile.Name, tile.Price, True)
+        End Sub
+
+        Private Sub AddToCartWithConsumables(sku As String, name As String, price As Decimal, selections As List(Of ServiceConsumableLine))
+            Dim summary = String.Join(", ", selections.Select(Function(s)
+                                                                    Dim product = _store.Products.FirstOrDefault(Function(p) p.Sku = s.ProductSku)
+                                                                    Return If(product?.Name, s.ProductSku)
+                                                                End Function))
+
+            Cart.Add(New CartLine With {
+                .Sku = sku,
+                .Name = name,
+                .UnitPrice = price,
+                .Quantity = 1,
+                .IsService = True,
+                .ConsumableSummary = summary,
+                .ConsumableSelections = selections.Select(Function(s) New ServiceConsumableLine With {
+                    .Kind = ServiceConsumableKind.PickOne,
+                    .ProductSku = s.ProductSku,
+                    .Quantity = s.Quantity
+                }).ToList()
+            })
+
+            StatusMessage = String.Empty
+            RecalculateTotals()
+            ClearCartCommand.NotifyCanExecuteChanged()
+            CheckoutCommand.NotifyCanExecuteChanged()
         End Sub
 
         Private Sub AddToCart(sku As String, name As String, price As Decimal, isService As Boolean)
-            Dim existing = Cart.FirstOrDefault(Function(c) c.Sku = sku)
+            Dim existing = Cart.FirstOrDefault(Function(c) c.Sku = sku AndAlso String.IsNullOrWhiteSpace(c.ConsumableSummary))
             If existing IsNot Nothing Then
-                If Not isService Then
-                    Dim product = _store.Products.First(Function(p) p.Sku = sku)
-                    If existing.Quantity >= product.StockOnHand Then
-                        StatusMessage = "Not enough stock available."
-                        Return
-                    End If
-                End If
                 existing.Quantity += 1
             Else
                 Cart.Add(New CartLine With {.Sku = sku, .Name = name, .UnitPrice = price, .Quantity = 1, .IsService = isService})
@@ -1196,6 +1189,14 @@ Namespace ViewModels
         Private Function CanCheckout() As Boolean
             If Cart.Count = 0 Then Return False
             If PaymentMethod = "Cash" AndAlso (AmountTendered <= 0D OrElse AmountTendered < Total) Then Return False
+
+            For Each line In Cart.Where(Function(c) c.IsService)
+                Dim service = _store.Services.FirstOrDefault(Function(s) s.Sku = line.Sku)
+                If service Is Nothing OrElse Not service.HasPickOneConsumables Then Continue For
+                Dim required = service.Consumables.Where(Function(c) c.Kind = ServiceConsumableKind.PickOne).Count()
+                If line.ConsumableSelections Is Nothing OrElse line.ConsumableSelections.Count < required Then Return False
+            Next
+
             Return True
         End Function
 
@@ -1212,6 +1213,23 @@ Namespace ViewModels
                     End If
                     Return
                 End If
+
+                Dim stockAnalysis = _checkout.AnalyzeConsumableStock(Cart.ToList())
+                If Not String.IsNullOrWhiteSpace(stockAnalysis.InsufficientMessage) Then
+                    StatusMessage = stockAnalysis.InsufficientMessage
+                    AppDialogService.ShowError(stockAnalysis.InsufficientMessage, "Checkout failed")
+                    Return
+                End If
+
+                Dim allowReserveUse = False
+                If stockAnalysis.ReserveShortfalls.Count > 0 Then
+                    If Not AppDialogService.ConfirmUseReserveStock(stockAnalysis.ReserveShortfalls) Then
+                        StatusMessage = "Checkout cancelled."
+                        Return
+                    End If
+                    allowReserveUse = True
+                End If
+
                 Dim request As New CheckoutRequest With {
                     .Cart = Cart.ToList(),
                     .PaymentMethod = PaymentMethod,
@@ -1219,7 +1237,8 @@ Namespace ViewModels
                     .CustomerName = NormalizeCustomerName(CustomerName),
                     .StylistName = If(SelectedStylist?.Name, String.Empty),
                     .PromoCode = PromoCode,
-                    .AmountTendered = AmountTendered
+                    .AmountTendered = AmountTendered,
+                    .AllowReserveUse = allowReserveUse
                 }
                 LastReceipt = _checkout.FinalizeSale(request)
                 If _pendingAppointmentId > 0 Then
@@ -1229,7 +1248,13 @@ Namespace ViewModels
                 Dim preview As New Views.ReceiptPreviewWindow(LastReceipt)
                 preview.Owner = Application.Current?.MainWindow
                 preview.ShowDialog()
-                StatusMessage = $"Sale {LastReceipt.ReceiptNumber} completed."
+                Dim status = $"Sale {LastReceipt.ReceiptNumber} completed."
+                If allowReserveUse Then
+                    Dim reserveLines = stockAnalysis.ReserveShortfalls.
+                        Select(Function(s) $"{s.Product.Name} ×{s.FromReserve}")
+                    status &= $" Used reserve stock: {String.Join(", ", reserveLines)}."
+                End If
+                StatusMessage = status
                 ClearCart()
             Catch ex As Exception
                 StatusMessage = ex.Message
