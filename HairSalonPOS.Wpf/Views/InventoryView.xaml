@@ -13,6 +13,7 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -215,6 +216,19 @@
                                 </Style>
                             </Button.Style>
                         </Button>
+                        <Button Content="Reserve Stock" Command="{Binding ShowReserveStockTabCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsReserveStockTab}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                         <Button Content="Stock movement log" Command="{Binding ShowMovementLogCommand}">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
@@ -274,12 +288,12 @@
                                             </Grid>
                                         </Border>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock FontSize="12" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
                                                 <Run Text="{Binding Sku, Mode=OneWay}"/>
                                                 <Run Text=" • "/>
-                                                <Run Text="{Binding StockOnHand, Mode=OneWay}"/>
-                                                <Run Text=" on hand"/>
+                                                <Run Text="{Binding StockSummaryLabel, Mode=OneWay}"/>
                                             </TextBlock>
                                         </StackPanel>
                                     </DockPanel>

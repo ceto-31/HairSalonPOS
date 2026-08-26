@@ -36,6 +36,14 @@
                                TextAlignment="Center"
                                Margin="0,0,0,16"/>
 
+                    <StackPanel x:Name="ReserveModePanel" Visibility="Collapsed" Orientation="Horizontal"
+                                HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <RadioButton x:Name="ReserveRadio" Content="Add to reserve stock" IsChecked="True" GroupName="ReserveMode"
+                                     Checked="ReserveMode_Changed"/>
+                        <RadioButton x:Name="ReleaseRadio" Content="Use reserve stock" Margin="16,0,0,0" GroupName="ReserveMode"
+                                     Checked="ReserveMode_Changed"/>
+                    </StackPanel>
+
                     <DockPanel Margin="0,0,0,16">
                         <Border DockPanel.Dock="Left" Width="64" Height="64" CornerRadius="8" Margin="0,0,14,0"
                                 Background="{DynamicResource CardMutedBrush}"

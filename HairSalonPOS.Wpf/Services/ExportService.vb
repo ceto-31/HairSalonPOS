@@ -213,6 +213,41 @@ Namespace Services
             _store.PersistCatalog()
         End Sub
 
+        ''' <summary>Add units to the reserve stock pool (independent from on-hand).</summary>
+        Public Sub ReserveStock(sku As String, quantity As Integer, userName As String, notes As String)
+            RequireAdmin()
+            If quantity <= 0 Then Throw New InvalidOperationException("Reserve quantity must be positive.")
+            Dim product = _store.Products.First(Function(p) p.Sku = sku)
+            product.EnsureDefaults()
+            product.ReservedQty += quantity
+            Dim detail = $"Reserve stock +{quantity}"
+            If Not String.IsNullOrWhiteSpace(notes) Then detail &= $" — {notes.Trim()}"
+            _store.LogMovement(sku, quantity, "Add Reserve Stock", userName, detail)
+            _store.PersistCatalog()
+        End Sub
+
+        ''' <summary>Transfer reserve stock back to on-hand — only when on-hand is depleted.</summary>
+        Public Sub ReleaseReserve(sku As String, quantity As Integer, userName As String, notes As String)
+            RequireAdmin()
+            If quantity <= 0 Then Throw New InvalidOperationException("Release quantity must be positive.")
+            Dim product = _store.Products.First(Function(p) p.Sku = sku)
+            product.EnsureDefaults()
+            If product.StockOnHand > 0 Then
+                Throw New InvalidOperationException(
+                    $"Reserve stock can only be used when on-hand is depleted. {product.Name} still has {product.StockOnHand} on hand.")
+            End If
+            If quantity > product.ReservedQty Then
+                Throw New InvalidOperationException(
+                    $"Cannot use {quantity} from reserve stock for {product.Name}. Only {product.ReservedQty} in reserve.")
+            End If
+            product.ReservedQty -= quantity
+            product.StockOnHand += quantity
+            Dim detail = $"Reserve stock -{quantity} (restored to on-hand)"
+            If Not String.IsNullOrWhiteSpace(notes) Then detail &= $" — {notes.Trim()}"
+            _store.LogMovement(sku, quantity, "Use Reserve Stock", userName, detail)
+            _store.PersistCatalog()
+        End Sub
+
         Public Sub DeleteProduct(product As ProductItem)
             RequireAdmin()
             If product Is Nothing Then Throw New ArgumentNullException(NameOf(product))

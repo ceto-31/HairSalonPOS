@@ -9,6 +9,7 @@ Namespace ViewModels
         Public Const Products As String = "Products"
         Public Const StockIn As String = "StockIn"
         Public Const StockOut As String = "StockOut"
+        Public Const ReserveStock As String = "ReserveStock"
         Public Const MovementLog As String = "MovementLog"
     End Class
 
@@ -53,6 +54,7 @@ Namespace ViewModels
             ShowProductsTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.Products)
             ShowStockInTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.StockIn)
             ShowStockOutTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.StockOut)
+            ShowReserveStockTabCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.ReserveStock)
             ShowMovementLogCommand = New RelayCommand(Sub() ActiveTab = InventoryTabs.MovementLog)
             AddProductCommand = New RelayCommand(AddressOf BeginAddProduct)
             EditProductCommand = New RelayCommand(AddressOf BeginEditProduct, Function() SelectedProduct IsNot Nothing AndAlso IsProductsTab)
@@ -132,7 +134,7 @@ Namespace ViewModels
 
         Public ReadOnly Property ShowProductList As Boolean
             Get
-                Return IsProductsTab OrElse IsStockInTab OrElse IsStockOutTab
+                Return IsProductsTab OrElse IsStockInTab OrElse IsStockOutTab OrElse IsReserveStockTab
             End Get
         End Property
 
@@ -160,6 +162,12 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public ReadOnly Property IsReserveStockTab As Boolean
+            Get
+                Return ActiveTab = InventoryTabs.ReserveStock
+            End Get
+        End Property
+
         Public ReadOnly Property TabHintText As String
             Get
                 Select Case ActiveTab
@@ -167,6 +175,8 @@ Namespace ViewModels
                         Return "Double-click a product to add stock."
                     Case InventoryTabs.StockOut
                         Return "Double-click a product to deduct stock (damage, expired, used, etc.)."
+                    Case InventoryTabs.ReserveStock
+                        Return "Double-click a product to add reserve stock or use it when on-hand is depleted."
                     Case Else
                         Return String.Empty
                 End Select
@@ -175,7 +185,7 @@ Namespace ViewModels
 
         Public ReadOnly Property ShowTabHint As Boolean
             Get
-                Return IsStockInTab OrElse IsStockOutTab
+                Return IsStockInTab OrElse IsStockOutTab OrElse IsReserveStockTab
             End Get
         End Property
 
@@ -348,6 +358,7 @@ Namespace ViewModels
         Public Property ShowProductsTabCommand As RelayCommand
         Public Property ShowStockInTabCommand As RelayCommand
         Public Property ShowStockOutTabCommand As RelayCommand
+        Public Property ShowReserveStockTabCommand As RelayCommand
         Public Property ShowMovementLogCommand As RelayCommand
         Public Property AddProductCommand As RelayCommand
         Public Property EditProductCommand As RelayCommand
@@ -367,7 +378,7 @@ Namespace ViewModels
 
         Public Sub OpenStockMovementForProduct(product As ProductItem)
             If IsEditMode OrElse _stockDialogOpen Then Return
-            If Not IsStockInTab AndAlso Not IsStockOutTab Then Return
+            If Not IsStockInTab AndAlso Not IsStockOutTab AndAlso Not IsReserveStockTab Then Return
             If product Is Nothing Then Return
 
             Dim resolved = ResolveListedProduct(product)
@@ -388,9 +399,11 @@ Namespace ViewModels
                         CompleteStockIn(resolved, resolved.SuggestedOrderQty)
                     Case InventoryTabs.StockOut
                         CompleteStockOut(resolved)
+                    Case InventoryTabs.ReserveStock
+                        CompleteReserveStock(resolved)
                 End Select
             Catch ex As Exception
-                Dim title = If(IsStockOutTab, "Stock out", "Stock in")
+                Dim title = If(IsStockOutTab, "Stock out", If(IsReserveStockTab, "Reserve Stock", "Stock in"))
                 ErrorLogService.LogException($"OpenStockMovementForProduct — {resolved.Sku} {resolved.Name}", ex)
                 AppDialogService.ShowError(
                     $"Could not open stock movement for {resolved.Name}.{Environment.NewLine}{Environment.NewLine}{ErrorLogService.Describe(ex)}",
@@ -446,6 +459,7 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(IsProductsTab))
             OnPropertyChanged(NameOf(IsStockInTab))
             OnPropertyChanged(NameOf(IsStockOutTab))
+            OnPropertyChanged(NameOf(IsReserveStockTab))
             OnPropertyChanged(NameOf(TabHintText))
             OnPropertyChanged(NameOf(ShowTabHint))
             OnPropertyChanged(NameOf(ShowProductQuickActions))
@@ -694,6 +708,33 @@ Namespace ViewModels
                 Return False
             Catch ex As Exception
                 ReportStockFailure("Stock out", "CompleteStockOut", product, ex)
+                Return False
+            Finally
+                _stockDialogOpen = False
+            End Try
+        End Function
+
+        Private Function CompleteReserveStock(product As ProductItem) As Boolean
+            If product Is Nothing OrElse Not TryBeginStockCommand(product) Then Return False
+            _stockDialogOpen = True
+            Try
+                product.EnsureDefaults()
+                Dim prompt = AppDialogService.PromptReserveStock(product)
+                If prompt Is Nothing Then Return False
+                If prompt.IsReleaseReserve Then
+                    _inventory.ReleaseReserve(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
+                    StatusMessage = $"Used {prompt.Quantity} units from reserve stock for {product.Name} (restored to on-hand)."
+                Else
+                    _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
+                    StatusMessage = $"Added {prompt.Quantity} units to reserve stock for {product.Name}."
+                End If
+                LoadAll()
+                Return True
+            Catch ex As InvalidOperationException
+                AppDialogService.ShowError(ex.Message, "Reserve Stock")
+                Return False
+            Catch ex As Exception
+                ReportStockFailure("Reserve Stock", "CompleteReserveStock", product, ex)
                 Return False
             Finally
                 _stockDialogOpen = False

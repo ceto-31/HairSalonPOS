@@ -15,7 +15,7 @@ Namespace Views
         Private Sub ProductList_MouseDoubleClick(sender As Object, e As MouseButtonEventArgs)
             Dim vm = TryCast(DataContext, InventoryViewModel)
             If vm Is Nothing OrElse vm.IsEditMode Then Return
-            If Not vm.IsStockInTab AndAlso Not vm.IsStockOutTab Then Return
+            If Not vm.IsStockInTab AndAlso Not vm.IsStockOutTab AndAlso Not vm.IsReserveStockTab Then Return
 
             Dim item = FindAncestor(Of ListBoxItem)(e.OriginalSource)
             If item Is Nothing Then Return

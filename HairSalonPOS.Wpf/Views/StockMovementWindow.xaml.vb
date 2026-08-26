@@ -14,16 +14,21 @@ Namespace Views
         Private Shared ReadOnly DigitsOnly As New Regex("^\d+$")
         Private Shared ReadOnly StockInReasons As String() = {"Purchase", "Customer return", "Transfer in", "Other"}
         Private Shared ReadOnly StockOutReasons As String() = {"Damaged", "Expired", "Used in service", "Missing", "Return to supplier", "Other"}
+        Private Shared ReadOnly AddReserveStockReasons As String() = {"Building backup stock", "Seasonal buffer", "Safety stock", "Other"}
+        Private Shared ReadOnly UseReserveStockReasons As String() = {"Typhoon / disaster", "Late delivery", "Supplier delay", "Cannot reorder", "Other"}
 
-        Private ReadOnly _isStockIn As Boolean
+        Private ReadOnly _kind As StockMovementKind
         Private _currentQty As Integer
+        Private _reservedQty As Integer
         Private _quantity As Integer = 1
         Private _loadFailed As Boolean
+        Private _isUseReserveStock As Boolean
 
         Public Property Confirmed As Boolean
         Public Property ResultQuantity As Integer
         Public Property ResultReason As String = String.Empty
         Public Property ResultNotes As String = String.Empty
+        Public Property ResultIsReleaseReserve As Boolean
         Public ReadOnly Property LoadSucceeded As Boolean
             Get
                 Return Not _loadFailed
@@ -31,6 +36,10 @@ Namespace Views
         End Property
 
         Public Sub New(product As ProductItem, isStockIn As Boolean, Optional initialQty As Integer = 1)
+            Me.New(product, If(isStockIn, StockMovementKind.StockIn, StockMovementKind.StockOut), initialQty)
+        End Sub
+
+        Public Sub New(product As ProductItem, kind As StockMovementKind, Optional initialQty As Integer = 1)
             Try
                 InitializeComponent()
             Catch ex As Exception
@@ -38,14 +47,14 @@ Namespace Views
                 Throw
             End Try
 
-            _isStockIn = isStockIn
+            _kind = kind
 
-            If Not TryLoadProduct(product, isStockIn, initialQty) Then
+            If Not TryLoadProduct(product, initialQty) Then
                 DisableFormControls()
             End If
         End Sub
 
-        Private Function TryLoadProduct(product As ProductItem, isStockIn As Boolean, initialQty As Integer) As Boolean
+        Private Function TryLoadProduct(product As ProductItem, initialQty As Integer) As Boolean
             Try
                 If product Is Nothing Then
                     ShowLoadError("Product details are missing.")
@@ -65,22 +74,14 @@ Namespace Views
                 End If
 
                 _currentQty = product.StockOnHand
+                _reservedQty = product.ReservedQty
 
-                TitleText.Text = If(isStockIn, "Stock in", "Stock out")
-                ConfirmButton.Content = If(isStockIn, "Stock in", "Stock out")
+                ConfigureForKind()
                 ProductNameText.Text = product.Name
-                ProductMetaText.Text = $"SKU {product.Sku}  •  On hand {_currentQty}"
-
-                Dim accentKey = If(isStockIn, "LinkStockInBrush", "LinkDeleteBrush")
-                Dim accent = TryCast(TryFindResource(accentKey), Brush)
-                If accent IsNot Nothing Then AccentBar.Background = accent
-
-                ReasonBox.ItemsSource = If(isStockIn, StockInReasons, StockOutReasons)
-                If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
-
+                RefreshProductMetaText(product.Sku)
                 ApplyProductPhoto(product)
-
                 SetQuantity(Math.Max(1, initialQty))
+                UpdateReserveModeAvailability()
                 Return True
             Catch ex As Exception
                 ErrorLogService.LogException($"StockMovementWindow/TryLoadProduct — {If(product?.Sku, "(null)")}", ex)
@@ -88,6 +89,74 @@ Namespace Views
                 Return False
             End Try
         End Function
+
+        Private Sub ConfigureForKind()
+            Select Case _kind
+                Case StockMovementKind.StockIn
+                    TitleText.Text = "Stock in"
+                    ConfirmButton.Content = "Stock in"
+                    ReserveModePanel.Visibility = Visibility.Collapsed
+                    ReasonBox.ItemsSource = StockInReasons
+                    Dim accent = TryCast(TryFindResource("LinkStockInBrush"), Brush)
+                    If accent IsNot Nothing Then AccentBar.Background = accent
+                Case StockMovementKind.StockOut
+                    TitleText.Text = "Stock out"
+                    ConfirmButton.Content = "Stock out"
+                    ReserveModePanel.Visibility = Visibility.Collapsed
+                    ReasonBox.ItemsSource = StockOutReasons
+                    Dim accent = TryCast(TryFindResource("LinkDeleteBrush"), Brush)
+                    If accent IsNot Nothing Then AccentBar.Background = accent
+                Case StockMovementKind.Reserve
+                    TitleText.Text = "Reserve Stock"
+                    ReserveModePanel.Visibility = Visibility.Visible
+                    If _currentQty <= 0 AndAlso _reservedQty > 0 Then
+                        ReleaseRadio.IsChecked = True
+                        _isUseReserveStock = True
+                    Else
+                        ReserveRadio.IsChecked = True
+                        _isUseReserveStock = False
+                    End If
+                    ApplyReserveStockMode()
+                    Dim accent = TryCast(TryFindResource("AccentBrush"), Brush)
+                    If accent IsNot Nothing Then AccentBar.Background = accent
+            End Select
+
+            If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
+        End Sub
+
+        Private Sub ApplyReserveStockMode()
+            If _isUseReserveStock Then
+                ConfirmButton.Content = "Use reserve stock"
+                ReasonBox.ItemsSource = UseReserveStockReasons
+            Else
+                ConfirmButton.Content = "Add to reserve stock"
+                ReasonBox.ItemsSource = AddReserveStockReasons
+            End If
+            If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
+        End Sub
+
+        Private Sub UpdateReserveModeAvailability()
+            If _kind <> StockMovementKind.Reserve Then Return
+            ReserveRadio.IsEnabled = True
+            ReleaseRadio.IsEnabled = _reservedQty > 0 AndAlso _currentQty <= 0
+            If Not ReleaseRadio.IsEnabled AndAlso ReserveRadio.IsEnabled Then
+                ReserveRadio.IsChecked = True
+                _isUseReserveStock = False
+                ApplyReserveStockMode()
+            ElseIf Not ReserveRadio.IsEnabled AndAlso ReleaseRadio.IsEnabled Then
+                ReleaseRadio.IsChecked = True
+                _isUseReserveStock = True
+                ApplyReserveStockMode()
+            End If
+        End Sub
+
+        Private Sub RefreshProductMetaText(productSku As String)
+            If _kind = StockMovementKind.Reserve Then
+                ProductMetaText.Text = $"On hand {_currentQty}  •  {_reservedQty} reserve stock"
+            Else
+                ProductMetaText.Text = $"SKU {productSku}  •  On hand {_currentQty}"
+            End If
+        End Sub
 
         Private Sub ApplyProductPhoto(product As ProductItem)
             Dim photo As ImageSource = Nothing
@@ -108,6 +177,18 @@ Namespace Views
             PhotoPlaceholder.Visibility = Visibility.Visible
             PhotoPlaceholder.Text = ProductPlaceholderIcons.Resolve(product)
             PhotoPlaceholder.FontSize = 28
+        End Sub
+
+        Private Sub ReserveMode_Changed(sender As Object, e As RoutedEventArgs)
+            If _kind <> StockMovementKind.Reserve OrElse _loadFailed Then Return
+            _isUseReserveStock = ReleaseRadio.IsChecked = True
+            If _isUseReserveStock AndAlso _currentQty > 0 Then
+                ShowError("Use reserve stock only when on-hand is depleted.")
+                ReserveRadio.IsChecked = True
+                _isUseReserveStock = False
+            End If
+            ApplyReserveStockMode()
+            UpdatePreview()
         End Sub
 
         Private Sub ShowLoadError(message As String)
@@ -197,15 +278,27 @@ Namespace Views
             UpdatePreview()
         End Sub
 
-        ''' <summary>
-        ''' QtyBox raises TextChanged while BAML is still building the tree, so PreviewText and
-        ''' ErrorText can still be Nothing here. TryLoadProduct calls SetQuantity once the tree is
-        ''' complete, which recomputes the preview.
-        ''' </summary>
         Private Sub UpdatePreview()
             If _loadFailed OrElse PreviewText Is Nothing Then Return
-            Dim nextQty = If(_isStockIn, _currentQty + _quantity, _currentQty - _quantity)
-            PreviewText.Text = $"New qty: {_currentQty} → {Math.Max(0, nextQty)}"
+
+            Select Case _kind
+                Case StockMovementKind.StockIn
+                    Dim nextQty = _currentQty + _quantity
+                    PreviewText.Text = $"On hand: {_currentQty} → {nextQty}"
+                Case StockMovementKind.StockOut
+                    Dim nextQty = _currentQty - _quantity
+                    PreviewText.Text = $"On hand: {_currentQty} → {Math.Max(0, nextQty)}"
+                Case StockMovementKind.Reserve
+                    If _isUseReserveStock Then
+                        Dim nextOnHand = _currentQty + _quantity
+                        Dim nextReserve = Math.Max(0, _reservedQty - _quantity)
+                        PreviewText.Text = $"On hand: {_currentQty} → {nextOnHand}  •  Reserve stock: {_reservedQty} → {nextReserve}"
+                    Else
+                        Dim nextReserve = _reservedQty + _quantity
+                        PreviewText.Text = $"On hand: {_currentQty} (unchanged)  •  Reserve stock: {_reservedQty} → {nextReserve}"
+                    End If
+            End Select
+
             HideError()
         End Sub
 
@@ -223,16 +316,33 @@ Namespace Views
                 Return
             End If
 
-            If Not _isStockIn AndAlso parsed > _currentQty Then
-                ShowError($"Cannot stock out more than {_currentQty} on hand.")
-                QtyBox.Focus()
-                QtyBox.SelectAll()
-                Return
-            End If
+            Select Case _kind
+                Case StockMovementKind.StockOut
+                    If parsed > _currentQty Then
+                        ShowError($"Cannot stock out more than {_currentQty} on hand.")
+                        QtyBox.Focus()
+                        QtyBox.SelectAll()
+                        Return
+                    End If
+                Case StockMovementKind.Reserve
+                    If _isUseReserveStock Then
+                        If _currentQty > 0 Then
+                            ShowError("Reserve stock can only be used when on-hand is depleted.")
+                            Return
+                        End If
+                        If parsed > _reservedQty Then
+                            ShowError($"Cannot use more than {_reservedQty} from reserve stock.")
+                            QtyBox.Focus()
+                            QtyBox.SelectAll()
+                            Return
+                        End If
+                    End If
+            End Select
 
             ResultQuantity = parsed
             ResultReason = If(TryCast(ReasonBox.SelectedItem, String), String.Empty)
             ResultNotes = If(NotesBox.Text, String.Empty).Trim()
+            ResultIsReleaseReserve = _isUseReserveStock
             Confirmed = True
             DialogResult = True
             Close()

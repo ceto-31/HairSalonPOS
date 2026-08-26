@@ -61,19 +61,17 @@ Namespace Services
                 Categories.AddRange(DefaultCategories())
             End If
 
-            ' Default retail products. Only seed SKUs missing after load.
-            Dim retailDefaults = {
-                New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
-                New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
-                New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
-                New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
-                New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"}
-            }
-            For Each p In retailDefaults
-                If Not Products.Any(Function(x) x.Sku.Equals(p.Sku, StringComparison.OrdinalIgnoreCase)) Then
-                    Products.Add(p)
-                End If
-            Next
+            ' Default retail products only on first install (no catalog file yet).
+            ' Do not re-seed missing SKUs on later startups — that would undo intentional deletes.
+            If catalog Is Nothing Then
+                Products.AddRange({
+                    New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                    New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                    New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                    New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                    New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"}
+                })
+            End If
 
             BackfillProductCategories()
             PersistCatalog()
@@ -117,7 +115,19 @@ Namespace Services
 
             RefreshAppointmentStatuses()
 
+            LoadStockMovements()
+
             SeedSampleSales()
+        End Sub
+
+        Private Sub LoadStockMovements()
+            Dim persisted = StockMovementPersistenceService.Instance.Load()
+            If persisted IsNot Nothing Then
+                StockMovements.AddRange(persisted.OrderByDescending(Function(m) m.CreatedAt))
+                If StockMovements.Count > 0 Then
+                    NextMovementId = StockMovements.Max(Function(m) m.MovementId) + 1
+                End If
+            End If
         End Sub
 
         Public Sub PersistUsers()
@@ -138,6 +148,10 @@ Namespace Services
 
         Public Sub PersistDiscounts()
             DiscountPersistenceService.Instance.Save(Discounts)
+        End Sub
+
+        Public Sub PersistStockMovements()
+            StockMovementPersistenceService.Instance.Save(StockMovements)
         End Sub
 
         Private Sub BackfillProductCategories()
@@ -277,6 +291,7 @@ Namespace Services
                 .Notes = notes
             })
             NextMovementId += 1
+            PersistStockMovements()
             RaiseEvent InventoryChanged(Me, EventArgs.Empty)
         End Sub
 
