@@ -9,14 +9,15 @@ Namespace Helpers
         Private Const InnerRadius As Double = 34
         Private ReadOnly Center As New Point(Size / 2, Size / 2)
 
-        Public Function Build(items As IList(Of Tuple(Of String, Decimal))) As List(Of DashboardDonutSlice)
+        Public Function Build(items As IList(Of Tuple(Of String, Decimal)),
+                              Optional customBrushes As IList(Of Brush) = Nothing) As List(Of DashboardDonutSlice)
             Dim slices = New List(Of DashboardDonutSlice)()
             If items Is Nothing Then Return slices
 
             Dim total = items.Sum(Function(i) i.Item2)
             If total <= 0D Then Return slices
 
-            Dim colors = Palette()
+            Dim colors = If(customBrushes IsNot Nothing AndAlso customBrushes.Count > 0, customBrushes, Palette())
             Dim angle = -90.0
             Dim colorIndex = 0
 

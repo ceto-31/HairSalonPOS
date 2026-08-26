@@ -175,6 +175,7 @@ Namespace ViewModels
                 settings.IsDarkMode = value
                 AppSettingsService.Instance.Save(settings)
                 OnPropertyChanged(NameOf(ThemeToggleLabel))
+                DashboardViewModel?.RefreshPaymentMethods()
             End Set
         End Property
 

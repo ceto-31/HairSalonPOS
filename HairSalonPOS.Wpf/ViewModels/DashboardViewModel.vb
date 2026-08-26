@@ -1,4 +1,6 @@
 Imports System.Collections.ObjectModel
+Imports System.Windows
+Imports System.Windows.Media
 Imports CommunityToolkit.Mvvm.Input
 Imports HairSalonPOS.Wpf.Helpers
 Imports HairSalonPOS.Wpf.Models
@@ -13,6 +15,11 @@ Namespace ViewModels
         Public ReadOnly Property FilterOptions As String()
             Get
                 Return PeriodOptions
+            End Get
+        End Property
+        Public ReadOnly Property PaymentPeriodOptions As String()
+            Get
+                Return StaffAnalyticsPeriodOptions
             End Get
         End Property
         Public ReadOnly Property StaffPeriodOptions As String()
@@ -42,6 +49,7 @@ Namespace ViewModels
         Private _overviewChangeText As String = "vs prior  0.0%"
         Private _overviewChangeUp As Boolean
         Private _staffAnalyticsPeriod As String = "This Week"
+        Private _paymentMethodsPeriod As String = "This Week"
         Private _cashRevenue As Decimal
         Private _cashTransactionCount As Integer
         Private _gcashRevenue As Decimal
@@ -224,7 +232,18 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_staffAnalyticsPeriod, If(value, "This Week")) Then
-                    RefreshStaffAnalytics()
+                    RefreshStaffPerformance()
+                End If
+            End Set
+        End Property
+
+        Public Property PaymentMethodsPeriod As String
+            Get
+                Return _paymentMethodsPeriod
+            End Get
+            Set(value As String)
+                If SetProperty(_paymentMethodsPeriod, If(value, "This Week")) Then
+                    RefreshPaymentMethods()
                 End If
             End Set
         End Property
@@ -316,6 +335,12 @@ Namespace ViewModels
         Public ReadOnly Property HasPaymentMethodData As Boolean
             Get
                 Return PaymentTotalRevenue > 0D OrElse PaymentTotalTransactionCount > 0
+            End Get
+        End Property
+
+        Public ReadOnly Property HasStaffPerformanceRows As Boolean
+            Get
+                Return StaffPerformanceRows IsNot Nothing AndAlso StaffPerformanceRows.Count > 0
             End Get
         End Property
 
@@ -458,6 +483,7 @@ Namespace ViewModels
             Appointments = New ObservableCollection(Of DashboardAppointmentRow)(
                 upcoming.Select(Function(a) New DashboardAppointmentRow With {
                     .TimeLabel = a.StartTime.ToString("h:mm tt"),
+                    .DateLabel = a.StartTime.ToString("MMMM d, yyyy"),
                     .CustomerName = a.CustomerName,
                     .ServiceName = a.ServiceName,
                     .StaffName = a.StaffName,
@@ -492,7 +518,8 @@ Namespace ViewModels
 
             RefreshPeriodVisuals()
             RefreshTopServices()
-            RefreshStaffAnalytics()
+            RefreshPaymentMethods()
+            RefreshStaffPerformance()
             OnPropertyChanged(NameOf(CanViewAdminScreens))
             GoToInventoryCommand.NotifyCanExecuteChanged()
             ReorderProductCommand.NotifyCanExecuteChanged()
@@ -557,6 +584,7 @@ Namespace ViewModels
             TopServices = New ObservableCollection(Of DashboardTopServiceRow)(
                 serviceTotals.Select(Function(s) New DashboardTopServiceRow With {
                     .Name = s.Name,
+                    .Icon = ResolveServiceIcon(s.Name),
                     .Amount = s.Amount,
                     .BarWidth = If(maxAmount > 0, CDbl(s.Amount / maxAmount * 140), 0)
                 }))
@@ -564,10 +592,9 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(HasTopServices))
         End Sub
 
-        Private Sub RefreshStaffAnalytics()
-            Dim range = PeriodRange(StaffAnalyticsPeriod, Date.Today)
+        Public Sub RefreshPaymentMethods()
+            Dim range = PeriodRange(PaymentMethodsPeriod, Date.Today)
             Dim sales = InRange(_allSales, range.FromDate, range.ToDateExclusive)
-            Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).ToList()
 
             Dim cashSales = sales.Where(Function(s) String.Equals(s.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase)).ToList()
             Dim gcashSales = sales.Where(Function(s) String.Equals(s.PaymentMethod, "GCash", StringComparison.OrdinalIgnoreCase)).ToList()
@@ -585,9 +612,15 @@ Namespace ViewModels
                 DonutChartBuilder.Build(New List(Of Tuple(Of String, Decimal)) From {
                     Tuple.Create("Cash", CashRevenue),
                     Tuple.Create("GCash", GcashRevenue)
-                }))
+                }, ResolvePaymentMethodBrushes()))
             OnPropertyChanged(NameOf(PaymentMethodSlices))
             OnPropertyChanged(NameOf(HasPaymentMethodData))
+        End Sub
+
+        Private Sub RefreshStaffPerformance()
+            Dim range = PeriodRange(StaffAnalyticsPeriod, Date.Today)
+            Dim sales = InRange(_allSales, range.FromDate, range.ToDateExclusive)
+            Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).ToList()
 
             Dim performanceRows = activeStaff.Select(Function(staff)
                                                          Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
@@ -611,6 +644,7 @@ Namespace ViewModels
 
             StaffPerformanceRows = New ObservableCollection(Of DashboardStaffPerformanceRow)(performanceRows)
             OnPropertyChanged(NameOf(StaffPerformanceRows))
+            OnPropertyChanged(NameOf(HasStaffPerformanceRows))
         End Sub
 
         Private Shared Function InRange(sales As IEnumerable(Of SaleRecord), fromDate As Date, toDateExclusive As Date) As List(Of SaleRecord)
@@ -650,6 +684,13 @@ Namespace ViewModels
             apply(text, up)
         End Sub
 
+        Private Shared Function ResolvePaymentMethodBrushes() As List(Of Brush)
+            Dim cash = TryCast(Application.Current?.Resources("PaymentMethodCashBrush"), Brush)
+            Dim gcash = TryCast(Application.Current?.Resources("PaymentMethodGcashBrush"), Brush)
+            If cash Is Nothing OrElse gcash Is Nothing Then Return Nothing
+            Return New List(Of Brush) From {cash, gcash}
+        End Function
+
         Private Shared Function SafeLines(sale As SaleRecord) As IEnumerable(Of SaleLineRecord)
             If sale.Lines Is Nothing Then Return Enumerable.Empty(Of SaleLineRecord)()
             Return sale.Lines
@@ -665,6 +706,13 @@ Namespace ViewModels
             Dim prod = _store.Products.FirstOrDefault(Function(p) p.Name.Equals(line.Name, StringComparison.OrdinalIgnoreCase))
             If prod IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(prod.Category) Then Return prod.Category
             Return "Products"
+        End Function
+
+        Private Function ResolveServiceIcon(serviceName As String) As String
+            If String.IsNullOrWhiteSpace(serviceName) Then Return "✂️"
+            Dim service = _store.Services.FirstOrDefault(Function(s) s.Name.Equals(serviceName.Trim(), StringComparison.OrdinalIgnoreCase))
+            If service IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(service.Icon) Then Return service.Icon
+            Return "✂️"
         End Function
     End Class
 End Namespace
