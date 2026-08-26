@@ -21,7 +21,6 @@ Namespace ViewModels
         Private _editService As String = String.Empty
         Private _editHour As Integer = 9
         Private _editMinute As Integer = 0
-        Private _editDuration As Integer = 60
         Private _selectedBusinessHour As TimeSpan?
         Private _isEditMode As Boolean
         Private _isViewMode As Boolean
@@ -51,7 +50,7 @@ Namespace ViewModels
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
             ViewAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf BeginView)
             CancelViewCommand = New RelayCommand(Sub() IsViewMode = False)
-            DeleteAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf DeleteAppointment)
+            CancelAppointmentCommand = New RelayCommand(Of AppointmentItem)(AddressOf CancelAppointment)
             ConvertToTransactionCommand = New RelayCommand(Of AppointmentItem)(AddressOf ConvertToTransaction)
 
             _dayLoadingTimer = New DispatcherTimer With {.Interval = TimeSpan.FromMilliseconds(150)}
@@ -406,15 +405,6 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property EditDuration As Integer
-            Get
-                Return _editDuration
-            End Get
-            Set(value As Integer)
-                SetProperty(_editDuration, value)
-            End Set
-        End Property
-
         Public Property StatusMessage As String
             Get
                 Return _statusMessage
@@ -433,7 +423,7 @@ Namespace ViewModels
         Public Property CancelEditCommand As RelayCommand
         Public Property ViewAppointmentCommand As RelayCommand(Of AppointmentItem)
         Public Property CancelViewCommand As RelayCommand
-        Public Property DeleteAppointmentCommand As RelayCommand(Of AppointmentItem)
+        Public Property CancelAppointmentCommand As RelayCommand(Of AppointmentItem)
         Public Property ConvertToTransactionCommand As RelayCommand(Of AppointmentItem)
 
         Private Sub RefreshServiceNames()
@@ -504,7 +494,7 @@ Namespace ViewModels
                 _store.PersistAppointments()
             End If
             Appointments = New ObservableCollection(Of AppointmentItem)(
-                _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date).
+                _store.Appointments.Where(Function(a) a.StartTime.Date = SelectedDate.Date AndAlso a.IsOpen).
                 OrderBy(Function(a) a.StartTime))
             SelectedDayAppointmentCount = Appointments.Count
             OnPropertyChanged(NameOf(Appointments))
@@ -517,7 +507,9 @@ Namespace ViewModels
         Private Sub LoadAppointmentHistory()
             AppointmentHistory = New ObservableCollection(Of AppointmentHistoryRow)(
                 _store.Appointments.
-                    Where(Function(a) a.Status = AppointmentStatuses.Done OrElse a.Status = AppointmentStatuses.NoShow).
+                    Where(Function(a) a.Status = AppointmentStatuses.Done OrElse
+                                      a.Status = AppointmentStatuses.NoShow OrElse
+                                      a.Status = AppointmentStatuses.Cancelled).
                     OrderByDescending(Function(a) If(a.CompletedAt.HasValue, a.CompletedAt.Value, a.StartTime)).
                     Take(100).
                     Select(Function(a) ToHistoryRow(a)))
@@ -623,7 +615,6 @@ Namespace ViewModels
             EditMinute = open.Minutes
             EnsureMinuteOption(EditMinute)
             RefreshAvailableBusinessHours(EditAppointmentDate)
-            EditDuration = 60
             StatusMessage = String.Empty
             OnPropertyChanged(NameOf(FormTitle))
             OnPropertyChanged(NameOf(IsAddingAppointment))
@@ -653,7 +644,6 @@ Namespace ViewModels
             EditHour = appt.StartTime.Hour
             EditMinute = appt.StartTime.Minute
             RefreshAvailableBusinessHours(EditAppointmentDate)
-            EditDuration = appt.DurationMinutes
             _editStatus = If(appt.Status = AppointmentStatuses.Confirmed,
                              AppointmentStatuses.Confirmed,
                              AppointmentStatuses.Scheduled)
@@ -761,13 +751,15 @@ Namespace ViewModels
             If Not HourOptions.Contains(EditHour) OrElse Not MinuteOptions.Contains(EditMinute) Then
                 Return FailValidation("Please select a valid start time within business hours.")
             End If
-            If EditDuration <= 0 Then
-                Return FailValidation("Duration must be greater than zero.")
+
+            Dim durationMinutes = ResolveAppointmentDuration()
+            If durationMinutes <= 0 Then
+                Return FailValidation("Selected service has no valid duration.")
             End If
 
             Dim customerName = $"{EditFirstName.Trim()} {EditLastName.Trim()}"
             Dim startTime = EditAppointmentDate.Date.AddHours(EditHour).AddMinutes(EditMinute)
-            Dim hoursError = BusinessHoursService.ValidateAppointment(startTime, EditDuration)
+            Dim hoursError = BusinessHoursService.ValidateAppointment(startTime, durationMinutes)
             If Not String.IsNullOrEmpty(hoursError) Then
                 Dim title = If(hoursError.IndexOf("past", StringComparison.OrdinalIgnoreCase) >= 0,
                                "Past time not allowed",
@@ -779,10 +771,18 @@ Namespace ViewModels
                 .CustomerName = customerName,
                 .ServiceName = EditService,
                 .StartTime = startTime,
-                .DurationMinutes = EditDuration,
+                .DurationMinutes = durationMinutes,
                 .ContactNumber = EditContactNumber.Trim(),
                 .Email = EditEmail.Trim()
             }
+        End Function
+
+        Private Function ResolveAppointmentDuration() As Integer
+            If String.IsNullOrWhiteSpace(EditService) Then Return 60
+            Dim service = _store.Services.FirstOrDefault(
+                Function(s) s.IsActive AndAlso s.Name.Equals(EditService.Trim(), StringComparison.OrdinalIgnoreCase))
+            If service Is Nothing OrElse service.DurationMinutes <= 0 Then Return 60
+            Return service.DurationMinutes
         End Function
 
         Private Shared Function NormalizeContactDigits(value As String) As String
@@ -834,13 +834,19 @@ Namespace ViewModels
             Return (trimmed.Substring(0, spaceIndex), trimmed.Substring(spaceIndex + 1).Trim())
         End Function
 
-        Private Sub DeleteAppointment(appt As AppointmentItem)
-            If appt Is Nothing Then Return
-            If Not AppDialogService.ConfirmDelete($"appointment for {appt.CustomerName}") Then Return
+        Private Sub CancelAppointment(appt As AppointmentItem)
+            If appt Is Nothing OrElse Not appt.IsOpen Then Return
+            If Not AppDialogService.Confirm(
+                $"Cancel the appointment for {appt.CustomerName}?",
+                "Cancel appointment?",
+                primaryText:="Cancel appointment",
+                secondaryText:="Keep",
+                dialogType:=AppDialogType.Warning) Then Return
 
-            _store.Appointments.Remove(appt)
+            appt.Status = AppointmentStatuses.Cancelled
+            appt.CompletedAt = DateTime.Now
             _store.RaiseAppointmentsChanged()
-            StatusMessage = "Appointment deleted."
+            StatusMessage = $"Appointment for {appt.CustomerName} cancelled."
             LoadAppointments()
         End Sub
 

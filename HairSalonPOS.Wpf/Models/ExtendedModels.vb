@@ -67,6 +67,7 @@ Namespace Models
 
         Public ReadOnly Property StatusLabel As String
             Get
+                If Not IsActive Then Return "Archived"
                 If EndDate.HasValue AndAlso EndDate.Value < Date.Today Then Return "Expired"
                 If EndDate.HasValue AndAlso EndDate.Value <= Date.Today.AddDays(30) Then Return "Expiring"
                 Return "Active"
@@ -79,6 +80,7 @@ Namespace Models
         Public Const Confirmed As String = "Confirmed"
         Public Const Done As String = "Done"
         Public Const NoShow As String = "NoShow"
+        Public Const Cancelled As String = "Cancelled"
     End Class
 
     Public Class AppointmentItem
@@ -179,6 +181,7 @@ Namespace Models
                     OnPropertyChanged(NameOf(IsOpen))
                     OnPropertyChanged(NameOf(IsDone))
                     OnPropertyChanged(NameOf(IsNoShow))
+                    OnPropertyChanged(NameOf(IsCancelled))
                     OnPropertyChanged(NameOf(IsPastDue))
                 End If
             End Set
@@ -220,6 +223,8 @@ Namespace Models
                         Return "Confirmed"
                     Case AppointmentStatuses.NoShow
                         Return "Cancelled"
+                    Case AppointmentStatuses.Cancelled
+                        Return "Cancelled"
                     Case Else
                         Return "Pending"
                 End Select
@@ -235,6 +240,8 @@ Namespace Models
                     Case AppointmentStatuses.Confirmed
                         Return "Confirmed"
                     Case AppointmentStatuses.NoShow
+                        Return "Cancelled"
+                    Case AppointmentStatuses.Cancelled
                         Return "Cancelled"
                     Case Else
                         Return "Pending"
@@ -274,6 +281,13 @@ Namespace Models
         Public ReadOnly Property IsNoShow As Boolean
             Get
                 Return Status = AppointmentStatuses.NoShow
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property IsCancelled As Boolean
+            Get
+                Return Status = AppointmentStatuses.Cancelled
             End Get
         End Property
 
@@ -358,6 +372,7 @@ Namespace Models
 
     Public Class DashboardAppointmentRow
         Public Property TimeLabel As String = String.Empty
+        Public Property DateLabel As String = String.Empty
         Public Property CustomerName As String = String.Empty
         Public Property ServiceName As String = String.Empty
         Public Property StaffName As String = String.Empty
@@ -397,6 +412,12 @@ Namespace Models
         Public Property StockOnHand As Integer
         Public Property ReorderLevel As Integer
         Public Property ImagePath As String = String.Empty
+
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
     End Class
 
     Public Class DashboardStaffPerformanceRow
@@ -435,6 +456,7 @@ Namespace Models
 
     Public Class DashboardTopServiceRow
         Public Property Name As String = String.Empty
+        Public Property Icon As String = "✂️"
         Public Property Amount As Decimal
         Public Property BarWidth As Double
     End Class
