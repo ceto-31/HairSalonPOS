@@ -42,9 +42,13 @@
                 Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVis}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                    <TextBlock Text="Active discounts" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <Button Content="+ New promo" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
-                            Command="{Binding NewPromoCommand}"/>
+                    <TextBlock Text="Discounts" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{Binding ShowArchivedLabel}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                                Command="{Binding ToggleShowArchivedCommand}"/>
+                        <Button Content="+ New promo" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding NewPromoCommand}"/>
+                    </StackPanel>
                 </DockPanel>
                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
                 <ItemsControl ItemsSource="{Binding Discounts}">
@@ -54,6 +58,7 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -70,6 +75,9 @@
                                                     <DataTrigger Binding="{Binding StatusLabel}" Value="Expiring">
                                                         <Setter Property="Background" Value="{DynamicResource WarningBadgeBrush}"/>
                                                     </DataTrigger>
+                                                    <DataTrigger Binding="{Binding StatusLabel}" Value="Archived">
+                                                        <Setter Property="Background" Value="{DynamicResource CardMutedBrush}"/>
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
@@ -78,7 +86,34 @@
                                     <Button Grid.Column="2" Content="Edit" Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,8,0"
                                             Command="{Binding DataContext.EditDiscountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"/>
-                                    <Button Grid.Column="3" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                                    <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Archive"
+                                            Command="{Binding DataContext.ArchiveDiscountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Grid.Column="3" Padding="12,6" Margin="0,0,8,0" Content="Restore"
+                                            Command="{Binding DataContext.UnarchiveDiscountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Grid.Column="4" Content="Delete" Style="{StaticResource SecondaryButton}" Padding="12,6"
                                             Command="{Binding DataContext.DeleteDiscountCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"/>
                                 </Grid>

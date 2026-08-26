@@ -23,6 +23,7 @@ Namespace ViewModels
         Private _editingStaffId As Integer
         Private _statusMessage As String = String.Empty
         Private _showArchived As Boolean
+        Private _searchText As String = String.Empty
         Private _isHostedInMasterFiles As Boolean
         Private _editImagePath As String = String.Empty
         Private _pendingSourcePath As String
@@ -78,6 +79,17 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    RefreshList()
+                End If
+            End Set
+        End Property
+
         Public Property IsEditMode As Boolean
             Get
                 Return _isEditMode
@@ -131,7 +143,8 @@ Namespace ViewModels
                 Return _editContactNumber
             End Get
             Set(value As String)
-                If SetProperty(_editContactNumber, value) Then
+                Dim normalized = NormalizeContactDigits(value)
+                If SetProperty(_editContactNumber, normalized) Then
                     EditContactNumberError = String.Empty
                 End If
             End Set
@@ -244,8 +257,17 @@ Namespace ViewModels
 
         Private Sub RefreshList()
             Dim query = _store.Staff.AsEnumerable()
-            If Not ShowArchived Then
+            If ShowArchived Then
+                query = query.Where(Function(s) Not s.IsActive)
+            Else
                 query = query.Where(Function(s) s.IsActive)
+            End If
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(s) s.Name.ToLowerInvariant().Contains(term) OrElse
+                    (Not String.IsNullOrWhiteSpace(s.Role) AndAlso s.Role.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(s.ContactNumber) AndAlso s.ContactNumber.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(s.Email) AndAlso s.Email.ToLowerInvariant().Contains(term)))
             End If
             StaffMembers = New ObservableCollection(Of StaffMember)(query.OrderBy(Function(s) s.Name))
             OnPropertyChanged(NameOf(StaffMembers))
@@ -299,6 +321,9 @@ Namespace ViewModels
             End If
             If String.IsNullOrWhiteSpace(EditContactNumber) Then
                 EditContactNumberError = "Contact number is required."
+                hasErrors = True
+            ElseIf EditContactNumber.Length <> 11 Then
+                EditContactNumberError = "Contact number must be exactly 11 digits."
                 hasErrors = True
             End If
             If Not String.IsNullOrWhiteSpace(EditEmail) AndAlso (Not EditEmail.Contains("@"c) OrElse Not EditEmail.Contains("."c)) Then
@@ -444,6 +469,12 @@ Namespace ViewModels
             End If
 
             Return _originalImagePath
+        End Function
+
+        Private Shared Function NormalizeContactDigits(value As String) As String
+            If String.IsNullOrEmpty(value) Then Return String.Empty
+            Dim digits = New String(value.Where(Function(c) Char.IsDigit(c)).ToArray())
+            Return If(digits.Length <= 11, digits, digits.Substring(0, 11))
         End Function
     End Class
 End Namespace

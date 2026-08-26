@@ -78,6 +78,10 @@
                     </Button.Style>
                 </Button>
             </StackPanel>
+            <TextBox Margin="0,12,0,0"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource SearchTextBox}"
+                     Tag="{Binding SearchPlaceholder}"/>
         </StackPanel>
 
         <Grid>
@@ -135,10 +139,6 @@
                                     <StackPanel Margin="0,0,0,8">
                                         <TextBlock Text="Brand" Style="{StaticResource SectionHeader}"/>
                                         <TextBox Text="{Binding EditBrand}" Style="{StaticResource ModernTextBox}"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,8,8">
-                                        <TextBlock Text="Price" Style="{StaticResource SectionHeader}"/>
-                                        <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
                                     </StackPanel>
                                     <StackPanel Margin="0,0,8,0">
                                         <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
@@ -203,8 +203,6 @@
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
                                                     <TextBlock Foreground="{DynamicResource MutedTextBrush}">
                                                         <Run Text="{Binding Brand, Mode=OneWay}"/>
-                                                        <Run Text=" • ₱"/>
-                                                        <Run Text="{Binding Price, Mode=OneWay, StringFormat={}{0:N2}}"/>
                                                         <Run Text=" • "/>
                                                         <Run Text="{Binding Category, Mode=OneWay}"/>
                                                     </TextBlock>

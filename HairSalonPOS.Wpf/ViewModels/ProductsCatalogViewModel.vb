@@ -12,6 +12,7 @@ Namespace ViewModels
         Private ReadOnly _images As CatalogImageService = CatalogImageService.Instance
 
         Private _showArchived As Boolean
+        Private _searchText As String = String.Empty
         Private _isEditMode As Boolean
         Private _isAdding As Boolean = True
         Private _editingSku As String = String.Empty
@@ -19,7 +20,6 @@ Namespace ViewModels
 
         Private _editName As String = String.Empty
         Private _editBrand As String = String.Empty
-        Private _editPrice As Decimal
         Private _editCategory As String = String.Empty
         Private _editSubCategory As String = String.Empty
         Private _editImagePath As String = String.Empty
@@ -73,6 +73,17 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    LoadProducts()
+                End If
+            End Set
+        End Property
+
         Public Property IsEditMode As Boolean
             Get
                 Return _isEditMode
@@ -103,15 +114,6 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 SetProperty(_editBrand, value)
-            End Set
-        End Property
-
-        Public Property EditPrice As Decimal
-            Get
-                Return _editPrice
-            End Get
-            Set(value As Decimal)
-                SetProperty(_editPrice, value)
             End Set
         End Property
 
@@ -190,6 +192,14 @@ Namespace ViewModels
             Else
                 query = query.Where(Function(p) p.IsActive)
             End If
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(p) p.Name.ToLowerInvariant().Contains(term) OrElse
+                    p.Sku.ToLowerInvariant().Contains(term) OrElse
+                    (Not String.IsNullOrWhiteSpace(p.Brand) AndAlso p.Brand.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(p.Category) AndAlso p.Category.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(p.SubCategory) AndAlso p.SubCategory.ToLowerInvariant().Contains(term)))
+            End If
             Products = New ObservableCollection(Of ProductItem)(query.OrderBy(Function(p) p.Name))
             OnPropertyChanged(NameOf(Products))
         End Sub
@@ -204,7 +214,6 @@ Namespace ViewModels
             _editingSku = String.Empty
             EditName = String.Empty
             EditBrand = String.Empty
-            EditPrice = 0D
             EditCategory = EditCategoryOptions.First()
             ResetImageEdit(String.Empty)
             OnPropertyChanged(NameOf(FormTitle))
@@ -218,7 +227,6 @@ Namespace ViewModels
             _editingSku = item.Sku
             EditName = item.Name
             EditBrand = item.Brand
-            EditPrice = item.Price
             EditCategory = item.Category
             EditSubCategory = item.SubCategory
             ResetImageEdit(item.ImagePath)
@@ -233,10 +241,6 @@ Namespace ViewModels
         Private Sub SaveProduct()
             If String.IsNullOrWhiteSpace(EditName) Then
                 StatusMessage = "Product name is required."
-                Return
-            End If
-            If EditPrice < 0D Then
-                StatusMessage = "Price must be zero or greater."
                 Return
             End If
             If String.IsNullOrWhiteSpace(EditCategory) Then
@@ -275,7 +279,7 @@ Namespace ViewModels
                     .Sku = sku,
                     .Name = EditName.Trim(),
                     .Brand = If(EditBrand, String.Empty).Trim(),
-                    .Price = EditPrice,
+                    .Price = 0D,
                     .Cost = 0D,
                     .Category = node.Name,
                     .SubCategory = subCat,
@@ -300,7 +304,6 @@ Namespace ViewModels
                 End If
                 existing.Name = EditName.Trim()
                 existing.Brand = If(EditBrand, String.Empty).Trim()
-                existing.Price = EditPrice
                 existing.Category = node.Name
                 existing.SubCategory = subCat
                 existing.ImagePath = If(imagePath, String.Empty)

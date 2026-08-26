@@ -72,6 +72,7 @@
                             <StackPanel Margin="0,0,8,0">
                                 <TextBlock Text="Contact number" Style="{StaticResource SectionHeader}"/>
                                 <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="11"
                                          Style="{StaticResource ValidatedModernTextBox}"
                                          helpers:FormValidation.HasError="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToBool}}"/>
                                 <TextBlock Text="{Binding EditContactNumberError}"

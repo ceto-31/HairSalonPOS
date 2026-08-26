@@ -17,19 +17,53 @@ Namespace ViewModels
         Private _isAdding As Boolean = True
         Private _originalCode As String = String.Empty
         Private _statusMessage As String = String.Empty
+        Private _showArchived As Boolean
+        Private _searchText As String = String.Empty
 
         Public Sub New()
-            Discounts = New ObservableCollection(Of DiscountItem)(_store.Discounts)
             DiscountTypes = New ObservableCollection(Of String) From {"Percent", "Fixed"}
             NewPromoCommand = New RelayCommand(AddressOf BeginAdd)
             EditDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf BeginEdit)
             SavePromoCommand = New RelayCommand(AddressOf SavePromo)
             CancelEditCommand = New RelayCommand(Sub() IsEditMode = False)
             DeleteDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf DeleteDiscount)
+            ArchiveDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf ArchiveDiscount)
+            UnarchiveDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf UnarchiveDiscount)
+            ToggleShowArchivedCommand = New RelayCommand(AddressOf ToggleShowArchived)
+            LoadDiscounts()
         End Sub
 
         Public Property Discounts As ObservableCollection(Of DiscountItem)
         Public Property DiscountTypes As ObservableCollection(Of String)
+
+        Public Property ShowArchived As Boolean
+            Get
+                Return _showArchived
+            End Get
+            Set(value As Boolean)
+                If SetProperty(_showArchived, value) Then
+                    LoadDiscounts()
+                    OnPropertyChanged(NameOf(ShowArchivedLabel))
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property ShowArchivedLabel As String
+            Get
+                Return If(ShowArchived, "Hide archived", "Show archived")
+            End Get
+        End Property
+
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    LoadDiscounts()
+                End If
+            End Set
+        End Property
 
         Public Property IsEditMode As Boolean
             Get
@@ -105,6 +139,29 @@ Namespace ViewModels
         Public Property SavePromoCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
         Public Property DeleteDiscountCommand As RelayCommand(Of DiscountItem)
+        Public Property ArchiveDiscountCommand As RelayCommand(Of DiscountItem)
+        Public Property UnarchiveDiscountCommand As RelayCommand(Of DiscountItem)
+        Public Property ToggleShowArchivedCommand As RelayCommand
+
+        Private Sub ToggleShowArchived()
+            ShowArchived = Not ShowArchived
+        End Sub
+
+        Private Sub LoadDiscounts()
+            Dim query = _store.Discounts.AsEnumerable()
+            If ShowArchived Then
+                query = query.Where(Function(d) Not d.IsActive)
+            Else
+                query = query.Where(Function(d) d.IsActive)
+            End If
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(d) d.Code.ToLowerInvariant().Contains(term) OrElse
+                    (Not String.IsNullOrWhiteSpace(d.Description) AndAlso d.Description.ToLowerInvariant().Contains(term)))
+            End If
+            Discounts = New ObservableCollection(Of DiscountItem)(query.OrderBy(Function(d) d.Code))
+            OnPropertyChanged(NameOf(Discounts))
+        End Sub
 
         Private Sub BeginAdd()
             _isAdding = True
@@ -152,7 +209,6 @@ Namespace ViewModels
                     .IsActive = True
                 }
                 _store.Discounts.Add(item)
-                Discounts.Add(item)
                 StatusMessage = "Promo created."
             Else
                 Dim existing = _store.Discounts.FirstOrDefault(Function(d) d.Code = _originalCode)
@@ -170,12 +226,11 @@ Namespace ViewModels
                 existing.DiscountType = EditType
                 existing.Value = EditValue
                 existing.IsSeniorPwd = EditSeniorPwd
-                Discounts = New ObservableCollection(Of DiscountItem)(_store.Discounts)
-                OnPropertyChanged(NameOf(Discounts))
                 StatusMessage = "Promo updated."
             End If
 
             _store.RaiseDiscountsChanged()
+            LoadDiscounts()
             IsEditMode = False
         End Sub
 
@@ -184,9 +239,25 @@ Namespace ViewModels
             If Not AppDialogService.ConfirmDelete(item.Code) Then Return
 
             _store.Discounts.Remove(item)
-            Discounts.Remove(item)
             _store.RaiseDiscountsChanged()
             StatusMessage = $"Promo {item.Code} deleted."
+            LoadDiscounts()
+        End Sub
+
+        Private Sub ArchiveDiscount(item As DiscountItem)
+            If item Is Nothing OrElse Not item.IsActive Then Return
+            item.IsActive = False
+            StatusMessage = $"{item.Code} archived."
+            _store.RaiseDiscountsChanged()
+            LoadDiscounts()
+        End Sub
+
+        Private Sub UnarchiveDiscount(item As DiscountItem)
+            If item Is Nothing OrElse item.IsActive Then Return
+            item.IsActive = True
+            StatusMessage = $"{item.Code} restored."
+            _store.RaiseDiscountsChanged()
+            LoadDiscounts()
         End Sub
     End Class
 End Namespace

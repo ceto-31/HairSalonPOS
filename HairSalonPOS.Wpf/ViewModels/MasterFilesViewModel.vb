@@ -5,6 +5,7 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Private _section As String = "Categories"
+        Private _searchText As String = String.Empty
 
         Public Sub New()
             Services = New ServicesViewModel() With {.IsHostedInMasterFiles = True}
@@ -32,14 +33,46 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_section, value) Then
+                    ClearAllSearchFilters()
                     ApplySection()
                     OnPropertyChanged(NameOf(IsCategories))
                     OnPropertyChanged(NameOf(IsServices))
                     OnPropertyChanged(NameOf(IsProducts))
                     OnPropertyChanged(NameOf(IsStaff))
                     OnPropertyChanged(NameOf(IsDiscounts))
+                    OnPropertyChanged(NameOf(SearchPlaceholder))
                 End If
             End Set
+        End Property
+
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    ForwardSearchToActiveSection()
+                End If
+            End Set
+        End Property
+
+        Public ReadOnly Property SearchPlaceholder As String
+            Get
+                Select Case Section
+                    Case "Categories"
+                        Return "Search categories..."
+                    Case "Services"
+                        Return "Search services..."
+                    Case "Products"
+                        Return "Search products..."
+                    Case "Staff"
+                        Return "Search staff..."
+                    Case "Discounts"
+                        Return "Search promos..."
+                    Case Else
+                        Return "Search..."
+                End Select
+            End Get
         End Property
 
         Public ReadOnly Property IsCategories As Boolean
@@ -96,6 +129,28 @@ Namespace ViewModels
                     Staff.LoadFromStore()
                 Case "Discounts"
                     Services.LeaveMasterSection()
+            End Select
+        End Sub
+
+        Private Sub ClearAllSearchFilters()
+            _searchText = String.Empty
+            OnPropertyChanged(NameOf(SearchText))
+            Services.SearchText = String.Empty
+            Products.SearchText = String.Empty
+            Staff.SearchText = String.Empty
+            Discounts.SearchText = String.Empty
+        End Sub
+
+        Private Sub ForwardSearchToActiveSection()
+            Select Case Section
+                Case "Categories", "Services"
+                    Services.SearchText = SearchText
+                Case "Products"
+                    Products.SearchText = SearchText
+                Case "Staff"
+                    Staff.SearchText = SearchText
+                Case "Discounts"
+                    Discounts.SearchText = SearchText
             End Select
         End Sub
     End Class
