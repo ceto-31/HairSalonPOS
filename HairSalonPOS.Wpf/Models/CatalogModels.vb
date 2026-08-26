@@ -1,3 +1,5 @@
+Imports System.Collections.ObjectModel
+Imports System.Linq
 Imports System.Text.Json.Serialization
 Imports CommunityToolkit.Mvvm.ComponentModel
 Imports HairSalonPOS.Wpf.Helpers
@@ -14,6 +16,66 @@ Namespace Models
         Public Property FavAnimal As String = String.Empty
     End Class
 
+    Public Enum ServiceConsumableKind
+        Fixed = 0
+        PickOne = 1
+    End Enum
+
+    Public Class ServiceConsumableLine
+        Public Property Kind As ServiceConsumableKind = ServiceConsumableKind.Fixed
+        Public Property ProductSku As String = String.Empty
+        ''' <summary>Quantity used per one service performed.</summary>
+        Public Property Quantity As Decimal = 1D
+        ''' <summary>PickOne: allowed product SKUs the cashier chooses at POS.</summary>
+        Public Property OptionProductSkus As New List(Of String)
+    End Class
+
+    Public Class PickOneProductOption
+        Inherits ObservableObject
+
+        Private _isSelected As Boolean
+
+        Public Property Sku As String = String.Empty
+        Public Property Name As String = String.Empty
+
+        Public Property IsSelected As Boolean
+            Get
+                Return _isSelected
+            End Get
+            Set(value As Boolean)
+                SetProperty(_isSelected, value)
+            End Set
+        End Property
+    End Class
+
+    Public Class FixedConsumableOption
+        Inherits ObservableObject
+
+        Private _isSelected As Boolean
+        Private _quantity As Decimal = 1D
+
+        Public Property Sku As String = String.Empty
+        Public Property Name As String = String.Empty
+
+        Public Property IsSelected As Boolean
+            Get
+                Return _isSelected
+            End Get
+            Set(value As Boolean)
+                SetProperty(_isSelected, value)
+            End Set
+        End Property
+
+        Public Property Quantity As Decimal
+            Get
+                Return _quantity
+            End Get
+            Set(value As Decimal)
+                SetProperty(_quantity, value)
+            End Set
+        End Property
+    End Class
+
     Public Class ServiceItem
         Public Property Sku As String = String.Empty
         Public Property Name As String = String.Empty
@@ -25,6 +87,30 @@ Namespace Models
         ''' <summary>Commission as percent of price. 0 = no commission.</summary>
         Public Property CommissionPercent As Decimal
         Public Property IsActive As Boolean = True
+        Public Property Consumables As New List(Of ServiceConsumableLine)
+
+        <JsonIgnore>
+        Public ReadOnly Property HasPickOneConsumables As Boolean
+            Get
+                Return Consumables?.Any(Function(c) c.Kind = ServiceConsumableKind.PickOne) = True
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property ConsumableCountLabel As String
+            Get
+                If Consumables Is Nothing OrElse Consumables.Count = 0 Then Return "No products linked"
+                Dim fixedCount = Consumables.Where(Function(c) c.Kind = ServiceConsumableKind.Fixed).Count()
+                Dim pickCount = Consumables.Where(Function(c) c.Kind = ServiceConsumableKind.PickOne).Count()
+                If pickCount = 0 Then
+                    Return If(fixedCount = 1, "1 product linked", $"{fixedCount} products linked")
+                End If
+                If fixedCount = 0 Then
+                    Return If(pickCount = 1, "1 pick-at-POS", $"{pickCount} pick-at-POS")
+                End If
+                Return $"{fixedCount} fixed, {pickCount} pick-at-POS"
+            End Get
+        End Property
 
         Public ReadOnly Property CommissionDisplay As String
             Get
@@ -44,6 +130,7 @@ Namespace Models
         Inherits ObservableObject
 
         Private _stockOnHand As Integer
+        Private _reservedQty As Integer
         Private _imagePath As String = String.Empty
 
         Public Property Sku As String = String.Empty
@@ -100,6 +187,33 @@ Namespace Models
                     NotifyStockPresentationChanged()
                 End If
             End Set
+        End Property
+
+        ''' <summary>Reserve stock — emergency backup separate from daily on-hand; used only with confirmation at checkout.</summary>
+        Public Property ReservedQty As Integer
+            Get
+                Return _reservedQty
+            End Get
+            Set(value As Integer)
+                If SetProperty(_reservedQty, Math.Max(0, value)) Then
+                    NotifyStockPresentationChanged()
+                End If
+            End Set
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property AvailableQty As Integer
+            Get
+                Return Math.Max(0, StockOnHand)
+            End Get
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property StockSummaryLabel As String
+            Get
+                If ReservedQty <= 0 Then Return $"{StockOnHand} on hand"
+                Return $"{StockOnHand} on hand · {ReservedQty} reserve stock"
+            End Get
         End Property
 
         ''' <summary>Legacy flag: true when on hand is at or below reorder (includes Out).</summary>
@@ -190,6 +304,8 @@ Namespace Models
         End Property
 
         Private Sub NotifyStockPresentationChanged()
+            OnPropertyChanged(NameOf(AvailableQty))
+            OnPropertyChanged(NameOf(StockSummaryLabel))
             OnPropertyChanged(NameOf(Status))
             OnPropertyChanged(NameOf(StockStatus))
             OnPropertyChanged(NameOf(IsLowStock))
@@ -213,6 +329,7 @@ Namespace Models
             ImagePath = If(ImagePath, String.Empty).Trim()
             If ReorderLevel <= 0 Then ReorderLevel = 10
             If StockOnHand < 0 Then StockOnHand = 0
+            If ReservedQty < 0 Then ReservedQty = 0
         End Sub
     End Class
 
@@ -236,6 +353,18 @@ Namespace Models
         End Property
 
         Public Property IsService As Boolean
+
+        Public Property ConsumableSelections As New List(Of ServiceConsumableLine)
+
+        Public Property ConsumableSummary As String = String.Empty
+
+        <JsonIgnore>
+        Public ReadOnly Property CartDisplayName As String
+            Get
+                If String.IsNullOrWhiteSpace(ConsumableSummary) Then Return Name
+                Return $"{Name} · {ConsumableSummary}"
+            End Get
+        End Property
 
         Public ReadOnly Property LineTotal As Decimal
             Get

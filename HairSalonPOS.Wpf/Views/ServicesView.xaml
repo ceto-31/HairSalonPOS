@@ -27,23 +27,76 @@
                             <TextBox Text="{Binding EditPrice}" Style="{StaticResource ModernTextBox}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,8,8">
-                            <TextBlock Text="Duration (minutes)" Style="{StaticResource SectionHeader}"/>
-                            <TextBox Text="{Binding EditDuration}" Style="{StaticResource ModernTextBox}"/>
+                            <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding EditCategoryOptions}" SelectedItem="{Binding EditCategory}" Style="{StaticResource ModernComboBox}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Subcategory" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding EditSubCategoryOptions}" SelectedItem="{Binding EditSubCategory}" Style="{StaticResource ModernComboBox}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,8,0">
                             <TextBlock Text="Commission %" Style="{StaticResource SectionHeader}"/>
                             <TextBox Text="{Binding EditCommissionPercent}" Style="{StaticResource ModernTextBox}"/>
                             <TextBlock Text="Use 0 for no commission." Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
-                        <StackPanel Margin="0,0,8,0">
-                            <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
-                            <ComboBox ItemsSource="{Binding EditCategoryOptions}" SelectedItem="{Binding EditCategory}" Style="{StaticResource ModernComboBox}"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Subcategory" Style="{StaticResource SectionHeader}"/>
-                            <ComboBox ItemsSource="{Binding EditSubCategoryOptions}" SelectedItem="{Binding EditSubCategory}" Style="{StaticResource ModernComboBox}"/>
-                        </StackPanel>
                     </UniformGrid>
+
+                    <TextBlock Text="Products used (inventory)" Style="{StaticResource SectionHeader}" Margin="0,4,0,8"/>
+
+                    <TextBlock Text="Always deduct" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Checked products deduct every time this service is sold."
+                               Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Select all" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,8,0"
+                                Command="{Binding SelectAllFixedConsumablesCommand}"/>
+                        <Button Content="Clear" Style="{StaticResource SecondaryButton}" Padding="10,4"
+                                Command="{Binding ClearFixedConsumablesCommand}"/>
+                    </StackPanel>
+                    <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
+                        <ItemsControl ItemsSource="{Binding FixedConsumableOptions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="72"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" Content="{Binding Name}" IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource ModernTextBox}" ToolTip="Qty per service"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Text="Customer picks one at POS" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Checked products appear in the popup at Point of Sale (e.g. hair color shades). Cashier picks one per sale."
+                               Foreground="{DynamicResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="100"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Default qty" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding PickOneDefaultQty, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}"/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Select all" Style="{StaticResource SecondaryButton}" Padding="10,4" Margin="0,0,8,0"
+                                Command="{Binding SelectAllPickOneConsumablesCommand}"/>
+                        <Button Content="Clear" Style="{StaticResource SecondaryButton}" Padding="10,4"
+                                Command="{Binding ClearPickOneConsumablesCommand}"/>
+                    </StackPanel>
+                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
+                        <ItemsControl ItemsSource="{Binding PickOneConsumableOptions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="0,0,0,4"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
                     <Button Content="Save service" Style="{StaticResource PrimaryButton}" Command="{Binding SaveServiceCommand}" HorizontalAlignment="Left"/>
                     <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,12,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
@@ -290,11 +343,11 @@
                                             <TextBlock Foreground="{DynamicResource MutedTextBrush}">
                                                 <Run Text="₱"/>
                                                 <Run Text="{Binding Price, Mode=OneWay, StringFormat={}{0:N2}}"/>
-                                                <Run Text=" • "/>
-                                                <Run Text="{Binding DurationMinutes, Mode=OneWay}"/>
-                                                <Run Text=" min • Commission: "/>
+                                                <Run Text=" • Commission: "/>
                                                 <Run Text="{Binding CommissionDisplay, Mode=OneWay}"/>
                                             </TextBlock>
+                                            <TextBlock Text="{Binding ConsumableCountLabel, Mode=OneWay}"
+                                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0"/>
                                         </StackPanel>
                                         <Border Grid.Column="1" Style="{StaticResource StatusOkBadge}" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <TextBlock Text="{Binding StatusLabel, Mode=OneWay}" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>

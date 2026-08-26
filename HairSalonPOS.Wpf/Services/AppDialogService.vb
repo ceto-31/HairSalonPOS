@@ -68,6 +68,42 @@ Namespace Services
             }) = AppDialogResult.Yes
         End Function
 
+        Public Function ConfirmUseReserveStock(shortfalls As IList(Of ConsumableStockShortfall),
+                                               Optional owner As Window = Nothing) As Boolean
+            If shortfalls Is Nothing OrElse shortfalls.Count = 0 Then Return True
+
+            Dim body As New System.Text.StringBuilder()
+            If shortfalls.Count = 1 Then
+                Dim item = shortfalls(0)
+                Dim product = item.Product
+                If item.FromOnHand <= 0 Then
+                    body.AppendLine($"{product.Name} — stock on hand is 0. This sale needs {item.UnitsNeeded} units.")
+                    body.AppendLine($"Use {item.FromReserve} from reserve stock? ({product.ReservedQty} in reserve)")
+                Else
+                    body.AppendLine($"{product.Name} — only {item.FromOnHand} on hand, need {item.FromReserve} more.")
+                    body.AppendLine($"Use {item.FromReserve} from reserve stock? ({product.ReservedQty} in reserve)")
+                End If
+            Else
+                body.AppendLine("Some products need reserve stock:")
+                For Each item In shortfalls
+                    Dim onHandLabel = If(item.FromOnHand <= 0, "0 on hand", $"{item.FromOnHand} on hand")
+                    body.AppendLine($"• {item.Product.Name}: {onHandLabel}, use {item.FromReserve} from reserve")
+                Next
+                body.AppendLine()
+                body.AppendLine("Use reserve stock for this sale?")
+            End If
+
+            Return Show(New AppDialogOptions With {
+                .Title = "Use reserve stock?",
+                .Message = body.ToString().Trim(),
+                .Buttons = AppDialogButtons.YesNo,
+                .DialogType = AppDialogType.Warning,
+                .PrimaryButtonText = "Use reserve stock",
+                .SecondaryButtonText = "Cancel",
+                .Owner = owner
+            }) = AppDialogResult.Yes
+        End Function
+
         Public Function ConfirmDelete(itemName As String, Optional leadMessage As String = Nothing) As Boolean
             Dim body = $"Are you sure you want to delete ""{itemName}""? This action cannot be undone."
             If Not String.IsNullOrWhiteSpace(leadMessage) Then
@@ -156,6 +192,99 @@ Namespace Services
             Return Nothing
         End Function
 
+        Public Function PromptReserveStock(product As Models.ProductItem,
+                                           Optional owner As Window = Nothing,
+                                           Optional initialQty As Integer = 1) As StockMovementPromptResult
+            If product Is Nothing Then Return Nothing
+
+            Try
+                product.EnsureDefaults()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptReserveStock/EnsureDefaults", ex)
+                Throw
+            End Try
+
+            Dim dialog As Views.StockMovementWindow
+            Try
+                dialog = New Views.StockMovementWindow(product, StockMovementKind.Reserve, initialQty)
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptReserveStock/ConstructWindow", ex)
+                Throw
+            End Try
+
+            Try
+                Dim ownerWin = owner
+                If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                    ownerWin = Application.Current.MainWindow
+                End If
+                If ownerWin IsNot Nothing Then
+                    dialog.Owner = ownerWin
+                    SizeDialogToOwner(dialog, ownerWin)
+                End If
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptReserveStock/OwnerSizing", ex)
+                Throw
+            End Try
+
+            Dim result As Boolean?
+            Try
+                result = dialog.ShowDialog()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptReserveStock/ShowDialog", ex)
+                Throw
+            End Try
+
+            If result = True AndAlso dialog.Confirmed AndAlso dialog.LoadSucceeded Then
+                Return New StockMovementPromptResult With {
+                    .Quantity = dialog.ResultQuantity,
+                    .Reason = dialog.ResultReason,
+                    .Notes = dialog.ResultNotes,
+                    .IsReleaseReserve = dialog.ResultIsReleaseReserve
+                }
+            End If
+            Return Nothing
+        End Function
+
+        Public Function PromptServiceConsumables(service As Models.ServiceItem,
+                                                 Optional owner As Window = Nothing) As List(Of Models.ServiceConsumableLine)
+            If service Is Nothing OrElse Not service.HasPickOneConsumables Then Return Nothing
+
+            Dim dialog As Views.ServiceConsumablePickerWindow
+            Try
+                dialog = New Views.ServiceConsumablePickerWindow(service)
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptServiceConsumables/ConstructWindow", ex)
+                Throw
+            End Try
+
+            Try
+                Dim ownerWin = owner
+                If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                    ownerWin = Application.Current.MainWindow
+                End If
+                If ownerWin IsNot Nothing Then
+                    dialog.Owner = ownerWin
+                    SizeDialogToOwner(dialog, ownerWin)
+                End If
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptServiceConsumables/OwnerSizing", ex)
+                Throw
+            End Try
+
+            Dim result As Boolean?
+            Try
+                result = dialog.ShowDialog()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptServiceConsumables/ShowDialog", ex)
+                Throw
+            End Try
+
+            If result = True AndAlso dialog.Confirmed Then
+                Return dialog.Selections
+            End If
+            Return Nothing
+        End Function
+
         Private Function TrySizeDialogToOwner(dialog As Window, ownerWin As Window) As Boolean
             Dim ownerWidth = If(ownerWin.ActualWidth > 0, ownerWin.ActualWidth, ownerWin.Width)
             Dim ownerHeight = If(ownerWin.ActualHeight > 0, ownerWin.ActualHeight, ownerWin.Height)
@@ -215,6 +344,7 @@ Namespace Services
         Public Property Quantity As Integer
         Public Property Reason As String = String.Empty
         Public Property Notes As String = String.Empty
+        Public Property IsReleaseReserve As Boolean
 
         Public ReadOnly Property CombinedNotes As String
             Get

@@ -19,10 +19,10 @@ Namespace ViewModels
 
         Private _editName As String = String.Empty
         Private _editPrice As Decimal
-        Private _editDuration As Integer = 60
         Private _editCategory As String = String.Empty
         Private _editSubCategory As String = String.Empty
         Private _editCommissionPercent As Decimal
+        Private _pickOneDefaultQty As Decimal = 1D
 
         Private _selectedManageCategory As CatalogCategoryNode
         Private _selectedManageSubCategory As String
@@ -33,6 +33,7 @@ Namespace ViewModels
         Private _showArchived As Boolean
         Private _showManageCategoriesButton As Boolean = True
         Private _showCategoryCancelButton As Boolean = True
+        Private _searchText As String = String.Empty
         Private _isCategoryFormMode As Boolean
         Private _isSubCategoryFormMode As Boolean
         Private _isAddingCategory As Boolean = True
@@ -44,6 +45,9 @@ Namespace ViewModels
             SubCategoryChips = New ObservableCollection(Of SelectableChip)()
             EditCategoryOptions = New ObservableCollection(Of String)()
             EditSubCategoryOptions = New ObservableCollection(Of String)()
+            FixedConsumableOptions = New ObservableCollection(Of FixedConsumableOption)()
+            PickOneConsumableOptions = New ObservableCollection(Of PickOneProductOption)()
+            ProductOptions = New ObservableCollection(Of ProductItem)()
 
             SelectCategoryCommand = New RelayCommand(Of String)(AddressOf SelectCategory)
             SelectSubCategoryCommand = New RelayCommand(Of String)(AddressOf SelectSubCategory)
@@ -51,6 +55,10 @@ Namespace ViewModels
             EditServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf BeginEdit)
             SaveServiceCommand = New RelayCommand(AddressOf SaveService)
             CancelEditCommand = New RelayCommand(AddressOf CancelEdit)
+            SelectAllFixedConsumablesCommand = New RelayCommand(AddressOf SelectAllFixedConsumables)
+            ClearFixedConsumablesCommand = New RelayCommand(AddressOf ClearFixedConsumables)
+            SelectAllPickOneConsumablesCommand = New RelayCommand(AddressOf SelectAllPickOneConsumables)
+            ClearPickOneConsumablesCommand = New RelayCommand(AddressOf ClearPickOneConsumables)
             DeleteServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf DeleteService)
             ArchiveServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf ArchiveService)
             UnarchiveServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf UnarchiveService)
@@ -157,6 +165,21 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public Property SearchText As String
+            Get
+                Return _searchText
+            End Get
+            Set(value As String)
+                If SetProperty(_searchText, value) Then
+                    If IsCategoryManageMode Then
+                        RefreshManageCategoriesFromStore()
+                    Else
+                        LoadServices()
+                    End If
+                End If
+            End Set
+        End Property
+
         Public Sub LoadFromStore()
             RefreshCategoriesFromStore()
             StatusMessage = String.Empty
@@ -167,6 +190,9 @@ Namespace ViewModels
         Public Property SubCategoryChips As ObservableCollection(Of SelectableChip)
         Public Property EditCategoryOptions As ObservableCollection(Of String)
         Public Property EditSubCategoryOptions As ObservableCollection(Of String)
+        Public Property FixedConsumableOptions As ObservableCollection(Of FixedConsumableOption)
+        Public Property PickOneConsumableOptions As ObservableCollection(Of PickOneProductOption)
+        Public Property ProductOptions As ObservableCollection(Of ProductItem)
         Public Property ManageCategories As ObservableCollection(Of CatalogCategoryNode)
         Public Property ManageSubCategories As ObservableCollection(Of String)
 
@@ -308,15 +334,6 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property EditDuration As Integer
-            Get
-                Return _editDuration
-            End Get
-            Set(value As Integer)
-                SetProperty(_editDuration, value)
-            End Set
-        End Property
-
         Public Property EditCategory As String
             Get
                 Return _editCategory
@@ -343,6 +360,15 @@ Namespace ViewModels
             End Get
             Set(value As Decimal)
                 SetProperty(_editCommissionPercent, value)
+            End Set
+        End Property
+
+        Public Property PickOneDefaultQty As Decimal
+            Get
+                Return _pickOneDefaultQty
+            End Get
+            Set(value As Decimal)
+                SetProperty(_pickOneDefaultQty, value)
             End Set
         End Property
 
@@ -402,6 +428,10 @@ Namespace ViewModels
         Public Property EditServiceCommand As RelayCommand(Of ServiceItem)
         Public Property SaveServiceCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
+        Public Property SelectAllFixedConsumablesCommand As RelayCommand
+        Public Property ClearFixedConsumablesCommand As RelayCommand
+        Public Property SelectAllPickOneConsumablesCommand As RelayCommand
+        Public Property ClearPickOneConsumablesCommand As RelayCommand
         Public Property DeleteServiceCommand As RelayCommand(Of ServiceItem)
         Public Property ArchiveServiceCommand As RelayCommand(Of ServiceItem)
         Public Property UnarchiveServiceCommand As RelayCommand(Of ServiceItem)
@@ -488,19 +518,40 @@ Namespace ViewModels
 
         Private Sub LoadServices()
             Services.Clear()
-            Dim cat = SelectedCategory
-            Dim subCat = CurrentSubCategoryValue()
-            Dim query = _store.Services.Where(Function(x) MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
-            If Not ShowArchived Then
+            Dim query = _store.Services.AsEnumerable()
+            If ShowArchived Then
+                query = query.Where(Function(x) Not x.IsActive)
+            Else
                 query = query.Where(Function(x) x.IsActive)
+            End If
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(x) MatchesServiceSearch(x, term))
+            Else
+                Dim cat = SelectedCategory
+                Dim subCat = CurrentSubCategoryValue()
+                query = query.Where(Function(x) MatchesLeaf(x.Category, x.SubCategory, cat, subCat))
             End If
             For Each s In query.OrderBy(Function(x) x.Name)
                 Services.Add(s)
             Next
         End Sub
 
+        Private Shared Function MatchesServiceSearch(service As ServiceItem, term As String) As Boolean
+            Return service.Name.ToLowerInvariant().Contains(term) OrElse
+                service.Sku.ToLowerInvariant().Contains(term) OrElse
+                (Not String.IsNullOrWhiteSpace(service.Category) AndAlso service.Category.ToLowerInvariant().Contains(term)) OrElse
+                (Not String.IsNullOrWhiteSpace(service.SubCategory) AndAlso service.SubCategory.ToLowerInvariant().Contains(term))
+        End Function
+
         Private Function CurrentSubCategoryValue() As String
             Return If(HasSubCategories, SelectedSubCategory, String.Empty)
+        End Function
+
+        Private Shared Function MatchesCategorySearch(category As CatalogCategoryNode, term As String) As Boolean
+            If category.Name.ToLowerInvariant().Contains(term) Then Return True
+            Return category.SubCategories IsNot Nothing AndAlso
+                category.SubCategories.Any(Function(s) s.ToLowerInvariant().Contains(term))
         End Function
 
         Private Shared Function MatchesLeaf(itemCat As String, itemSub As String, cat As String, subCat As String) As Boolean
@@ -520,10 +571,11 @@ Namespace ViewModels
             _editingSku = String.Empty
             EditName = String.Empty
             EditPrice = 0D
-            EditDuration = 60
             EditCategory = SelectedCategory
             EditSubCategory = CurrentSubCategoryValue()
             EditCommissionPercent = 0D
+            RefreshProductOptions()
+            LoadEditConsumables(Nothing)
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -534,10 +586,11 @@ Namespace ViewModels
             _editingSku = item.Sku
             EditName = item.Name
             EditPrice = item.Price
-            EditDuration = item.DurationMinutes
             EditCategory = item.Category
             EditSubCategory = item.SubCategory
             EditCommissionPercent = item.CommissionPercent
+            RefreshProductOptions()
+            LoadEditConsumables(item.Consumables)
             OnPropertyChanged(NameOf(FormTitle))
             IsEditMode = True
         End Sub
@@ -553,10 +606,6 @@ Namespace ViewModels
             End If
             If EditPrice < 0D Then
                 StatusMessage = "Price must be zero or greater."
-                Return
-            End If
-            If EditDuration <= 0 Then
-                StatusMessage = "Duration must be greater than zero."
                 Return
             End If
             If EditCommissionPercent < 0D Then
@@ -588,17 +637,21 @@ Namespace ViewModels
                 subCat = String.Empty
             End If
 
+            Dim consumables As List(Of ServiceConsumableLine) = New List(Of ServiceConsumableLine)()
+            If Not TryBuildConsumablesFromEdit(consumables) Then Return
+
             If _isAdding Then
                 Dim service As New ServiceItem With {
                     .Sku = NextServiceSku(),
                     .Name = EditName.Trim(),
                     .Price = EditPrice,
-                    .DurationMinutes = EditDuration,
+                    .DurationMinutes = 60,
                     .Icon = "✨",
                     .Category = node.Name,
                     .SubCategory = subCat,
                     .CommissionPercent = EditCommissionPercent,
-                    .IsActive = True
+                    .IsActive = True,
+                    .Consumables = consumables
                 }
                 _store.Services.Add(service)
                 StatusMessage = "Service added."
@@ -610,10 +663,10 @@ Namespace ViewModels
                 End If
                 existing.Name = EditName.Trim()
                 existing.Price = EditPrice
-                existing.DurationMinutes = EditDuration
                 existing.Category = node.Name
                 existing.SubCategory = subCat
                 existing.CommissionPercent = EditCommissionPercent
+                existing.Consumables = consumables
                 StatusMessage = "Service updated."
             End If
 
@@ -630,6 +683,131 @@ Namespace ViewModels
             StatusMessage = $"{item.Name} deleted."
             LoadServices()
         End Sub
+
+        Private Sub RefreshProductOptions()
+            ProductOptions = New ObservableCollection(Of ProductItem)(
+                _store.Products.Where(Function(p) p.IsActive).OrderBy(Function(p) p.Name))
+            OnPropertyChanged(NameOf(ProductOptions))
+        End Sub
+
+        Private Sub LoadEditConsumables(source As IEnumerable(Of ServiceConsumableLine))
+            Dim lines = If(source, Enumerable.Empty(Of ServiceConsumableLine)()).ToList()
+
+            Dim fixedBySku = lines.
+                Where(Function(c) c.Kind = ServiceConsumableKind.Fixed AndAlso Not String.IsNullOrWhiteSpace(c.ProductSku)).
+                GroupBy(Function(c) c.ProductSku, StringComparer.OrdinalIgnoreCase).
+                ToDictionary(Function(g) g.Key, Function(g) g.First(), StringComparer.OrdinalIgnoreCase)
+
+            Dim pickOneSkus As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Dim pickOneQty As Decimal = 1D
+            For Each pickLine In lines.Where(Function(c) c.Kind = ServiceConsumableKind.PickOne)
+                If pickLine.OptionProductSkus IsNot Nothing Then
+                    For Each sku In pickLine.OptionProductSkus
+                        If Not String.IsNullOrWhiteSpace(sku) Then pickOneSkus.Add(sku)
+                    Next
+                End If
+                If pickLine.Quantity > 0D Then pickOneQty = pickLine.Quantity
+            Next
+
+            FixedConsumableOptions = New ObservableCollection(Of FixedConsumableOption)(
+                ProductOptions.Select(Function(p)
+                                          Dim fixedLine As ServiceConsumableLine = Nothing
+                                          fixedBySku.TryGetValue(p.Sku, fixedLine)
+                                          Return New FixedConsumableOption With {
+                                              .Sku = p.Sku,
+                                              .Name = p.Name,
+                                              .IsSelected = fixedLine IsNot Nothing,
+                                              .Quantity = If(fixedLine IsNot Nothing AndAlso fixedLine.Quantity > 0D, fixedLine.Quantity, 1D)
+                                          }
+                                      End Function))
+
+            PickOneConsumableOptions = New ObservableCollection(Of PickOneProductOption)(
+                ProductOptions.Select(Function(p) New PickOneProductOption With {
+                    .Sku = p.Sku,
+                    .Name = p.Name,
+                    .IsSelected = pickOneSkus.Contains(p.Sku)
+                }))
+
+            PickOneDefaultQty = pickOneQty
+
+            OnPropertyChanged(NameOf(FixedConsumableOptions))
+            OnPropertyChanged(NameOf(PickOneConsumableOptions))
+        End Sub
+
+        Private Sub SelectAllFixedConsumables()
+            For Each opt In FixedConsumableOptions
+                opt.IsSelected = True
+            Next
+        End Sub
+
+        Private Sub ClearFixedConsumables()
+            For Each opt In FixedConsumableOptions
+                opt.IsSelected = False
+            Next
+        End Sub
+
+        Private Sub SelectAllPickOneConsumables()
+            For Each opt In PickOneConsumableOptions
+                opt.IsSelected = True
+            Next
+        End Sub
+
+        Private Sub ClearPickOneConsumables()
+            For Each opt In PickOneConsumableOptions
+                opt.IsSelected = False
+            Next
+        End Sub
+
+        Private Function TryBuildConsumablesFromEdit(ByRef consumables As List(Of ServiceConsumableLine)) As Boolean
+            consumables = New List(Of ServiceConsumableLine)
+
+            For Each opt In FixedConsumableOptions.Where(Function(o) o.IsSelected)
+                If opt.Quantity <= 0D Then
+                    StatusMessage = "Each always-deduct product must use a quantity greater than zero."
+                    Return False
+                End If
+
+                Dim product = _store.Products.FirstOrDefault(Function(p) p.Sku.Equals(opt.Sku, StringComparison.OrdinalIgnoreCase))
+                If product Is Nothing OrElse Not product.IsActive Then
+                    StatusMessage = "One or more always-deduct products were not found or are archived."
+                    Return False
+                End If
+
+                consumables.Add(New ServiceConsumableLine With {
+                    .Kind = ServiceConsumableKind.Fixed,
+                    .ProductSku = product.Sku,
+                    .Quantity = opt.Quantity
+                })
+            Next
+
+            Dim pickSelected = PickOneConsumableOptions.Where(Function(o) o.IsSelected).Select(Function(o) o.Sku).ToList()
+            If pickSelected.Count > 0 Then
+                If PickOneDefaultQty <= 0D Then
+                    StatusMessage = "Default quantity for pick-at-POS must be greater than zero."
+                    Return False
+                End If
+                If pickSelected.Count < 2 Then
+                    StatusMessage = "Select at least two products for pick-at-POS, or use Always deduct for a single product."
+                    Return False
+                End If
+
+                For Each sku In pickSelected
+                    Dim product = _store.Products.FirstOrDefault(Function(p) p.Sku.Equals(sku, StringComparison.OrdinalIgnoreCase))
+                    If product Is Nothing OrElse Not product.IsActive Then
+                        StatusMessage = "One or more pick-at-POS products were not found or are archived."
+                        Return False
+                    End If
+                Next
+
+                consumables.Add(New ServiceConsumableLine With {
+                    .Kind = ServiceConsumableKind.PickOne,
+                    .Quantity = PickOneDefaultQty,
+                    .OptionProductSkus = pickSelected
+                })
+            End If
+
+            Return True
+        End Function
 
         Private Sub ArchiveService(item As ServiceItem)
             If item Is Nothing OrElse Not item.IsActive Then Return
@@ -691,8 +869,14 @@ Namespace ViewModels
         Private Sub RefreshManageCategoriesFromStore(Optional selectName As String = Nothing)
             Dim keepName = If(Not String.IsNullOrWhiteSpace(selectName), selectName, SelectedManageCategory?.Name)
             Dim query = _store.Categories.AsEnumerable()
-            If Not ShowArchived Then
+            If ShowArchived Then
+                query = query.Where(Function(c) Not c.IsActive)
+            Else
                 query = query.Where(Function(c) c.IsActive)
+            End If
+            If Not String.IsNullOrWhiteSpace(SearchText) Then
+                Dim term = SearchText.Trim().ToLowerInvariant()
+                query = query.Where(Function(c) MatchesCategorySearch(c, term))
             End If
             ManageCategories = New ObservableCollection(Of CatalogCategoryNode)(query.OrderBy(Function(c) c.Name))
             OnPropertyChanged(NameOf(ManageCategories))
