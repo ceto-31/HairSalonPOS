@@ -17,7 +17,7 @@
             <TextBlock Text="Printer type" Style="{StaticResource SectionHeader}"/>
             <ComboBox ItemsSource="{Binding PrinterTypes}" SelectedItem="{Binding PrinterType}"
                       Style="{StaticResource ModernComboBox}" Margin="0,0,0,8"/>
-            <TextBlock Text="Standard: A4/laser via FlowDocument + PrintDialog. Thermal: 80mm roll via ESC/POS raw commands."
+            <TextBlock Text="Standard: full-page or receipt roll via FlowDialog (58mm POS58 detected automatically). Thermal: ESC/POS raw commands for 58mm/80mm rolls."
                        Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
             <StackPanel Visibility="{Binding IsThermalSelected, Converter={StaticResource BoolToVis}}">

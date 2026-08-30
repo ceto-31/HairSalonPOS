@@ -113,7 +113,7 @@ Namespace ViewModels
                 .SalonTelephone = SalonTelephone,
                 .SalonTin = SalonTin
             })
-            StatusMessage = "Settings saved. Standard = A4/laser FlowDocument. Thermal = 80mm ESC/POS."
+            StatusMessage = "Settings saved. Standard auto-detects 58mm receipt rolls. Thermal uses ESC/POS raw printing."
         End Sub
     End Class
 End Namespace
