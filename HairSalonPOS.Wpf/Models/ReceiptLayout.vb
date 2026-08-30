@@ -12,8 +12,39 @@ Namespace Models
         Public Property DetailFontSize As Double = 10
         Public Property FooterFontSize As Double = 12
         Public Property SeparatorLength As Integer = 42
+        Public Property CharWidth As Integer = 42
         Public Property LineMargin As Double = 2
         Public Property IsReceiptPaper As Boolean
+
+        Public Shared Function FromSettings(appSettings As AppSettings) As ReceiptLayout
+            Return FromPrinterName(appSettings.ThermalPrinterName)
+        End Function
+
+        Public Shared Function FromPrinterName(printerName As String) As ReceiptLayout
+            Dim layout As New ReceiptLayout()
+            Dim paperWidthMm = InferPaperWidthMm(printerName, Nothing)
+
+            layout.PaperWidthMm = paperWidthMm
+            layout.IsReceiptPaper = paperWidthMm <= 85
+
+            If layout.IsReceiptPaper Then
+                layout.PageWidth = MmToWpfUnits(paperWidthMm)
+                layout.PagePadding = New Thickness(4, 6, 4, 6)
+                layout.FontSize = 9
+                layout.TitleFontSize = 11
+                layout.TotalFontSize = 11
+                layout.DetailFontSize = 8.5
+                layout.FooterFontSize = 10
+                layout.SeparatorLength = InferThermalCharWidth(printerName, paperWidthMm)
+                layout.CharWidth = layout.SeparatorLength
+                layout.LineMargin = 1
+            Else
+                layout.PageWidth = 794
+                layout.CharWidth = layout.SeparatorLength
+            End If
+
+            Return layout
+        End Function
 
         Public Shared Function FromPrintDialog(dlg As PrintDialog) As ReceiptLayout
             Dim layout As New ReceiptLayout()
@@ -32,9 +63,11 @@ Namespace Models
                 layout.DetailFontSize = 8.5
                 layout.FooterFontSize = 10
                 layout.SeparatorLength = InferThermalCharWidth(printerName, paperWidthMm)
+                layout.CharWidth = layout.SeparatorLength
                 layout.LineMargin = 1
             Else
                 layout.PageWidth = If(dlg.PrintableAreaWidth > 0, dlg.PrintableAreaWidth, 794)
+                layout.CharWidth = layout.SeparatorLength
             End If
 
             Return layout

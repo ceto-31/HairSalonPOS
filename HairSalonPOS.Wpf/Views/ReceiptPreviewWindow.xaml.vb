@@ -14,7 +14,8 @@ Namespace Views
             Title = $"Receipt {receipt.ReceiptNumber}"
             TitleText.Text = $"Receipt {receipt.ReceiptNumber}"
             Dim settings = AppSettingsService.Instance.Settings
-            ReceiptViewer.Document = ReceiptPrintService.BuildFlowDocument(receipt, settings)
+            Dim layout = ReceiptLayout.FromSettings(settings)
+            ReceiptViewer.Document = ReceiptPrintService.BuildFlowDocument(receipt, settings, layout)
         End Sub
 
         Private Sub PrintButton_Click(sender As Object, e As RoutedEventArgs)
