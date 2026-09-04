@@ -5,15 +5,22 @@
              mc:Ignorable="d"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             d:DesignHeight="900" d:DesignWidth="1200">
+             d:DesignHeight="900" d:DesignWidth="1200"
+             VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
     <UserControl.Resources>
         <Style x:Key="ChangeText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="#3D7A4A"/>
         </Style>
     </UserControl.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,0,16">
             <StackPanel Margin="0,0,0,16">
                 <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"/>
                 <TextBlock Text="Today's salon overview" FontSize="14" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
@@ -66,16 +73,71 @@
                         </StackPanel>
                     </DockPanel>
                 </Border>
-                <Border Style="{StaticResource CardBorder}" Margin="0,0,10,0" Padding="16">
+                <Border Margin="0,0,10,0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CardBorder}">
+                            <Setter Property="Padding" Value="16"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource LowStockAlertBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource LowStockAlertSoftBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <DockPanel>
-                        <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
+                        <Border DockPanel.Dock="Left">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource DashboardKpiWell}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource LowStockAlertBackgroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource LowStockAlertBrush}"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <Image Source="pack://application:,,,/Assets/Icons/icon_lowstock.png"
                                    Style="{StaticResource DashboardKpiImage}"/>
                         </Border>
                         <StackPanel>
-                            <TextBlock Text="Low stock" Style="{StaticResource SectionHeader}"/>
-                            <TextBlock Text="{Binding LowStockCount}" FontSize="22" FontWeight="Bold"/>
-                            <TextBlock Text="{Binding LowStockSubtitle}" FontSize="12" Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Low stock">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SectionHeader}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding LowStockCount}" FontSize="22" FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding LowStockSubtitle}" FontSize="12" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </DockPanel>
                 </Border>
@@ -143,7 +205,7 @@
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="4,0">
+                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="4,0" Height="300">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding TopServicesPeriod}"
@@ -154,35 +216,39 @@
                         <Button DockPanel.Dock="Bottom" Content="View all services ›" Style="{StaticResource DashboardLinkButton}"
                                 Command="{Binding GoToServicesCommand}" Margin="0,8,0,0"
                                 Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
-                        <TextBlock Text="No service sales in this period." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasTopServices, Converter={StaticResource InverseBoolToVis}}"/>
-                        <ItemsControl ItemsSource="{Binding TopServices}" Visibility="{Binding HasTopServices, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel Margin="0,0,0,12">
-                                        <Border DockPanel.Dock="Left" Width="36" Height="36" CornerRadius="18"
-                                                Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,10,0"
-                                                BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
-                                            <TextBlock Text="{Binding Icon}" FontSize="18"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Amount, StringFormat=₱{0:N0}}"
-                                                   FontWeight="SemiBold" VerticalAlignment="Top"/>
-                                        <StackPanel MinWidth="0">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <Border Height="6" Background="{DynamicResource ChipHoverBrush}" CornerRadius="3" Margin="0,6,0,0">
-                                                <Border Width="{Binding BarWidth}" Height="6" CornerRadius="3"
-                                                        Background="{DynamicResource AccentBrush}" HorizontalAlignment="Left"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No service sales in this period." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasTopServices, Converter={StaticResource InverseBoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding TopServices}" Visibility="{Binding HasTopServices, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <Border DockPanel.Dock="Left" Width="36" Height="36" CornerRadius="18"
+                                                        Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,10,0"
+                                                        BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding Icon}" FontSize="18"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Amount, StringFormat=₱{0:N0}}"
+                                                           FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                <StackPanel MinWidth="0">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <Border Height="6" Background="{DynamicResource ChipHoverBrush}" CornerRadius="3" Margin="0,6,0,0">
+                                                        <Border Width="{Binding BarWidth}" Height="6" CornerRadius="3"
+                                                                Background="{DynamicResource AccentBrush}" HorizontalAlignment="Left"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="8,0,0,0">
+                <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="8,0,0,0" Height="300">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <Button DockPanel.Dock="Right" Content="View all" Style="{StaticResource DashboardLinkButton}"
@@ -192,36 +258,40 @@
                         </DockPanel>
                         <Button DockPanel.Dock="Bottom" Content="Go to Appointments ›" Style="{StaticResource DashboardLinkButton}"
                                 Command="{Binding GoToAppointmentsCommand}" Margin="0,8,0,0"/>
-                        <TextBlock Text="No upcoming appointments." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasUpcomingAppointments, Converter={StaticResource InverseBoolToVis}}"/>
-                        <ItemsControl ItemsSource="{Binding Appointments}" Visibility="{Binding HasUpcomingAppointments, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel Margin="0,0,0,12">
-                                        <Border DockPanel.Dock="Left" Width="36" Height="36" CornerRadius="18"
-                                                Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,8,0"
-                                                BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
-                                            <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
-                                                   Width="20" Height="20" Stretch="Uniform"
-                                                   RenderOptions.BitmapScalingMode="HighQuality"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Margin="6,0,0,0"
-                                                Background="{Binding StatusLabel, Converter={StaticResource AppointmentStatusBg}}">
-                                            <TextBlock Text="{Binding StatusLabel}" FontSize="9" FontWeight="Bold"/>
-                                        </Border>
-                                        <StackPanel VerticalAlignment="Center" MinWidth="0" Margin="0,0,4,0">
-                                            <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
-                                                <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
-                                                <Run Text=" · "/>
-                                                <Run Text="{Binding DateLabel, Mode=OneWay}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No upcoming appointments." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasUpcomingAppointments, Converter={StaticResource InverseBoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding Appointments}" Visibility="{Binding HasUpcomingAppointments, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <Border DockPanel.Dock="Left" Width="36" Height="36" CornerRadius="18"
+                                                        Background="{DynamicResource AvatarBackgroundBrush}" Margin="0,0,8,0"
+                                                        BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
+                                                    <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
+                                                           Width="20" Height="20" Stretch="Uniform"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                        Background="{Binding StatusLabel, Converter={StaticResource AppointmentStatusBg}}">
+                                                    <TextBlock Text="{Binding StatusLabel}" FontSize="9" FontWeight="Bold"/>
+                                                </Border>
+                                                <StackPanel VerticalAlignment="Center" MinWidth="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
+                                                        <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding DateLabel, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
             </Grid>
@@ -233,117 +303,162 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Text="Sales by category" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,12"/>
-                        <TextBlock Text="No sales in this period." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasCategorySlices, Converter={StaticResource InverseBoolToVis}}"/>
-                        <DockPanel Visibility="{Binding HasCategorySlices, Converter={StaticResource BoolToVis}}">
-                            <Canvas DockPanel.Dock="Left" Width="132" Height="132" Margin="0,0,12,0">
-                                <ItemsControl ItemsSource="{Binding CategorySlices}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <Canvas/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Path Data="{Binding SliceGeometry}" Fill="{Binding SliceBrush}"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Canvas>
-                            <ItemsControl ItemsSource="{Binding CategorySlices}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <DockPanel Margin="0,0,0,8">
-                                            <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2" Background="{Binding SliceBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding PercentLabel}" FontSize="11" VerticalAlignment="Center"/>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Label}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding AmountLabel}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </DockPanel>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="4,0">
+                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0" Height="300">
                     <DockPanel>
-                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                            <TextBlock Text="Inventory alerts" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
-                            <Button Content="View all" Style="{StaticResource DashboardLinkButton}" Command="{Binding GoToInventoryCommand}"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
-                        </DockPanel>
-                        <TextBlock Text="No low stock items." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasInventoryAlerts, Converter={StaticResource InverseBoolToVis}}"/>
-                        <ItemsControl ItemsSource="{Binding LowStockAlerts}" Visibility="{Binding HasInventoryAlerts, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel Margin="0,0,0,12">
-                                        <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="8"
-                                                Background="{DynamicResource CardMutedBrush}" Margin="0,0,10,0"
-                                                BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1">
-                                            <Border.Clip>
-                                                <RectangleGeometry Rect="0,0,40,40" RadiusX="8" RadiusY="8"/>
-                                            </Border.Clip>
-                                            <Grid>
-                                                <TextBlock Text="—" FontSize="11"
-                                                           Foreground="{DynamicResource MutedTextBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                           Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
-                                                <Image Stretch="UniformToFill"
-                                                       Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
-                                                       Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"/>
-                                            </Grid>
-                                        </Border>
-                                        <Button DockPanel.Dock="Right" Content="Reorder" Style="{StaticResource PrimaryButton}" Padding="10,6"
-                                                Command="{Binding DataContext.ReorderProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding Sku}"
-                                                Visibility="{Binding DataContext.CanViewAdminScreens, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock FontSize="11">
-                                                <Run Text="Stock: "/>
-                                                <Run Text="{Binding StockOnHand, Mode=OneWay}" Foreground="{DynamicResource ErrorBrush}" FontWeight="SemiBold"/>
-                                            </TextBlock>
-                                            <TextBlock Text="{Binding ReorderLevel, StringFormat=Reorder at {0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <TextBlock DockPanel.Dock="Top" Text="Sales by category" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,12"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No sales in this period." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasCategorySlices, Converter={StaticResource InverseBoolToVis}}"/>
+                                <DockPanel Visibility="{Binding HasCategorySlices, Converter={StaticResource BoolToVis}}">
+                                    <Canvas DockPanel.Dock="Left" Width="132" Height="132" Margin="0,0,12,0">
+                                        <ItemsControl ItemsSource="{Binding CategorySlices}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Path Data="{Binding SliceGeometry}" Fill="{Binding SliceBrush}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Canvas>
+                                    <ItemsControl ItemsSource="{Binding CategorySlices}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel Margin="0,0,0,8">
+                                                    <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2" Background="{Binding SliceBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding PercentLabel}" FontSize="11" VerticalAlignment="Center"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Label}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding AmountLabel}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DockPanel>
+                            </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="8,0,0,0">
+                <Border Grid.Column="1" Margin="4,0" Height="300">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CardBorder}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasInventoryAlerts}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource LowStockAlertBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,8,0"
+                                        Background="{DynamicResource LowStockAlertBrush}"
+                                        Visibility="{Binding HasInventoryAlerts, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Text="Inventory alerts" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasInventoryAlerts}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                            <Button Content="View all" Style="{StaticResource DashboardLinkButton}" Command="{Binding GoToInventoryCommand}"
+                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}"/>
+                        </DockPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No low stock items." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasInventoryAlerts, Converter={StaticResource InverseBoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding LowStockAlerts}" Visibility="{Binding HasInventoryAlerts, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="10"
+                                                    Background="{DynamicResource LowStockAlertSoftBrush}"
+                                                    BorderBrush="{DynamicResource LowStockAlertBackgroundBrush}"
+                                                    BorderThickness="1">
+                                                <DockPanel>
+                                                    <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="8"
+                                                            Background="{DynamicResource LowStockAlertBackgroundBrush}" Margin="0,0,10,0"
+                                                            BorderBrush="{DynamicResource LowStockAlertBrush}" BorderThickness="1">
+                                                        <Border.Clip>
+                                                            <RectangleGeometry Rect="0,0,40,40" RadiusX="8" RadiusY="8"/>
+                                                        </Border.Clip>
+                                                        <Grid>
+                                                            <TextBlock Text="—" FontSize="11"
+                                                                       Foreground="{DynamicResource LowStockAlertBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                            <Image Stretch="UniformToFill"
+                                                                   Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <Button DockPanel.Dock="Right" Content="Reorder" Style="{StaticResource PrimaryButton}" Padding="10,6"
+                                                            Command="{Binding DataContext.ReorderProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding Sku}"
+                                                            Visibility="{Binding DataContext.CanViewAdminScreens, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource LowStockAlertBrush}" FontWeight="SemiBold">
+                                                            <Run Text="Stock: "/>
+                                                            <Run Text="{Binding StockOnHand, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}">
+                                                            <Run Text="Reorder at "/>
+                                                            <Run Text="{Binding ReorderLevel, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="8,0,0,0" Height="300">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <TextBlock Text="Recent transactions" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
                             <Button Content="View all" Style="{StaticResource DashboardLinkButton}" Command="{Binding GoToTransactionsCommand}"/>
                         </DockPanel>
-                        <TextBlock Text="No sales today." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasRecentSales, Converter={StaticResource InverseBoolToVis}}"/>
-                        <ItemsControl ItemsSource="{Binding RecentSales}" Visibility="{Binding HasRecentSales, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel Margin="0,0,0,10">
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Total, StringFormat=₱{0:N0}}" FontWeight="SemiBold"/>
-                                        <StackPanel>
-                                            <TextBlock FontSize="12">
-                                                <Run Text="{Binding ReceiptNumber, Mode=OneWay}"/>
-                                                <Run Text=" · "/>
-                                                <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
-                                            </TextBlock>
-                                            <TextBlock Text="{Binding CustomerName}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No sales today." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasRecentSales, Converter={StaticResource InverseBoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding RecentSales}" Visibility="{Binding HasRecentSales, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,0,0,10">
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Total, StringFormat=₱{0:N0}}" FontWeight="SemiBold"/>
+                                                <StackPanel MinWidth="0">
+                                                    <TextBlock Text="{Binding ServiceLabel}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
+                                                        <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding CustomerName, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
             </Grid>
@@ -354,205 +469,217 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <DockPanel Margin="0,0,0,12">
+                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,8,0" Height="300">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                             <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding PaymentPeriodOptions}" SelectedItem="{Binding PaymentMethodsPeriod}"
                                       Style="{StaticResource ModernComboBox}" Width="130" HorizontalAlignment="Right"/>
                             <TextBlock Text="Payment methods" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
                         </DockPanel>
-                        <TextBlock Text="No Cash or GCash sales in this period." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasPaymentMethodData, Converter={StaticResource InverseBoolToVis}}"/>
-                        <StackPanel Visibility="{Binding HasPaymentMethodData, Converter={StaticResource BoolToVis}}">
-                            <DockPanel>
-                                <Canvas DockPanel.Dock="Left" Width="132" Height="132" Margin="0,0,12,0">
-                                    <ItemsControl ItemsSource="{Binding PaymentMethodSlices}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <Canvas/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Path Data="{Binding SliceGeometry}" Fill="{Binding SliceBrush}"/>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Canvas>
-                                <StackPanel VerticalAlignment="Center">
-                                    <DockPanel Margin="0,0,0,10">
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding CashPercentLabel}"
-                                                   FontSize="11" VerticalAlignment="Center"/>
-                                        <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
-                                                Background="{DynamicResource PaymentMethodCashBrush}"
-                                                Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <StackPanel>
-                                            <TextBlock Text="Cash" FontSize="12" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding CashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                            <TextBlock Text="{Binding CashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No Cash or GCash sales in this period." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasPaymentMethodData, Converter={StaticResource InverseBoolToVis}}"/>
+                                <StackPanel Visibility="{Binding HasPaymentMethodData, Converter={StaticResource BoolToVis}}">
+                                    <DockPanel>
+                                        <Canvas DockPanel.Dock="Left" Width="132" Height="132" Margin="0,0,12,0">
+                                            <ItemsControl ItemsSource="{Binding PaymentMethodSlices}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Canvas/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Path Data="{Binding SliceGeometry}" Fill="{Binding SliceBrush}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Canvas>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <DockPanel Margin="0,0,0,10">
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding CashPercentLabel}"
+                                                           FontSize="11" VerticalAlignment="Center"/>
+                                                <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
+                                                        Background="{DynamicResource PaymentMethodCashBrush}"
+                                                        Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="Cash" FontSize="12" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding CashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                    <TextBlock Text="{Binding CashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,10">
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding GcashPercentLabel}"
+                                                           FontSize="11" VerticalAlignment="Center"/>
+                                                <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
+                                                        Background="{DynamicResource PaymentMethodGcashBrush}"
+                                                        Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="GCash" FontSize="12" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding GcashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                    <TextBlock Text="{Binding GcashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,10,0,0">
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold"
+                                                               Text="{Binding PaymentTotalRevenue, StringFormat=₱{0:N0}}"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Overall total" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding PaymentTotalTransactionCount, StringFormat={}{0} transactions}"
+                                                                   FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
                                         </StackPanel>
                                     </DockPanel>
-                                    <DockPanel Margin="0,0,0,10">
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding GcashPercentLabel}"
-                                                   FontSize="11" VerticalAlignment="Center"/>
-                                        <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="2"
-                                                Background="{DynamicResource PaymentMethodGcashBrush}"
-                                                Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <StackPanel>
-                                            <TextBlock Text="GCash" FontSize="12" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding GcashRevenue, StringFormat=₱{0:N0}}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                            <TextBlock Text="{Binding GcashTransactionCount, StringFormat={}{0} tx}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,10,0,0">
-                                        <DockPanel>
-                                            <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold"
-                                                       Text="{Binding PaymentTotalRevenue, StringFormat=₱{0:N0}}"/>
-                                            <StackPanel>
-                                                <TextBlock Text="Overall total" FontSize="12" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{Binding PaymentTotalTransactionCount, StringFormat={}{0} transactions}"
-                                                           FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </Border>
                                 </StackPanel>
-                            </DockPanel>
-                        </StackPanel>
-                    </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
                 </Border>
 
-                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="8,0,0,0">
-                    <StackPanel>
-                        <DockPanel Margin="0,0,0,12">
-                            <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding StaffPeriodOptions}" SelectedItem="{Binding StaffAnalyticsPeriod}"
-                                      Style="{StaticResource ModernComboBox}" Width="130" HorizontalAlignment="Right"/>
+                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="8,0,0,0" Height="300">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <ComboBox ItemsSource="{Binding StaffCategoryFilterOptions}" SelectedItem="{Binding StaffAnalyticsCategory}"
+                                          Style="{StaticResource ModernComboBox}" Width="150" Margin="0,0,8,0"/>
+                                <ComboBox ItemsSource="{Binding StaffPeriodOptions}" SelectedItem="{Binding StaffAnalyticsPeriod}"
+                                          Style="{StaticResource ModernComboBox}" Width="130"/>
+                            </StackPanel>
                             <TextBlock Text="Staff analytics" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
                         </DockPanel>
-                        <TextBlock Text="No active staff on file." Foreground="{DynamicResource MutedTextBrush}"
-                                   Visibility="{Binding HasStaffPerformanceRows, Converter={StaticResource InverseBoolToVis}}"/>
-                        <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                      Visibility="{Binding HasStaffPerformanceRows, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl ItemsSource="{Binding StaffPerformanceRows}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Padding="8,10" Margin="0,0,0,4" CornerRadius="8"
-                                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="Transparent"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource CardMutedBrush}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="44"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Width="32" Height="32" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="{DynamicResource ChipHoverBrush}"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
-                                                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <TextBlock Text="{Binding RankLabel}" FontWeight="Bold" FontSize="12"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="No active staff on file." Foreground="{DynamicResource MutedTextBrush}"
+                                           Visibility="{Binding HasStaffPerformanceRows, Converter={StaticResource InverseBoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding StaffPerformanceRows}"
+                                              Visibility="{Binding HasStaffPerformanceRows, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="8,10" Margin="0,0,0,4" CornerRadius="8"
+                                                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource CardMutedBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="32" Height="32" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{DynamicResource ChipHoverBrush}"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                                                        <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Border>
-                                                <Grid Grid.Column="1" Width="36" Height="36" Margin="8,0,10,0">
-                                                    <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
-                                                        <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
-                                                                   Foreground="{DynamicResource AvatarForegroundBrush}"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding RankLabel}" FontWeight="Bold" FontSize="12"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsTopPerformer}" Value="True">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                     </Border>
-                                                    <Image Stretch="UniformToFill"
-                                                           Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
-                                                           Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
-                                                        <Image.Clip>
-                                                            <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
-                                                        </Image.Clip>
-                                                    </Image>
+                                                    <Grid Grid.Column="1" Width="36" Height="36" Margin="8,0,10,0">
+                                                        <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AvatarBackgroundBrush}">
+                                                            <TextBlock Text="{Binding Initials}" FontWeight="Bold" FontSize="11"
+                                                                       Foreground="{DynamicResource AvatarForegroundBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                        </Border>
+                                                        <Image Stretch="UniformToFill"
+                                                               Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                               Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}">
+                                                            <Image.Clip>
+                                                                <EllipseGeometry Center="18,18" RadiusX="18" RadiusY="18"/>
+                                                            </Image.Clip>
+                                                        </Image>
+                                                    </Grid>
+                                                    <TextBlock Grid.Column="2" Text="{Binding StaffName}" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding ServicesCompleted}" FontWeight="Bold" FontSize="16"
+                                                                   HorizontalAlignment="Right"/>
+                                                        <TextBlock Text="services" FontSize="10" Foreground="{DynamicResource MutedTextBrush}"
+                                                                   HorizontalAlignment="Right"/>
+                                                    </StackPanel>
                                                 </Grid>
-                                                <TextBlock Grid.Column="2" Text="{Binding StaffName}" FontWeight="SemiBold"
-                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                    <TextBlock Text="{Binding ServicesCompleted}" FontWeight="Bold" FontSize="16"
-                                                               HorizontalAlignment="Right"/>
-                                                    <TextBlock Text="services" FontSize="10" Foreground="{DynamicResource MutedTextBrush}"
-                                                               HorizontalAlignment="Right"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
             </Grid>
 
-            <Border Style="{StaticResource CardBorder}">
-                <StackPanel>
-                    <TextBlock Text="Quick actions" FontWeight="Bold" FontSize="13" Margin="0,0,0,12"/>
-                    <UniformGrid Columns="4" Rows="1">
-                        <Button Command="{Binding NewSaleCommand}" Style="{StaticResource DashboardQuickActionButton}" Margin="0,0,8,0">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Path Data="{StaticResource IconBagGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
-                                <TextBlock Text="New sale" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Command="{Binding NewAppointmentCommand}" Style="{StaticResource DashboardQuickActionButton}" Margin="0,0,8,0">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Path Data="{StaticResource IconCalendarGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
-                                <TextBlock Text="New appointment" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Grid Margin="0,0,8,0">
-                            <Button Command="{Binding GoToInventoryCommand}" Style="{StaticResource DashboardQuickActionButton}"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}">
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="{StaticResource IconBoxGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
-                                    <TextBlock Text="Inventory" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                            <Button Command="{Binding GoToTransactionsCommand}" Style="{StaticResource DashboardQuickActionButton}"
-                                    Visibility="{Binding CanViewAdminScreens, Converter={StaticResource InverseBoolToVis}}">
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="{StaticResource IconReceiptGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
-                                    <TextBlock Text="Transactions" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-                        <Button Command="{Binding GoToReportsCommand}" Style="{StaticResource DashboardQuickActionButton}">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Path Data="{StaticResource IconBarsGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
-                                <TextBlock Text="Reports" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </UniformGrid>
-                </StackPanel>
-            </Border>
         </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,8,0,0" Padding="12,10">
+            <StackPanel>
+                <TextBlock Text="Quick actions" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,8"/>
+                <UniformGrid Columns="4" Rows="1">
+                    <Button Command="{Binding NewSaleCommand}" Style="{StaticResource DashboardQuickActionButton}" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Path Data="{StaticResource IconBagGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
+                            <TextBlock Text="New sale" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding NewAppointmentCommand}" Style="{StaticResource DashboardQuickActionButton}" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Path Data="{StaticResource IconCalendarGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
+                            <TextBlock Text="New appointment" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Grid Margin="0,0,6,0">
+                        <Button Command="{Binding GoToInventoryCommand}" Style="{StaticResource DashboardQuickActionButton}"
+                                Visibility="{Binding CanViewAdminScreens, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Path Data="{StaticResource IconBoxGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
+                                <TextBlock Text="Inventory" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding GoToTransactionsCommand}" Style="{StaticResource DashboardQuickActionButton}"
+                                Visibility="{Binding CanViewAdminScreens, Converter={StaticResource InverseBoolToVis}}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Path Data="{StaticResource IconReceiptGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
+                                <TextBlock Text="Transactions" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Button Command="{Binding GoToReportsCommand}" Style="{StaticResource DashboardQuickActionButton}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Path Data="{StaticResource IconBarsGeometry}" Style="{StaticResource DashboardQuickIcon}"/>
+                            <TextBlock Text="Reports" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+    </Grid>
 </UserControl>

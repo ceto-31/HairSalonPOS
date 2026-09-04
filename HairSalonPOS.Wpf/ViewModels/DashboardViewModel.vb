@@ -11,7 +11,14 @@ Namespace ViewModels
         Inherits ViewModelBase
 
         Public Shared ReadOnly PeriodOptions As String() = {"This Day", "This Week", "This Month", "This Year"}
-        Public Shared ReadOnly StaffAnalyticsPeriodOptions As String() = {"This Day", "This Week", "This Month"}
+        Public Shared ReadOnly StaffAnalyticsPeriodOptions As String() = {"This Day", "This Week", "This Month", "This Year"}
+        Public Const StaffAnalyticsAllCategories As String = "All Staff"
+        Public Shared ReadOnly StaffAnalyticsCategoryFilterOptions As String() = {
+            StaffAnalyticsAllCategories,
+            StaffCategories.NailTechnicians,
+            StaffCategories.HairSpecialists,
+            StaffCategories.BodyTherapists
+        }
         Public ReadOnly Property FilterOptions As String()
             Get
                 Return PeriodOptions
@@ -25,6 +32,11 @@ Namespace ViewModels
         Public ReadOnly Property StaffPeriodOptions As String()
             Get
                 Return StaffAnalyticsPeriodOptions
+            End Get
+        End Property
+        Public ReadOnly Property StaffCategoryFilterOptions As String()
+            Get
+                Return StaffAnalyticsCategoryFilterOptions
             End Get
         End Property
         Private Const OverviewChartWidth As Double = 420
@@ -49,6 +61,7 @@ Namespace ViewModels
         Private _overviewChangeText As String = "vs prior  0.0%"
         Private _overviewChangeUp As Boolean
         Private _staffAnalyticsPeriod As String = "This Week"
+        Private _staffAnalyticsCategory As String = StaffAnalyticsAllCategories
         Private _paymentMethodsPeriod As String = "This Week"
         Private _cashRevenue As Decimal
         Private _cashTransactionCount As Integer
@@ -148,7 +161,14 @@ Namespace ViewModels
             Private Set(value As Integer)
                 SetProperty(_lowStockCount, value)
                 OnPropertyChanged(NameOf(LowStockSubtitle))
+                OnPropertyChanged(NameOf(HasLowStockAlerts))
             End Set
+        End Property
+
+        Public ReadOnly Property HasLowStockAlerts As Boolean
+            Get
+                Return LowStockCount > 0
+            End Get
         End Property
 
         Public ReadOnly Property LowStockSubtitle As String
@@ -232,6 +252,17 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_staffAnalyticsPeriod, If(value, "This Week")) Then
+                    RefreshStaffPerformance()
+                End If
+            End Set
+        End Property
+
+        Public Property StaffAnalyticsCategory As String
+            Get
+                Return _staffAnalyticsCategory
+            End Get
+            Set(value As String)
+                If SetProperty(_staffAnalyticsCategory, If(value, StaffAnalyticsAllCategories)) Then
                     RefreshStaffPerformance()
                 End If
             End Set
@@ -496,6 +527,7 @@ Namespace ViewModels
             RecentSales = New ObservableCollection(Of DashboardSaleRow)(
                 salesToday.OrderByDescending(Function(s) s.SaleDate).Take(5).Select(Function(s) New DashboardSaleRow With {
                     .ReceiptNumber = s.ReceiptNumber,
+                    .ServiceLabel = FormatSaleServices(s),
                     .TimeLabel = s.SaleDate.ToString("h:mm tt"),
                     .CustomerName = If(String.IsNullOrWhiteSpace(s.CustomerName), "Walk-in", s.CustomerName),
                     .Total = s.Total
@@ -621,13 +653,14 @@ Namespace ViewModels
             Dim range = PeriodRange(StaffAnalyticsPeriod, Date.Today)
             Dim sales = InRange(_allSales, range.FromDate, range.ToDateExclusive)
             Dim activeStaff = _store.Staff.Where(Function(s) s.IsActive).ToList()
+            If Not String.IsNullOrWhiteSpace(StaffAnalyticsCategory) AndAlso
+               Not StaffAnalyticsCategory.Equals(StaffAnalyticsAllCategories, StringComparison.OrdinalIgnoreCase) Then
+                activeStaff = activeStaff.Where(Function(s) Not String.IsNullOrWhiteSpace(s.Category) AndAlso
+                                                            s.Category.Equals(StaffAnalyticsCategory, StringComparison.OrdinalIgnoreCase)).ToList()
+            End If
 
             Dim performanceRows = activeStaff.Select(Function(staff)
-                                                         Dim staffSales = sales.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName) AndAlso
-                                                                                          s.StylistName.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
-                                                         Dim serviceCount = staffSales.
-                                                             SelectMany(Function(s) SafeLines(s).Where(Function(l) l.IsService)).
-                                                             Sum(Function(l) l.Quantity)
+                                                         Dim serviceCount = sales.Sum(Function(s) SaleStylistHelper.GetCreditedServiceLines(s, staff.Name).Sum(Function(l) l.Quantity))
                                                          Return New DashboardStaffPerformanceRow With {
                                                              .StaffName = staff.Name,
                                                              .ImagePath = staff.ImagePath,
@@ -694,6 +727,24 @@ Namespace ViewModels
         Private Shared Function SafeLines(sale As SaleRecord) As IEnumerable(Of SaleLineRecord)
             If sale.Lines Is Nothing Then Return Enumerable.Empty(Of SaleLineRecord)()
             Return sale.Lines
+        End Function
+
+        Private Shared Function FormatSaleServices(sale As SaleRecord) As String
+            Dim serviceNames = SafeLines(sale).
+                Where(Function(line) line.IsService AndAlso Not String.IsNullOrWhiteSpace(line.Name)).
+                Select(Function(line) line.Name.Trim()).
+                Distinct(StringComparer.OrdinalIgnoreCase).
+                ToList()
+            If serviceNames.Count = 0 Then
+                Dim fallback = SafeLines(sale).
+                    Where(Function(line) Not String.IsNullOrWhiteSpace(line.Name)).
+                    Select(Function(line) line.Name.Trim()).
+                    FirstOrDefault()
+                Return If(String.IsNullOrWhiteSpace(fallback), "Sale", fallback)
+            End If
+            If serviceNames.Count = 1 Then Return serviceNames(0)
+            If serviceNames.Count = 2 Then Return String.Join(", ", serviceNames)
+            Return $"{serviceNames(0)} +{serviceNames.Count - 1} more"
         End Function
 
         Private Function ResolveCategory(line As SaleLineRecord) As String
