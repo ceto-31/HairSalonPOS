@@ -56,7 +56,10 @@ Namespace ViewModels
             _dayLoadingTimer = New DispatcherTimer With {.Interval = TimeSpan.FromMilliseconds(150)}
             AddHandler _dayLoadingTimer.Tick, AddressOf OnDayLoadingTimerTick
 
-            AddHandler _store.AppointmentsChanged, Sub() LoadAppointments()
+            AddHandler _store.AppointmentsChanged, Sub()
+                                                       LoadAppointments()
+                                                       If IsEditMode Then RefreshAvailableBusinessHours(EditAppointmentDate)
+                                                   End Sub
             LoadAppointments()
         End Sub
 
@@ -378,7 +381,9 @@ Namespace ViewModels
                 Return _editService
             End Get
             Set(value As String)
-                SetProperty(_editService, value)
+                If SetProperty(_editService, value) AndAlso IsEditMode Then
+                    RefreshAvailableBusinessHours(EditAppointmentDate)
+                End If
             End Set
         End Property
 
@@ -435,14 +440,15 @@ Namespace ViewModels
 
         Private Sub RefreshAvailableBusinessHours(day As Date)
             Dim preferred = If(_selectedBusinessHour.HasValue, _selectedBusinessHour.Value, New TimeSpan(EditHour, EditMinute, 0))
+            Dim filteredSlots = GetCapacityFilteredSlots(day).ToList()
 
             AvailableBusinessHours.Clear()
-            For Each slot In BusinessHoursService.GetAvailableTimeSlots(day)
+            For Each slot In filteredSlots
                 AvailableBusinessHours.Add(slot)
             Next
 
             HourOptions.Clear()
-            For Each hourValue In BusinessHoursService.GetHourOptions(day)
+            For Each hourValue In filteredSlots.Select(Function(t) t.Hours).Distinct().OrderBy(Function(h) h)
                 HourOptions.Add(hourValue)
             Next
 
@@ -460,10 +466,16 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(EditMinute))
             SyncSelectedBusinessHourFromDropdowns()
             OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
+            UpdateCapacityStatusMessage(day, filteredSlots)
         End Sub
 
         Private Sub RefreshMinuteOptions()
-            Dim minutes = BusinessHoursService.GetMinuteOptions(EditAppointmentDate, EditHour).ToList()
+            Dim minutes = GetCapacityFilteredSlots(EditAppointmentDate).
+                Where(Function(t) t.Hours = EditHour).
+                Select(Function(t) t.Minutes).
+                Distinct().
+                OrderBy(Function(m) m).
+                ToList()
             MinuteOptions.Clear()
             For Each minuteValue In minutes
                 MinuteOptions.Add(minuteValue)
@@ -477,6 +489,39 @@ Namespace ViewModels
                 _editMinute = MinuteOptions(0)
                 OnPropertyChanged(NameOf(EditMinute))
             End If
+        End Sub
+
+        Private Function GetCapacityFilteredSlots(day As Date) As IEnumerable(Of TimeSpan)
+            Dim allSlots = BusinessHoursService.GetAvailableTimeSlots(day)
+            Dim category = ResolveEditServiceCategory()
+            If String.IsNullOrWhiteSpace(category) Then Return allSlots
+
+            Dim excludeId = If(_isAdding, 0, _editingAppointmentId)
+            Return allSlots.Where(Function(slot)
+                                      Dim startTime = day.Date.Add(slot)
+                                      Return AppointmentCapacityService.IsSlotAvailable(
+                                          _store.Appointments, _store.Services, day, startTime, category, excludeId)
+                                  End Function)
+        End Function
+
+        Private Function ResolveEditServiceCategory() As String
+            Return AppointmentCapacityService.ResolveServiceCategory(_store.Services, EditService)
+        End Function
+
+        Private Function GetEditingAppointmentIdForCapacity() As Integer
+            Return If(_isAdding, 0, _editingAppointmentId)
+        End Function
+
+        Private Sub UpdateCapacityStatusMessage(day As Date, filteredSlots As IList(Of TimeSpan))
+            If filteredSlots.Count > 0 Then Return
+
+            Dim category = ResolveEditServiceCategory()
+            If String.IsNullOrWhiteSpace(category) Then Return
+
+            Dim allSlots = BusinessHoursService.GetAvailableTimeSlots(day).ToList()
+            If allSlots.Count = 0 Then Return
+
+            StatusMessage = AppointmentCapacityService.GetDayFullyBookedMessage(category, day)
         End Sub
 
         Private Sub SyncSelectedBusinessHourFromDropdowns()
@@ -742,7 +787,16 @@ Namespace ViewModels
             If String.IsNullOrWhiteSpace(EditService) Then
                 Return FailValidation("Service is required.")
             End If
+            Dim category = ResolveEditServiceCategory()
+            If String.IsNullOrWhiteSpace(category) Then
+                Return FailValidation("Select a service from the list.")
+            End If
             If AvailableBusinessHours.Count = 0 Then
+                If Not String.IsNullOrWhiteSpace(category) AndAlso BusinessHoursService.GetAvailableTimeSlots(EditAppointmentDate).Any() Then
+                    Return FailValidation(
+                        AppointmentCapacityService.GetDayFullyBookedMessage(category, EditAppointmentDate),
+                        "Fully booked")
+                End If
                 If _isAdding AndAlso Not BusinessHoursService.IsBookableDate(EditAppointmentDate) Then
                     Return FailValidation(PastDateBookingMessage, "Cannot book")
                 End If
@@ -767,6 +821,11 @@ Namespace ViewModels
                 Return FailValidation(hoursError, title)
             End If
 
+            If Not AppointmentCapacityService.IsSlotAvailable(
+                _store.Appointments, _store.Services, EditAppointmentDate, startTime, category, GetEditingAppointmentIdForCapacity()) Then
+                Return FailValidation(AppointmentCapacityService.GetFullyBookedMessage(category), "Fully booked")
+            End If
+
             Return New AppointmentItem With {
                 .CustomerName = customerName,
                 .ServiceName = EditService,
@@ -781,8 +840,11 @@ Namespace ViewModels
             If String.IsNullOrWhiteSpace(EditService) Then Return 60
             Dim service = _store.Services.FirstOrDefault(
                 Function(s) s.IsActive AndAlso s.Name.Equals(EditService.Trim(), StringComparison.OrdinalIgnoreCase))
-            If service Is Nothing OrElse service.DurationMinutes <= 0 Then Return 60
-            Return service.DurationMinutes
+            If service Is Nothing Then Return 60
+            Dim minDuration = service.EffectiveMinDurationMinutes()
+            If minDuration > 0 Then Return minDuration
+            If service.DurationMinutes > 0 Then Return service.DurationMinutes
+            Return 60
         End Function
 
         Private Shared Function NormalizeContactDigits(value As String) As String
