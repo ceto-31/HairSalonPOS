@@ -12,6 +12,8 @@ Namespace ViewModels
         Private _editFirstName As String = String.Empty
         Private _editLastName As String = String.Empty
         Private _editRole As String = "Stylist"
+        Private _editCategory As String = StaffCategories.HairSpecialists
+        Private _editCategoryError As String = String.Empty
         Private _editContactNumber As String = String.Empty
         Private _editEmail As String = String.Empty
         Private _editFirstNameError As String = String.Empty
@@ -32,6 +34,7 @@ Namespace ViewModels
 
         Public Sub New()
             StaffMembers = New ObservableCollection(Of StaffMember)()
+            CategoryOptions = New ObservableCollection(Of String)(StaffCategories.All)
             AddStaffCommand = New RelayCommand(AddressOf BeginAdd)
             EditStaffCommand = New RelayCommand(Of StaffMember)(AddressOf BeginEdit)
             SaveStaffCommand = New RelayCommand(AddressOf SaveStaff)
@@ -60,6 +63,7 @@ Namespace ViewModels
         End Property
 
         Public Property StaffMembers As ObservableCollection(Of StaffMember)
+        Public Property CategoryOptions As ObservableCollection(Of String)
 
         Public Property ShowArchived As Boolean
             Get
@@ -135,6 +139,26 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 SetProperty(_editRole, value)
+            End Set
+        End Property
+
+        Public Property EditCategory As String
+            Get
+                Return _editCategory
+            End Get
+            Set(value As String)
+                If SetProperty(_editCategory, value) Then
+                    EditCategoryError = String.Empty
+                End If
+            End Set
+        End Property
+
+        Public Property EditCategoryError As String
+            Get
+                Return _editCategoryError
+            End Get
+            Set(value As String)
+                SetProperty(_editCategoryError, value)
             End Set
         End Property
 
@@ -266,6 +290,7 @@ Namespace ViewModels
                 Dim term = SearchText.Trim().ToLowerInvariant()
                 query = query.Where(Function(s) s.Name.ToLowerInvariant().Contains(term) OrElse
                     (Not String.IsNullOrWhiteSpace(s.Role) AndAlso s.Role.ToLowerInvariant().Contains(term)) OrElse
+                    (Not String.IsNullOrWhiteSpace(s.Category) AndAlso s.Category.ToLowerInvariant().Contains(term)) OrElse
                     (Not String.IsNullOrWhiteSpace(s.ContactNumber) AndAlso s.ContactNumber.ToLowerInvariant().Contains(term)) OrElse
                     (Not String.IsNullOrWhiteSpace(s.Email) AndAlso s.Email.ToLowerInvariant().Contains(term)))
             End If
@@ -279,6 +304,7 @@ Namespace ViewModels
             EditFirstName = String.Empty
             EditLastName = String.Empty
             EditRole = "Stylist"
+            EditCategory = StaffCategories.HairSpecialists
             EditContactNumber = String.Empty
             EditEmail = String.Empty
             ClearFieldErrors()
@@ -297,6 +323,7 @@ Namespace ViewModels
             EditFirstName = parts.Item1
             EditLastName = parts.Item2
             EditRole = member.Role
+            EditCategory = ResolveEditCategory(member.Category)
             EditContactNumber = member.ContactNumber
             EditEmail = member.Email
             ClearFieldErrors()
@@ -330,6 +357,11 @@ Namespace ViewModels
                 EditEmailError = "Enter a valid email address or leave it blank."
                 hasErrors = True
             End If
+            If String.IsNullOrWhiteSpace(EditCategory) OrElse
+               Not StaffCategories.All.Any(Function(c) c.Equals(EditCategory, StringComparison.OrdinalIgnoreCase)) Then
+                EditCategoryError = "Select a staff category."
+                hasErrors = True
+            End If
 
             If hasErrors Then Return
 
@@ -347,6 +379,7 @@ Namespace ViewModels
                     .StaffId = staffId,
                     .Name = fullName,
                     .Role = EditRole.Trim(),
+                    .Category = EditCategory.Trim(),
                     .ContactNumber = EditContactNumber.Trim(),
                     .Email = email,
                     .IsActive = True,
@@ -367,6 +400,7 @@ Namespace ViewModels
                 End If
                 existing.Name = fullName
                 existing.Role = EditRole.Trim()
+                existing.Category = EditCategory.Trim()
                 existing.ContactNumber = EditContactNumber.Trim()
                 existing.Email = email
                 existing.ImagePath = If(imagePath, String.Empty)
@@ -413,9 +447,19 @@ Namespace ViewModels
         Private Sub ClearFieldErrors()
             EditFirstNameError = String.Empty
             EditLastNameError = String.Empty
+            EditCategoryError = String.Empty
             EditContactNumberError = String.Empty
             EditEmailError = String.Empty
         End Sub
+
+        Private Shared Function ResolveEditCategory(category As String) As String
+            If String.IsNullOrWhiteSpace(category) Then
+                Return StaffCategories.HairSpecialists
+            End If
+
+            Dim match = StaffCategories.All.FirstOrDefault(Function(c) c.Equals(category, StringComparison.OrdinalIgnoreCase))
+            Return If(match, StaffCategories.HairSpecialists)
+        End Function
 
         Private Shared Function SplitName(fullName As String) As (String, String)
             If String.IsNullOrWhiteSpace(fullName) Then

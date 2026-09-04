@@ -4,6 +4,18 @@ Imports System.Windows.Media
 Imports CommunityToolkit.Mvvm.ComponentModel
 
 Namespace Models
+    Public Class StaffCategories
+        Public Const NailTechnicians As String = "Nail Technicians"
+        Public Const HairSpecialists As String = "Hair Specialists"
+        Public Const BodyTherapists As String = "Body Therapists"
+
+        Public Shared ReadOnly Property All As IReadOnlyList(Of String)
+            Get
+                Return {NailTechnicians, HairSpecialists, BodyTherapists}
+            End Get
+        End Property
+    End Class
+
     Public Class StaffMember
         Inherits ObservableObject
 
@@ -12,6 +24,7 @@ Namespace Models
         Public Property StaffId As Integer
         Public Property Name As String = String.Empty
         Public Property Role As String = String.Empty
+        Public Property Category As String = String.Empty
         Public Property ContactNumber As String = String.Empty
         Public Property Email As String = String.Empty
         Public Property IsActive As Boolean = True
@@ -46,6 +59,19 @@ Namespace Models
                 Return String.Join("", parts.Take(2).Select(Function(p) p(0).ToString())).ToUpper()
             End Get
         End Property
+
+        Public ReadOnly Property RoleSummary As String
+            Get
+                Dim roleText = If(Me.Role, String.Empty).Trim()
+                Dim categoryText = If(Me.Category, String.Empty).Trim()
+                If Not String.IsNullOrWhiteSpace(roleText) AndAlso Not String.IsNullOrWhiteSpace(categoryText) Then
+                    Return $"{roleText} · {categoryText}"
+                End If
+                If Not String.IsNullOrWhiteSpace(roleText) Then Return roleText
+                If Not String.IsNullOrWhiteSpace(categoryText) Then Return categoryText
+                Return String.Empty
+            End Get
+        End Property
     End Class
 
     Public Class PackageItem
@@ -73,6 +99,34 @@ Namespace Models
                 Return "Active"
             End Get
         End Property
+
+        Public ReadOnly Property PosDisplayLabel As String
+            Get
+                Dim valueText = If(DiscountType.Equals("Percent", StringComparison.OrdinalIgnoreCase),
+                                   $"{Value:0}% off",
+                                   $"₱{Value:N0} off")
+                If Not String.IsNullOrWhiteSpace(Description) Then Return Description
+                Return $"{Code} — {valueText}"
+            End Get
+        End Property
+    End Class
+
+    Public Class PosDiscountOption
+        Public Property Code As String = String.Empty
+        Public Property DisplayLabel As String = String.Empty
+        Public Property Discount As DiscountItem
+
+        Public Shared Function None() As PosDiscountOption
+            Return New PosDiscountOption With {.Code = String.Empty, .DisplayLabel = "No discount"}
+        End Function
+
+        Public Shared Function FromDiscount(discount As DiscountItem) As PosDiscountOption
+            Return New PosDiscountOption With {
+                .Code = discount.Code,
+                .DisplayLabel = If(String.IsNullOrWhiteSpace(discount.Code), discount.Description, discount.Code),
+                .Discount = discount
+            }
+        End Function
     End Class
 
     Public Class AppointmentStatuses
@@ -358,6 +412,39 @@ Namespace Models
         End Property
     End Class
 
+    Public Class StaffSelectionOption
+        Inherits ObservableObject
+
+        Private _isSelected As Boolean
+
+        Public Event SelectionChanged As EventHandler
+
+        Public Property Staff As StaffMember
+
+        Public ReadOnly Property DisplayName As String
+            Get
+                Return If(Staff?.Name, String.Empty)
+            End Get
+        End Property
+
+        Public ReadOnly Property CategoryLabel As String
+            Get
+                Return If(Staff?.Category, String.Empty)
+            End Get
+        End Property
+
+        Public Property IsSelected As Boolean
+            Get
+                Return _isSelected
+            End Get
+            Set(value As Boolean)
+                If SetProperty(_isSelected, value) Then
+                    RaiseEvent SelectionChanged(Me, EventArgs.Empty)
+                End If
+            End Set
+        End Property
+    End Class
+
     Public Class RevenueBarItem
         Public Property Label As String = String.Empty
         Public Property Amount As Decimal
@@ -401,6 +488,7 @@ Namespace Models
 
     Public Class DashboardSaleRow
         Public Property ReceiptNumber As String = String.Empty
+        Public Property ServiceLabel As String = String.Empty
         Public Property TimeLabel As String = String.Empty
         Public Property CustomerName As String = String.Empty
         Public Property Total As Decimal

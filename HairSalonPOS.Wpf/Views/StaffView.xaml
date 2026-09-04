@@ -9,91 +9,106 @@
     <Grid>
         <Border Style="{StaticResource CardBorder}"
                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,16">
-                    <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
-                            Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
-                    <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
-                               VerticalAlignment="Center" Margin="12,0,0,0"/>
-                </DockPanel>
-                <DockPanel Margin="0,0,0,12">
-                    <StackPanel DockPanel.Dock="Left" Width="120" Margin="0,0,20,0" VerticalAlignment="Top">
-                        <Grid Width="120" Height="120">
-                            <Border Width="120" Height="120" CornerRadius="60"
-                                    Background="{DynamicResource AvatarBackgroundBrush}"
-                                    BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
-                            <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
-                                   Width="48" Height="48" Stretch="Uniform"
-                                   RenderOptions.BitmapScalingMode="HighQuality"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
-                            <Image Stretch="UniformToFill"
-                                   Source="{Binding EditImagePath, Converter={StaticResource CatalogImagePath}}"
-                                   Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}">
-                                <Image.Clip>
-                                    <EllipseGeometry Center="60,60" RadiusX="60" RadiusY="60"/>
-                                </Image.Clip>
-                            </Image>
-                        </Grid>
-                        <Button Content="{Binding ChooseImageLabel}" Style="{StaticResource SecondaryButton}"
-                                Padding="10,6" Margin="0,8,0,0" HorizontalAlignment="Stretch"
-                                Command="{Binding ChooseImageCommand}"/>
-                        <Button Content="Remove" Style="{StaticResource SecondaryButton}"
-                                Padding="10,6" Margin="0,6,0,0" HorizontalAlignment="Stretch"
-                                Command="{Binding RemoveImageCommand}"
-                                Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}"/>
-                    </StackPanel>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveStaffCommand}" HorizontalAlignment="Left"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
-                        <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <StackPanel Margin="0,0,8,0">
-                                <TextBlock Text="First name" Style="{StaticResource SectionHeader}"/>
-                                <TextBox Text="{Binding EditFirstName, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource ValidatedModernTextBox}"
-                                         helpers:FormValidation.HasError="{Binding EditFirstNameError, Converter={StaticResource StringNotEmptyToBool}}"/>
-                                <TextBlock Text="{Binding EditFirstNameError}"
-                                           Style="{StaticResource StaffFormFieldError}"
-                                           Visibility="{Binding EditFirstNameError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                        <DockPanel Margin="0,0,0,16">
+                            <Button Content="← Back" Style="{StaticResource SecondaryButton}" Padding="10,6"
+                                    Command="{Binding CancelEditCommand}" DockPanel.Dock="Left" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" FontSize="16"
+                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        </DockPanel>
+                        <DockPanel Margin="0,0,0,12">
+                            <StackPanel DockPanel.Dock="Left" Width="120" Margin="0,0,20,0" VerticalAlignment="Top">
+                                <Grid Width="120" Height="120">
+                                    <Border Width="120" Height="120" CornerRadius="60"
+                                            Background="{DynamicResource AvatarBackgroundBrush}"
+                                            BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"/>
+                                    <Image Source="pack://application:,,,/Assets/Icons/icon_person.png"
+                                           Width="48" Height="48" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Visibility="{Binding HasEditImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                    <Image Stretch="UniformToFill"
+                                           Source="{Binding EditImagePath, Converter={StaticResource CatalogImagePath}}"
+                                           Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}">
+                                        <Image.Clip>
+                                            <EllipseGeometry Center="60,60" RadiusX="60" RadiusY="60"/>
+                                        </Image.Clip>
+                                    </Image>
+                                </Grid>
+                                <Button Content="{Binding ChooseImageLabel}" Style="{StaticResource SecondaryButton}"
+                                        Padding="10,6" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                                        Command="{Binding ChooseImageCommand}"/>
+                                <Button Content="Remove" Style="{StaticResource SecondaryButton}"
+                                        Padding="10,6" Margin="0,6,0,0" HorizontalAlignment="Stretch"
+                                        Command="{Binding RemoveImageCommand}"
+                                        Visibility="{Binding HasEditImage, Converter={StaticResource BoolToVis}}"/>
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="Last name" Style="{StaticResource SectionHeader}"/>
-                                <TextBox Text="{Binding EditLastName, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource ValidatedModernTextBox}"
-                                         helpers:FormValidation.HasError="{Binding EditLastNameError, Converter={StaticResource StringNotEmptyToBool}}"/>
-                                <TextBlock Text="{Binding EditLastNameError}"
-                                           Style="{StaticResource StaffFormFieldError}"
-                                           Visibility="{Binding EditLastNameError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                <UniformGrid Columns="2" Margin="0,0,0,12">
+                                    <StackPanel Margin="0,0,8,0">
+                                        <TextBlock Text="First name" Style="{StaticResource SectionHeader}"/>
+                                        <TextBox Text="{Binding EditFirstName, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource ValidatedModernTextBox}"
+                                                 helpers:FormValidation.HasError="{Binding EditFirstNameError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                                        <TextBlock Text="{Binding EditFirstNameError}"
+                                                   Style="{StaticResource StaffFormFieldError}"
+                                                   Visibility="{Binding EditFirstNameError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Last name" Style="{StaticResource SectionHeader}"/>
+                                        <TextBox Text="{Binding EditLastName, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource ValidatedModernTextBox}"
+                                                 helpers:FormValidation.HasError="{Binding EditLastNameError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                                        <TextBlock Text="{Binding EditLastNameError}"
+                                                   Style="{StaticResource StaffFormFieldError}"
+                                                   Visibility="{Binding EditLastNameError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                    </StackPanel>
+                                </UniformGrid>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
+                                    <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Category" Style="{StaticResource SectionHeader}"/>
+                                    <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding EditCategory}"
+                                              Style="{StaticResource ModernComboBox}"
+                                              helpers:FormValidation.HasError="{Binding EditCategoryError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                                    <TextBlock Text="{Binding EditCategoryError}"
+                                               Style="{StaticResource StaffFormFieldError}"
+                                               Visibility="{Binding EditCategoryError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                </StackPanel>
+                                <UniformGrid Columns="2" Margin="0,0,0,12">
+                                    <StackPanel Margin="0,0,8,0">
+                                        <TextBlock Text="Contact number" Style="{StaticResource SectionHeader}"/>
+                                        <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="11"
+                                                 Style="{StaticResource ValidatedModernTextBox}"
+                                                 helpers:FormValidation.HasError="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                                        <TextBlock Text="{Binding EditContactNumberError}"
+                                                   Style="{StaticResource StaffFormFieldError}"
+                                                   Visibility="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Email (Optional)" Style="{StaticResource SectionHeader}"/>
+                                        <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource ValidatedModernTextBox}"
+                                                 helpers:FormValidation.HasError="{Binding EditEmailError, Converter={StaticResource StringNotEmptyToBool}}"/>
+                                        <TextBlock Text="{Binding EditEmailError}"
+                                                   Style="{StaticResource StaffFormFieldError}"
+                                                   Visibility="{Binding EditEmailError, Converter={StaticResource StringNotEmptyToVis}}"/>
+                                    </StackPanel>
+                                </UniformGrid>
                             </StackPanel>
-                        </UniformGrid>
-                        <StackPanel Margin="0,0,0,12">
-                            <TextBlock Text="Role" Style="{StaticResource SectionHeader}"/>
-                            <TextBox Text="{Binding EditRole}" Style="{StaticResource ModernTextBox}"/>
-                        </StackPanel>
-                        <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <StackPanel Margin="0,0,8,0">
-                                <TextBlock Text="Contact number" Style="{StaticResource SectionHeader}"/>
-                                <TextBox Text="{Binding EditContactNumber, UpdateSourceTrigger=PropertyChanged}"
-                                         MaxLength="11"
-                                         Style="{StaticResource ValidatedModernTextBox}"
-                                         helpers:FormValidation.HasError="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToBool}}"/>
-                                <TextBlock Text="{Binding EditContactNumberError}"
-                                           Style="{StaticResource StaffFormFieldError}"
-                                           Visibility="{Binding EditContactNumberError, Converter={StaticResource StringNotEmptyToVis}}"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Email (Optional)" Style="{StaticResource SectionHeader}"/>
-                                <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource ValidatedModernTextBox}"
-                                         helpers:FormValidation.HasError="{Binding EditEmailError, Converter={StaticResource StringNotEmptyToBool}}"/>
-                                <TextBlock Text="{Binding EditEmailError}"
-                                           Style="{StaticResource StaffFormFieldError}"
-                                           Visibility="{Binding EditEmailError, Converter={StaticResource StringNotEmptyToVis}}"/>
-                            </StackPanel>
-                        </UniformGrid>
+                        </DockPanel>
                     </StackPanel>
-                </DockPanel>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveStaffCommand}" HorizontalAlignment="Left"/>
-            </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <Border Style="{StaticResource CardBorder}"
@@ -139,7 +154,7 @@
                                         </Grid>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/>
-                                            <TextBlock Text="{Binding Role}" Foreground="{DynamicResource MutedTextBrush}"/>
+                                            <TextBlock Text="{Binding RoleSummary}" Foreground="{DynamicResource MutedTextBrush}"/>
                                             <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="12">
                                                 <Run Text="{Binding ContactNumber, Mode=OneWay}"/>
                                                 <Run Text=" · "/>
