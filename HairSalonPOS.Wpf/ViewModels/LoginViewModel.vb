@@ -287,8 +287,7 @@ Namespace ViewModels
                 Case StepSecurity
                     Dim wrongAnswers = _auth.GetIncorrectSecurityAnswers(Username, FavNumber, FavColor, FavAnimal)
                     If wrongAnswers.Count > 0 Then
-                        ApplySecurityFieldErrors(wrongAnswers)
-                        ErrorMessage = "Incorrect answer(s): " & String.Join(", ", wrongAnswers) & "."
+                        ErrorMessage = "One or more answers are incorrect."
                         Return
                     End If
 
@@ -296,12 +295,6 @@ Namespace ViewModels
                     ConfirmPassword = String.Empty
                     RecoveryStep = StepReset
             End Select
-        End Sub
-
-        Private Sub ApplySecurityFieldErrors(wrongAnswers As List(Of String))
-            FavNumberError = If(wrongAnswers.Contains("Favorite number"), "Incorrect answer.", String.Empty)
-            FavColorError = If(wrongAnswers.Contains("Favorite color"), "Incorrect answer.", String.Empty)
-            FavAnimalError = If(wrongAnswers.Contains("Favorite animal"), "Incorrect answer.", String.Empty)
         End Sub
 
         Private Sub ClearSecurityFieldErrors()

@@ -13,6 +13,9 @@
     <SolidColorBrush x:Key="MutedTextBrush" Color="#8B7355"/>
     <SolidColorBrush x:Key="AlertBrush" Color="#F5E6C8"/>
     <SolidColorBrush x:Key="LowStockBrush" Color="#F5D5D5"/>
+    <SolidColorBrush x:Key="LowStockAlertBrush" Color="#DC2626"/>
+    <SolidColorBrush x:Key="LowStockAlertBackgroundBrush" Color="#FEE2E2"/>
+    <SolidColorBrush x:Key="LowStockAlertSoftBrush" Color="#FEF2F2"/>
     <SolidColorBrush x:Key="ShellHeaderBrush" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="ShellBorderBrush" Color="#E8DDD0"/>
     <SolidColorBrush x:Key="DrawerBackgroundBrush" Color="#FFFFFF"/>
@@ -1482,11 +1485,11 @@
     </Style>
 
     <Style x:Key="DashboardQuickActionButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Padding" Value="8,6"/>
         <Setter Property="Margin" Value="0"/>
-        <Setter Property="Height" Value="88"/>
+        <Setter Property="MinHeight" Value="44"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="DashboardKpiWell" TargetType="Border">
@@ -1496,6 +1499,12 @@
         <Setter Property="Background" Value="{DynamicResource AvatarBackgroundBrush}"/>
         <Setter Property="Margin" Value="0,0,12,0"/>
         <Setter Property="Padding" Value="10"/>
+    </Style>
+
+    <Style x:Key="DashboardLowStockKpiWell" TargetType="Border" BasedOn="{StaticResource DashboardKpiWell}">
+        <Setter Property="Background" Value="{DynamicResource LowStockAlertBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LowStockAlertBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
     <Style x:Key="DashboardKpiIcon" TargetType="Path">
@@ -1522,10 +1531,10 @@
     </Style>
 
     <Style x:Key="DashboardQuickIcon" TargetType="Path" BasedOn="{StaticResource DashboardKpiIcon}">
-        <Setter Property="Width" Value="30"/>
-        <Setter Property="Height" Value="30"/>
-        <Setter Property="StrokeThickness" Value="1.7"/>
-        <Setter Property="Margin" Value="0,0,0,6"/>
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="StrokeThickness" Value="1.6"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
     </Style>
 
     <Geometry x:Key="IconSalesGeometry">M3,16 L8.5,10.5 L13,14.5 L21,6 M21,6 L15.5,6 M21,6 L21,11.5</Geometry>

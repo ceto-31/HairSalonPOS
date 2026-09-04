@@ -74,16 +74,18 @@ Namespace Services
             End If
 
             BackfillProductCategories()
+            BackfillServiceDurations()
             PersistCatalog()
 
             Dim persistedStaff = StaffPersistenceService.Instance.Load()
             If persistedStaff IsNot Nothing Then
                 Staff.AddRange(persistedStaff)
+                BackfillStaffCategories()
             Else
                 Staff.AddRange({
-                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .ContactNumber = "09171234567", .Email = "maria.santos@example.com"},
-                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .ContactNumber = "09181234567", .Email = "ana.reyes@example.com"},
-                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .ContactNumber = "09191234567", .Email = "luz.cruz@example.com"}
+                    New StaffMember With {.StaffId = 1, .Name = "Maria Santos", .Role = "Senior Stylist", .Category = StaffCategories.HairSpecialists, .ContactNumber = "09171234567", .Email = "maria.santos@example.com"},
+                    New StaffMember With {.StaffId = 2, .Name = "Ana Reyes", .Role = "Stylist", .Category = StaffCategories.HairSpecialists, .ContactNumber = "09181234567", .Email = "ana.reyes@example.com"},
+                    New StaffMember With {.StaffId = 3, .Name = "Luz Cruz", .Role = "Stylist", .Category = StaffCategories.NailTechnicians, .ContactNumber = "09191234567", .Email = "luz.cruz@example.com"}
                 })
                 PersistStaff()
             End If
@@ -181,6 +183,48 @@ Namespace Services
             Next
         End Sub
 
+        Private Sub BackfillStaffCategories()
+            Dim updated = False
+            For Each member In Staff
+                If String.IsNullOrWhiteSpace(member.Category) Then
+                    member.Category = StaffCategories.HairSpecialists
+                    updated = True
+                End If
+            Next
+            If updated Then PersistStaff()
+        End Sub
+
+        Private Sub BackfillServiceDurations()
+            Dim updated = False
+            For Each service In Services
+                If service.MinDurationMinutes <= 0 AndAlso service.MaxDurationMinutes <= 0 Then
+                    Dim fallback = If(service.DurationMinutes > 0, service.DurationMinutes, 60)
+                    service.MinDurationMinutes = fallback
+                    service.MaxDurationMinutes = fallback
+                    service.DurationMinutes = fallback
+                    updated = True
+                Else
+                    If service.MinDurationMinutes <= 0 Then
+                        service.MinDurationMinutes = Math.Max(service.MaxDurationMinutes, If(service.DurationMinutes > 0, service.DurationMinutes, 60))
+                        updated = True
+                    End If
+                    If service.MaxDurationMinutes <= 0 Then
+                        service.MaxDurationMinutes = service.MinDurationMinutes
+                        updated = True
+                    End If
+                    If service.MaxDurationMinutes < service.MinDurationMinutes Then
+                        service.MaxDurationMinutes = service.MinDurationMinutes
+                        updated = True
+                    End If
+                    If service.DurationMinutes <> service.MinDurationMinutes Then
+                        service.DurationMinutes = service.MinDurationMinutes
+                        updated = True
+                    End If
+                End If
+            Next
+            If updated Then PersistCatalog()
+        End Sub
+
         Public Shared Function DefaultCategories() As List(Of CatalogCategoryNode)
             Return New List(Of CatalogCategoryNode) From {
                 New CatalogCategoryNode With {.Name = "HAIR SERVICES", .SubCategories = New List(Of String) From {"Rebond Packages", "Hair Treatment Packages", "Cut and Styles", "Hair Color", "Hair Treatment"}},
@@ -256,9 +300,9 @@ Namespace Services
                 New SaleRecord With {.SaleId = 7, .ReceiptNumber = "OR-007", .SaleDate = baseDate.AddHours(14.5), .CashierName = cashier, .CustomerName = "Walk-in", .StylistName = "Maria Santos", .PaymentMethod = "GCash", .SubTotal = 800D, .Total = 800D, .Tax = 85.71D, .Lines = New List(Of SaleLineRecord) From {
                     New SaleLineRecord With {.Name = "Hair Coloring", .Quantity = 1, .UnitPrice = 800D, .LineTotal = 800D, .IsService = True}
                 }},
-                New SaleRecord With {.SaleId = 8, .ReceiptNumber = "OR-008", .SaleDate = baseDate.AddHours(14.55), .CashierName = cashier, .CustomerName = "Walk-in", .StylistName = "Maria Santos", .PaymentMethod = "Cash", .SubTotal = 1064D, .Total = 1064D, .Tax = 114D, .Lines = New List(Of SaleLineRecord) From {
-                    New SaleLineRecord With {.Name = "Haircut", .Quantity = 1, .UnitPrice = 150D, .LineTotal = 150D, .IsService = True},
-                    New SaleLineRecord With {.Name = "Hair Treatment", .Quantity = 1, .UnitPrice = 500D, .LineTotal = 500D, .IsService = True},
+                New SaleRecord With {.SaleId = 8, .ReceiptNumber = "OR-008", .SaleDate = baseDate.AddHours(14.55), .CashierName = cashier, .CustomerName = "Walk-in", .StylistName = "Maria Santos, Luz Cruz", .PaymentMethod = "Cash", .SubTotal = 1064D, .Total = 1064D, .Tax = 114D, .Lines = New List(Of SaleLineRecord) From {
+                    New SaleLineRecord With {.Name = "Haircut", .Quantity = 1, .UnitPrice = 150D, .LineTotal = 150D, .IsService = True, .StylistName = "Maria Santos"},
+                    New SaleLineRecord With {.Name = "Hair Treatment", .Quantity = 1, .UnitPrice = 500D, .LineTotal = 500D, .IsService = True, .StylistName = "Luz Cruz"},
                     New SaleLineRecord With {.Name = "Hair Serum", .Quantity = 2, .UnitPrice = 180D, .LineTotal = 360D, .IsService = False}
                 }}
             })

@@ -22,6 +22,10 @@ Namespace ViewModels
         Private _editCategory As String = String.Empty
         Private _editSubCategory As String = String.Empty
         Private _editCommissionPercent As Decimal
+        Private _editMinDuration As String = "60"
+        Private _editMaxDuration As String = "60"
+        Private _editMinDurationError As String = String.Empty
+        Private _editMaxDurationError As String = String.Empty
         Private _pickOneDefaultQty As Decimal = 1D
 
         Private _selectedManageCategory As CatalogCategoryNode
@@ -363,6 +367,46 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public Property EditMinDuration As String
+            Get
+                Return _editMinDuration
+            End Get
+            Set(value As String)
+                If SetProperty(_editMinDuration, value) Then
+                    EditMinDurationError = String.Empty
+                End If
+            End Set
+        End Property
+
+        Public Property EditMaxDuration As String
+            Get
+                Return _editMaxDuration
+            End Get
+            Set(value As String)
+                If SetProperty(_editMaxDuration, value) Then
+                    EditMaxDurationError = String.Empty
+                End If
+            End Set
+        End Property
+
+        Public Property EditMinDurationError As String
+            Get
+                Return _editMinDurationError
+            End Get
+            Set(value As String)
+                SetProperty(_editMinDurationError, value)
+            End Set
+        End Property
+
+        Public Property EditMaxDurationError As String
+            Get
+                Return _editMaxDurationError
+            End Get
+            Set(value As String)
+                SetProperty(_editMaxDurationError, value)
+            End Set
+        End Property
+
         Public Property PickOneDefaultQty As Decimal
             Get
                 Return _pickOneDefaultQty
@@ -574,6 +618,9 @@ Namespace ViewModels
             EditCategory = SelectedCategory
             EditSubCategory = CurrentSubCategoryValue()
             EditCommissionPercent = 0D
+            EditMinDuration = "60"
+            EditMaxDuration = "60"
+            ClearDurationErrors()
             RefreshProductOptions()
             LoadEditConsumables(Nothing)
             OnPropertyChanged(NameOf(FormTitle))
@@ -589,6 +636,9 @@ Namespace ViewModels
             EditCategory = item.Category
             EditSubCategory = item.SubCategory
             EditCommissionPercent = item.CommissionPercent
+            EditMinDuration = item.EffectiveMinDurationMinutes().ToString()
+            EditMaxDuration = item.EffectiveMaxDurationMinutes().ToString()
+            ClearDurationErrors()
             RefreshProductOptions()
             LoadEditConsumables(item.Consumables)
             OnPropertyChanged(NameOf(FormTitle))
@@ -598,6 +648,49 @@ Namespace ViewModels
         Private Sub CancelEdit()
             IsEditMode = False
         End Sub
+
+        Private Sub ClearDurationErrors()
+            EditMinDurationError = String.Empty
+            EditMaxDurationError = String.Empty
+        End Sub
+
+        Private Function TryValidateDurationFields(ByRef minDuration As Integer, ByRef maxDuration As Integer) As Boolean
+            Dim minValid = TryParseDurationField(EditMinDuration, minDuration)
+            If Not minValid Then
+                EditMinDurationError = "Minimum duration must be a whole number greater than 0."
+                StatusMessage = EditMinDurationError
+                AppDialogService.ShowError(EditMinDurationError, "Cannot save service")
+                Return False
+            End If
+
+            Dim maxValid = TryParseDurationField(EditMaxDuration, maxDuration)
+            If Not maxValid Then
+                EditMaxDurationError = "Maximum duration must be a whole number greater than 0."
+                StatusMessage = EditMaxDurationError
+                AppDialogService.ShowError(EditMaxDurationError, "Cannot save service")
+                Return False
+            End If
+
+            If maxDuration < minDuration Then
+                EditMaxDurationError = "Maximum duration cannot be less than minimum duration."
+                StatusMessage = EditMaxDurationError
+                AppDialogService.ShowError(EditMaxDurationError, "Cannot save service")
+                Return False
+            End If
+
+            Return True
+        End Function
+
+        Private Shared Function TryParseDurationField(value As String, ByRef minutes As Integer) As Boolean
+            Dim trimmed = If(value, String.Empty).Trim()
+            If String.IsNullOrEmpty(trimmed) Then Return False
+
+            For Each ch In trimmed
+                If Not Char.IsDigit(ch) Then Return False
+            Next
+
+            Return Integer.TryParse(trimmed, minutes) AndAlso minutes > 0
+        End Function
 
         Private Sub SaveService()
             If String.IsNullOrWhiteSpace(EditName) Then
@@ -640,12 +733,19 @@ Namespace ViewModels
             Dim consumables As List(Of ServiceConsumableLine) = New List(Of ServiceConsumableLine)()
             If Not TryBuildConsumablesFromEdit(consumables) Then Return
 
+            ClearDurationErrors()
+            Dim minDuration As Integer
+            Dim maxDuration As Integer
+            If Not TryValidateDurationFields(minDuration, maxDuration) Then Return
+
             If _isAdding Then
                 Dim service As New ServiceItem With {
                     .Sku = NextServiceSku(),
                     .Name = EditName.Trim(),
                     .Price = EditPrice,
-                    .DurationMinutes = 60,
+                    .MinDurationMinutes = minDuration,
+                    .MaxDurationMinutes = maxDuration,
+                    .DurationMinutes = minDuration,
                     .Icon = "✨",
                     .Category = node.Name,
                     .SubCategory = subCat,
@@ -663,6 +763,9 @@ Namespace ViewModels
                 End If
                 existing.Name = EditName.Trim()
                 existing.Price = EditPrice
+                existing.MinDurationMinutes = minDuration
+                existing.MaxDurationMinutes = maxDuration
+                existing.DurationMinutes = minDuration
                 existing.Category = node.Name
                 existing.SubCategory = subCat
                 existing.CommissionPercent = EditCommissionPercent
