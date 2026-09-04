@@ -1,5 +1,7 @@
 Imports System.Collections.ObjectModel
+Imports System.ComponentModel
 Imports CommunityToolkit.Mvvm.Input
+Imports HairSalonPOS.Wpf.Helpers
 Imports HairSalonPOS.Wpf.Models
 Imports HairSalonPOS.Wpf.Services
 
@@ -18,7 +20,10 @@ Namespace ViewModels
         Private Const UnsavedCategoryReminder As String = "Click Save categories to update the POS tabs."
 
         Private _customerName As String = DefaultCustomerName
-        Private _selectedStylist As StaffMember
+        Private _selectedStylistsLabel As String = "Select staff…"
+        Private _selectedDiscountOption As PosDiscountOption
+        Private _discountLabel As String = "Discount"
+        Private _suppressDiscountApply As Boolean
         Private _customerBirthDate As Date?
         Private _seniorEligibilityText As String = String.Empty
         Private _promoCode As String = String.Empty
@@ -53,13 +58,17 @@ Namespace ViewModels
         Public Sub New()
             CatalogTiles = New ObservableCollection(Of CatalogTile)()
             Cart = New ObservableCollection(Of CartLine)()
-            Stylists = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
+            StylistOptions = New ObservableCollection(Of StaffSelectionOption)()
+            SelectedStylists = New ObservableCollection(Of StaffMember)()
+            DiscountOptions = New ObservableCollection(Of PosDiscountOption)()
             Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories.Where(Function(c) c.IsActive))
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
             SubCategoryChips = New ObservableCollection(Of SelectableChip)()
 
             AddTileCommand = New RelayCommand(Of CatalogTile)(AddressOf AddFromTile)
             RemoveLineCommand = New RelayCommand(Of CartLine)(AddressOf RemoveLine)
+            IncreaseLineQuantityCommand = New RelayCommand(Of CartLine)(AddressOf IncreaseLineQuantity)
+            DecreaseLineQuantityCommand = New RelayCommand(Of CartLine)(AddressOf DecreaseLineQuantity)
             ClearCartCommand = New RelayCommand(AddressOf ClearCart, Function() Cart.Count > 0)
             CheckoutCommand = New RelayCommand(AddressOf ExecuteCheckout, Function() CanCheckout())
             SelectCategoryCommand = New RelayCommand(Of String)(AddressOf SelectCategory)
@@ -80,17 +89,19 @@ Namespace ViewModels
             CancelCategoryManageCommand = New RelayCommand(AddressOf CancelCategoryManage, Function() IsCategoryManageMode)
             SelectCashCommand = New RelayCommand(Sub() PaymentMethod = "Cash")
             SelectGcashCommand = New RelayCommand(Sub() PaymentMethod = "GCash")
-            ApplyPromoCommand = New RelayCommand(AddressOf ApplyPromo)
             ReprintLastReceiptCommand = New RelayCommand(AddressOf ReprintLastReceipt, Function() LastReceipt IsNot Nothing)
 
-            SelectedStylist = Stylists.FirstOrDefault()
+            RefreshStylistOptions()
+            RefreshDiscountOptions()
+            SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
             If Categories.Count > 0 Then SelectCategory(Categories.First().Name)
 
-            AddHandler _store.StaffChanged, Sub() RefreshStylists()
+            AddHandler _store.StaffChanged, Sub() RefreshStylistOptions()
         End Sub
 
         Public Sub RefreshLookups()
-            RefreshStylists()
+            RefreshStylistOptions()
+            RefreshDiscountOptions()
             RefreshCategoriesFromStore()
             OnPropertyChanged(NameOf(CanManageCatalogItems))
             BeginAddCatalogCommand.NotifyCanExecuteChanged()
@@ -105,6 +116,7 @@ Namespace ViewModels
 
             Cart.Clear()
             PromoCode = String.Empty
+            SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
             AmountTendered = 0D
             _customerBirthDate = Nothing
             OnPropertyChanged(NameOf(CustomerBirthDate))
@@ -114,22 +126,25 @@ Namespace ViewModels
             CustomerName = If(String.IsNullOrWhiteSpace(appt.CustomerName), DefaultCustomerName, appt.CustomerName.Trim())
 
             If Not String.IsNullOrWhiteSpace(appt.StaffName) Then
-                Dim stylist = Stylists.FirstOrDefault(Function(s) s.Name.Equals(appt.StaffName, StringComparison.OrdinalIgnoreCase))
-                If stylist IsNot Nothing Then SelectedStylist = stylist
+                SelectStylistByName(appt.StaffName)
             End If
 
             Dim service = FindServiceByName(appt.ServiceName)
             If service IsNot Nothing Then
                 AddToCart(service.Sku, service.Name, service.Price, True)
+                AssignStylistToLine(Cart.LastOrDefault(), appt.StaffName)
                 StatusMessage = $"Appointment loaded for {CustomerName}."
             Else
-                Cart.Add(New CartLine With {
+                Dim line As New CartLine With {
                     .Sku = $"APT{appt.AppointmentId}",
                     .Name = appt.ServiceName,
                     .UnitPrice = 0D,
                     .Quantity = 1,
                     .IsService = True
-                })
+                }
+                AssignStylistToLine(line, appt.StaffName)
+                Cart.Add(line)
+                WireCartLine(line)
                 RecalculateTotals()
                 ClearCartCommand.NotifyCanExecuteChanged()
                 CheckoutCommand.NotifyCanExecuteChanged()
@@ -160,12 +175,185 @@ Namespace ViewModels
             End Get
         End Property
 
-        Private Sub RefreshStylists()
-            Dim selectedId = If(SelectedStylist?.StaffId, 0)
-            Stylists = New ObservableCollection(Of StaffMember)(_store.Staff.Where(Function(s) s.IsActive))
-            OnPropertyChanged(NameOf(Stylists))
-            SelectedStylist = Stylists.FirstOrDefault(Function(s) s.StaffId = selectedId)
-            If SelectedStylist Is Nothing Then SelectedStylist = Stylists.FirstOrDefault()
+        Private Sub RefreshStylistOptions()
+            Dim selectedNames = StylistOptions.
+                Where(Function(o) o IsNot Nothing AndAlso o.IsSelected AndAlso o.Staff IsNot Nothing).
+                Select(Function(o) o.Staff.Name).
+                ToList()
+
+            For Each opt In StylistOptions
+                RemoveHandler opt.SelectionChanged, AddressOf OnStylistOptionSelectionChanged
+            Next
+
+            StylistOptions = New ObservableCollection(Of StaffSelectionOption)(
+                _store.Staff.Where(Function(s) s.IsActive).Select(Function(staff)
+                    Dim opt As New StaffSelectionOption With {
+                        .Staff = staff,
+                        .IsSelected = selectedNames.Any(Function(name) name.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
+                    }
+                    AddHandler opt.SelectionChanged, AddressOf OnStylistOptionSelectionChanged
+                    Return opt
+                End Function))
+
+            OnPropertyChanged(NameOf(StylistOptions))
+            UpdateSelectedStylists()
+        End Sub
+
+        Private Sub OnStylistOptionSelectionChanged(sender As Object, e As EventArgs)
+            Dim staffOption = TryCast(sender, StaffSelectionOption)
+            If staffOption IsNot Nothing AndAlso Not staffOption.IsSelected AndAlso staffOption.Staff IsNot Nothing Then
+                ClearStylistFromCartLines(staffOption.Staff.Name)
+            End If
+
+            UpdateSelectedStylists()
+            ApplySingleStylistDefaultsToCart()
+            CheckoutCommand.NotifyCanExecuteChanged()
+        End Sub
+
+        Private Sub UpdateSelectedStylists()
+            SelectedStylists = New ObservableCollection(Of StaffMember)(
+                StylistOptions.Where(Function(o) o.IsSelected AndAlso o.Staff IsNot Nothing).Select(Function(o) o.Staff))
+            OnPropertyChanged(NameOf(SelectedStylists))
+
+            Dim selected = SelectedStylists.ToList()
+            If selected.Count = 0 Then
+                SelectedStylistsLabel = "Select staff…"
+            ElseIf selected.Count = 1 Then
+                SelectedStylistsLabel = selected(0).Name
+            Else
+                SelectedStylistsLabel = $"{selected.Count} staff selected"
+            End If
+            OnPropertyChanged(NameOf(SelectedStylistsLabel))
+        End Sub
+
+        Private Sub SelectStylistByName(stylistName As String)
+            If String.IsNullOrWhiteSpace(stylistName) Then Return
+
+            For Each opt In StylistOptions
+                If opt.Staff IsNot Nothing AndAlso opt.Staff.Name.Equals(stylistName, StringComparison.OrdinalIgnoreCase) Then
+                    opt.IsSelected = True
+                End If
+            Next
+        End Sub
+
+        Private Sub ClearStylistFromCartLines(stylistName As String)
+            For Each line In Cart.Where(Function(c) c.IsService AndAlso
+                                            Not String.IsNullOrWhiteSpace(c.StylistName) AndAlso
+                                            c.StylistName.Equals(stylistName, StringComparison.OrdinalIgnoreCase))
+                line.StylistName = String.Empty
+            Next
+        End Sub
+
+        Private Sub ApplyDefaultStylistToLine(line As CartLine)
+            If line Is Nothing OrElse Not line.IsService OrElse Not String.IsNullOrWhiteSpace(line.StylistName) Then Return
+
+            Dim selected = SelectedStylists.ToList()
+            If selected.Count = 1 Then
+                line.StylistName = selected(0).Name
+            End If
+        End Sub
+
+        Private Sub AssignStylistToLine(line As CartLine, stylistName As String)
+            If line Is Nothing OrElse Not line.IsService Then Return
+            If Not String.IsNullOrWhiteSpace(stylistName) Then
+                line.StylistName = stylistName.Trim()
+                Return
+            End If
+            ApplyDefaultStylistToLine(line)
+        End Sub
+
+        Private Sub ApplySingleStylistDefaultsToCart()
+            If SelectedStylists.Count <> 1 Then Return
+
+            For Each line In Cart.Where(Function(c) c.IsService)
+                ApplyDefaultStylistToLine(line)
+            Next
+        End Sub
+
+        Private Sub RefreshDiscountOptions()
+            Dim selectedCode = If(SelectedDiscountOption?.Code, String.Empty)
+            Dim options As New List(Of PosDiscountOption) From {PosDiscountOption.None()}
+            options.AddRange(
+                _store.Discounts.
+                    Where(Function(d) IsDiscountAvailable(d)).
+                    OrderBy(Function(d) d.Description).
+                    Select(Function(d) PosDiscountOption.FromDiscount(d)))
+
+            DiscountOptions = New ObservableCollection(Of PosDiscountOption)(options)
+            OnPropertyChanged(NameOf(DiscountOptions))
+
+            Dim restored = DiscountOptions.FirstOrDefault(
+                Function(o) o.Code.Equals(selectedCode, StringComparison.OrdinalIgnoreCase))
+            SetSelectedDiscountSilently(If(restored, DiscountOptions.FirstOrDefault()))
+        End Sub
+
+        Private Sub SetSelectedDiscountSilently(discountOption As PosDiscountOption)
+            _suppressDiscountApply = True
+            SelectedDiscountOption = discountOption
+            _suppressDiscountApply = False
+        End Sub
+
+        Private Shared Function IsDiscountAvailable(discount As DiscountItem) As Boolean
+            If discount Is Nothing OrElse Not discount.IsActive Then Return False
+            If discount.EndDate.HasValue AndAlso discount.EndDate.Value < Date.Today Then Return False
+            Return True
+        End Function
+
+        Private Sub ApplySelectedDiscount()
+            If SelectedDiscountOption Is Nothing OrElse String.IsNullOrWhiteSpace(SelectedDiscountOption.Code) Then
+                PromoCode = String.Empty
+                _customerBirthDate = Nothing
+                OnPropertyChanged(NameOf(CustomerBirthDate))
+                SeniorEligibilityText = String.Empty
+                DiscountLabel = "Discount"
+                StatusMessage = String.Empty
+                RecalculateTotals()
+                Return
+            End If
+
+            PromoCode = SelectedDiscountOption.Code
+            If IsSeniorPromo(PromoCode) Then
+                If Not ApplySeniorPromoWithBirthdatePrompt(showSuccessDialog:=False) Then
+                    SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
+                    Return
+                End If
+            Else
+                _customerBirthDate = Nothing
+                OnPropertyChanged(NameOf(CustomerBirthDate))
+                SeniorEligibilityText = String.Empty
+                StatusMessage = $"{SelectedDiscountOption.DisplayLabel} applied."
+            End If
+
+            UpdateDiscountLabel()
+            RecalculateTotals()
+        End Sub
+
+        Private Sub UpdateDiscountLabel()
+            If SelectedDiscountOption Is Nothing OrElse String.IsNullOrWhiteSpace(SelectedDiscountOption.Code) Then
+                DiscountLabel = "Discount"
+                Return
+            End If
+
+            DiscountLabel = SelectedDiscountOption.DisplayLabel
+        End Sub
+
+        Private Sub WireCartLine(line As CartLine)
+            If line Is Nothing Then Return
+            AddHandler line.PropertyChanged, AddressOf OnCartLinePropertyChanged
+        End Sub
+
+        Private Sub UnwireCartLine(line As CartLine)
+            If line Is Nothing Then Return
+            RemoveHandler line.PropertyChanged, AddressOf OnCartLinePropertyChanged
+        End Sub
+
+        Private Sub OnCartLinePropertyChanged(sender As Object, e As PropertyChangedEventArgs)
+            If e.PropertyName = NameOf(CartLine.StylistName) Then
+                CheckoutCommand.NotifyCanExecuteChanged()
+            ElseIf e.PropertyName = NameOf(CartLine.Quantity) Then
+                RecalculateTotals()
+                CheckoutCommand.NotifyCanExecuteChanged()
+            End If
         End Sub
 
         Private Sub RefreshCategoriesFromStore(Optional selectCategoryName As String = Nothing, Optional selectSubCategoryName As String = Nothing)
@@ -188,7 +376,9 @@ Namespace ViewModels
 
         Public Property CatalogTiles As ObservableCollection(Of CatalogTile)
         Public Property Cart As ObservableCollection(Of CartLine)
-        Public Property Stylists As ObservableCollection(Of StaffMember)
+        Public Property StylistOptions As ObservableCollection(Of StaffSelectionOption)
+        Public Property SelectedStylists As ObservableCollection(Of StaffMember)
+        Public Property DiscountOptions As ObservableCollection(Of PosDiscountOption)
         Public Property Categories As ObservableCollection(Of CatalogCategoryNode)
         Public Property CategoryChips As ObservableCollection(Of SelectableChip)
         Public Property SubCategoryChips As ObservableCollection(Of SelectableChip)
@@ -216,12 +406,32 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property SelectedStylist As StaffMember
+        Public Property SelectedStylistsLabel As String
             Get
-                Return _selectedStylist
+                Return _selectedStylistsLabel
             End Get
-            Set(value As StaffMember)
-                SetProperty(_selectedStylist, value)
+            Set(value As String)
+                SetProperty(_selectedStylistsLabel, value)
+            End Set
+        End Property
+
+        Public Property SelectedDiscountOption As PosDiscountOption
+            Get
+                Return _selectedDiscountOption
+            End Get
+            Set(value As PosDiscountOption)
+                If SetProperty(_selectedDiscountOption, value) AndAlso Not _suppressDiscountApply Then
+                    ApplySelectedDiscount()
+                End If
+            End Set
+        End Property
+
+        Public Property DiscountLabel As String
+            Get
+                Return _discountLabel
+            End Get
+            Private Set(value As String)
+                SetProperty(_discountLabel, value)
             End Set
         End Property
 
@@ -521,6 +731,8 @@ Namespace ViewModels
 
         Public Property AddTileCommand As RelayCommand(Of CatalogTile)
         Public Property RemoveLineCommand As RelayCommand(Of CartLine)
+        Public Property IncreaseLineQuantityCommand As RelayCommand(Of CartLine)
+        Public Property DecreaseLineQuantityCommand As RelayCommand(Of CartLine)
         Public Property ClearCartCommand As RelayCommand
         Public Property CheckoutCommand As RelayCommand
         Public Property SelectCategoryCommand As RelayCommand(Of String)
@@ -541,7 +753,6 @@ Namespace ViewModels
         Public Property CancelCategoryManageCommand As RelayCommand
         Public Property SelectCashCommand As RelayCommand
         Public Property SelectGcashCommand As RelayCommand
-        Public Property ApplyPromoCommand As RelayCommand
         Public Property ReprintLastReceiptCommand As RelayCommand
 
         Private Sub NotifyCategoryManageCommands()
@@ -932,6 +1143,8 @@ Namespace ViewModels
                     .Sku = sku,
                     .Name = EditCatalogName.Trim(),
                     .Price = EditCatalogPrice,
+                    .MinDurationMinutes = 60,
+                    .MaxDurationMinutes = 60,
                     .DurationMinutes = 60,
                     .Icon = "✨",
                     .Category = cat,
@@ -1012,6 +1225,8 @@ Namespace ViewModels
                     .Quantity = s.Quantity
                 }).ToList()
             })
+            ApplyDefaultStylistToLine(Cart.Last())
+            WireCartLine(Cart.Last())
 
             StatusMessage = String.Empty
             RecalculateTotals()
@@ -1024,7 +1239,10 @@ Namespace ViewModels
             If existing IsNot Nothing Then
                 existing.Quantity += 1
             Else
-                Cart.Add(New CartLine With {.Sku = sku, .Name = name, .UnitPrice = price, .Quantity = 1, .IsService = isService})
+                Dim line As New CartLine With {.Sku = sku, .Name = name, .UnitPrice = price, .Quantity = 1, .IsService = isService}
+                ApplyDefaultStylistToLine(line)
+                Cart.Add(line)
+                WireCartLine(line)
             End If
             StatusMessage = String.Empty
             RecalculateTotals()
@@ -1033,15 +1251,39 @@ Namespace ViewModels
         End Sub
 
         Private Sub RemoveLine(line As CartLine)
+            UnwireCartLine(line)
             Cart.Remove(line)
             RecalculateTotals()
             ClearCartCommand.NotifyCanExecuteChanged()
             CheckoutCommand.NotifyCanExecuteChanged()
         End Sub
 
+        Private Sub IncreaseLineQuantity(line As CartLine)
+            If line Is Nothing Then Return
+            line.Quantity += 1
+            RecalculateTotals()
+            CheckoutCommand.NotifyCanExecuteChanged()
+        End Sub
+
+        Private Sub DecreaseLineQuantity(line As CartLine)
+            If line Is Nothing Then Return
+            If line.Quantity > 1 Then
+                line.Quantity -= 1
+                RecalculateTotals()
+                CheckoutCommand.NotifyCanExecuteChanged()
+            Else
+                RemoveLine(line)
+            End If
+        End Sub
+
         Private Sub ClearCart()
+            For Each line In Cart.ToList()
+                UnwireCartLine(line)
+            Next
             Cart.Clear()
             PromoCode = String.Empty
+            SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
+            DiscountLabel = "Discount"
             AmountTendered = 0D
             CustomerName = DefaultCustomerName
             _pendingAppointmentId = 0
@@ -1059,31 +1301,7 @@ Namespace ViewModels
             Return name.Trim()
         End Function
 
-        Private Sub ApplyPromo()
-            If String.IsNullOrWhiteSpace(PromoCode) Then
-                AppDialogService.ShowWarning("Enter a promo code.", "Promo code")
-                RecalculateTotals()
-                Return
-            End If
-
-            If IsSeniorPromo(PromoCode) Then
-                ApplySeniorPromoWithBirthdatePrompt()
-                Return
-            End If
-
-            Dim code = PromoCode.Trim()
-            Dim discount = _store.Discounts.FirstOrDefault(Function(d) d.Code.Equals(code, StringComparison.OrdinalIgnoreCase) AndAlso d.IsActive)
-            If discount Is Nothing Then
-                AppDialogService.ShowWarning("Invalid or inactive promo code.", "Promo code")
-                StatusMessage = String.Empty
-            Else
-                StatusMessage = $"Promo {discount.Code} applied."
-                AppDialogService.ShowSuccess($"Promo {discount.Code} applied.", "Promo applied")
-            End If
-            RecalculateTotals()
-        End Sub
-
-        Private Sub ApplySeniorPromoWithBirthdatePrompt()
+        Private Function ApplySeniorPromoWithBirthdatePrompt(Optional showSuccessDialog As Boolean = True) As Boolean
             Dim birth = AppDialogService.PromptBirthdate(_customerBirthDate)
             If Not birth.HasValue Then
                 PromoCode = String.Empty
@@ -1091,9 +1309,11 @@ Namespace ViewModels
                 OnPropertyChanged(NameOf(CustomerBirthDate))
                 SeniorEligibilityText = String.Empty
                 StatusMessage = String.Empty
-                AppDialogService.ShowInfo("Senior discount cancelled.", "Senior discount")
+                If showSuccessDialog Then
+                    AppDialogService.ShowInfo("Senior discount cancelled.", "Senior discount")
+                End If
                 RecalculateTotals()
-                Return
+                Return False
             End If
 
             Dim validation = ValidateSeniorBirthdate(birth.Value)
@@ -1105,7 +1325,7 @@ Namespace ViewModels
                 StatusMessage = String.Empty
                 AppDialogService.ShowWarning(validation.Message, "Not eligible")
                 RecalculateTotals()
-                Return
+                Return False
             End If
 
             _customerBirthDate = birth.Value.Date
@@ -1113,9 +1333,12 @@ Namespace ViewModels
             PromoCode = SeniorPromoCode
             SeniorEligibilityText = validation.Message
             StatusMessage = validation.Message
-            AppDialogService.ShowSuccess(validation.Message, "Senior discount")
+            If showSuccessDialog Then
+                AppDialogService.ShowSuccess(validation.Message, "Senior discount")
+            End If
             RecalculateTotals()
-        End Sub
+            Return True
+        End Function
 
         Private Function ValidateSeniorBirthdate(birthDate As Date) As (IsEligible As Boolean, Message As String)
             Dim dateOnly = birthDate.Date
@@ -1140,14 +1363,16 @@ Namespace ViewModels
 
             If Not CustomerBirthDate.HasValue Then
                 PromoCode = String.Empty
+                SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
                 SeniorEligibilityText = String.Empty
-                StatusMessage = "Senior discount requires birthdate verification. Click Apply after entering SENIOR."
+                StatusMessage = "Senior discount requires birthdate verification."
                 Return
             End If
 
             Dim validation = ValidateSeniorBirthdate(CustomerBirthDate.Value)
             If Not validation.IsEligible Then
                 PromoCode = String.Empty
+                SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
                 SeniorEligibilityText = validation.Message
                 StatusMessage = validation.Message
             End If
@@ -1190,6 +1415,16 @@ Namespace ViewModels
             If Cart.Count = 0 Then Return False
             If PaymentMethod = "Cash" AndAlso (AmountTendered <= 0D OrElse AmountTendered < Total) Then Return False
 
+            If Cart.Any(Function(c) c.IsService) Then
+                If SelectedStylists.Count = 0 Then Return False
+                For Each line In Cart.Where(Function(c) c.IsService)
+                    If String.IsNullOrWhiteSpace(line.StylistName) Then Return False
+                    If Not SelectedStylists.Any(Function(s) s.Name.Equals(line.StylistName, StringComparison.OrdinalIgnoreCase)) Then
+                        Return False
+                    End If
+                Next
+            End If
+
             For Each line In Cart.Where(Function(c) c.IsService)
                 Dim service = _store.Services.FirstOrDefault(Function(s) s.Sku = line.Sku)
                 If service Is Nothing OrElse Not service.HasPickOneConsumables Then Continue For
@@ -1206,7 +1441,11 @@ Namespace ViewModels
                 EnforceSeniorPromoEligibility()
                 RecalculateTotals()
                 If Not CanCheckout() Then
-                    If PaymentMethod = "Cash" AndAlso AmountTendered <= 0D Then
+                    If Cart.Any(Function(c) c.IsService) AndAlso SelectedStylists.Count = 0 Then
+                        StatusMessage = "Select at least one staff member before checkout."
+                    ElseIf Cart.Any(Function(c) c.IsService AndAlso String.IsNullOrWhiteSpace(c.StylistName)) Then
+                        StatusMessage = "Assign staff to each service before checkout."
+                    ElseIf PaymentMethod = "Cash" AndAlso AmountTendered <= 0D Then
                         StatusMessage = "Enter amount tendered before checkout."
                     ElseIf PaymentMethod = "Cash" AndAlso AmountTendered < Total Then
                         StatusMessage = "Amount tendered is less than total."
@@ -1235,7 +1474,6 @@ Namespace ViewModels
                     .PaymentMethod = PaymentMethod,
                     .CashierName = SessionContext.CurrentUser.FullName,
                     .CustomerName = NormalizeCustomerName(CustomerName),
-                    .StylistName = If(SelectedStylist?.Name, String.Empty),
                     .PromoCode = PromoCode,
                     .AmountTendered = AmountTendered,
                     .AllowReserveUse = allowReserveUse

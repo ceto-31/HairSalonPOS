@@ -1,3 +1,4 @@
+Imports HairSalonPOS.Wpf.Helpers
 Imports HairSalonPOS.Wpf.Models
 
 Namespace Services
@@ -6,7 +7,6 @@ Namespace Services
         Public Property PaymentMethod As String
         Public Property CashierName As String
         Public Property CustomerName As String
-        Public Property StylistName As String
         Public Property PromoCode As String
         Public Property AmountTendered As Decimal
         Public Property AllowReserveUse As Boolean
@@ -124,14 +124,23 @@ Namespace Services
             Dim saleId = _store.NextSaleId
             _store.NextSaleId += 1
             Dim change = If(request.PaymentMethod = "Cash", Math.Max(0D, request.AmountTendered - total), 0D)
+
+            For Each line In cart.Where(Function(c) c.IsService)
+                If String.IsNullOrWhiteSpace(line.StylistName) Then
+                    Throw New InvalidOperationException("Assign a stylist to each service before checkout.")
+                End If
+            Next
+
             Dim lines = cart.Select(Function(c) New SaleLineRecord With {
                 .Name = c.Name,
                 .Quantity = c.Quantity,
                 .UnitPrice = c.UnitPrice,
                 .LineTotal = c.LineTotal,
-                .IsService = c.IsService
+                .IsService = c.IsService,
+                .StylistName = If(c.IsService, c.StylistName.Trim(), String.Empty)
             }).ToList()
 
+            Dim stylistSummary = SaleStylistHelper.BuildSaleStylistSummary(lines)
             Dim customerName = If(String.IsNullOrWhiteSpace(request.CustomerName), "Walk-in", request.CustomerName.Trim())
 
             Dim receipt As New ReceiptModel With {
@@ -139,7 +148,7 @@ Namespace Services
                 .SaleDate = DateTime.Now,
                 .CashierName = request.CashierName,
                 .CustomerName = customerName,
-                .StylistName = request.StylistName,
+                .StylistName = stylistSummary,
                 .PaymentMethod = request.PaymentMethod,
                 .SubTotal = subTotal,
                 .DiscountAmount = discount,
@@ -163,7 +172,7 @@ Namespace Services
                 .SaleDate = receipt.SaleDate,
                 .CashierName = request.CashierName,
                 .CustomerName = customerName,
-                .StylistName = request.StylistName,
+                .StylistName = stylistSummary,
                 .PaymentMethod = request.PaymentMethod,
                 .SubTotal = subTotal,
                 .DiscountAmount = discount,

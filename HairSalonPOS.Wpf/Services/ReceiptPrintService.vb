@@ -78,17 +78,19 @@ Namespace Services
             AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Date: {receipt.SaleDate:yyyy-MM-dd  hh:mm tt}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
             AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Cashier: {receipt.CashierName}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
             If Not String.IsNullOrWhiteSpace(receipt.StylistName) Then
-                AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Stylist: {receipt.StylistName}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
+                Dim stylistLabel = SaleStylistHelper.StylistSummaryLabel(receipt.StylistName)
+                AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"{stylistLabel}: {receipt.StylistName}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
             End If
             AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Customer: {receipt.DisplayCustomerName}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
             AddSeparator(doc, layout)
 
             For Each line In receipt.AllLines
+                Dim lineLabel = FormatReceiptLineLabel(line)
                 If useFixedWidth Then
-                    AddReceiptLines(doc, ReceiptTextFormatter.WrapText(line.Name, width), layout.FontSize, False, layout.LineMargin)
+                    AddReceiptLines(doc, ReceiptTextFormatter.WrapText(lineLabel, width), layout.FontSize, False, layout.LineMargin)
                     AddLine(doc, ReceiptTextFormatter.FormatItemDetailLine(line.Quantity, line.UnitPrice, line.LineTotal, width), layout.DetailFontSize, False, layout.LineMargin)
                 Else
-                    AddLine(doc, line.Name, layout.FontSize, False, layout.LineMargin)
+                    AddLine(doc, lineLabel, layout.FontSize, False, layout.LineMargin)
                     AddLine(doc, $"{line.Quantity} x {line.UnitPrice:N2} = {line.LineTotal:N2}", layout.DetailFontSize, False, layout.LineMargin)
                 End If
             Next
@@ -147,13 +149,14 @@ Namespace Services
             lines.AddRange(ReceiptTextFormatter.WrapText($"Date: {receipt.SaleDate:yyyy-MM-dd HH:mm}", width))
             lines.AddRange(ReceiptTextFormatter.WrapText($"Cashier: {receipt.CashierName}", width))
             If Not String.IsNullOrWhiteSpace(receipt.StylistName) Then
-                lines.AddRange(ReceiptTextFormatter.WrapText($"Stylist: {receipt.StylistName}", width))
+                Dim stylistLabel = SaleStylistHelper.StylistSummaryLabel(receipt.StylistName)
+                lines.AddRange(ReceiptTextFormatter.WrapText($"{stylistLabel}: {receipt.StylistName}", width))
             End If
             lines.AddRange(ReceiptTextFormatter.WrapText($"Customer: {receipt.DisplayCustomerName}", width))
             lines.Add(New String("-"c, width))
 
             For Each item In receipt.AllLines
-                lines.AddRange(ReceiptTextFormatter.WrapText(item.Name, width))
+                lines.AddRange(ReceiptTextFormatter.WrapText(FormatReceiptLineLabel(item), width))
                 lines.Add(ReceiptTextFormatter.FormatItemDetailLine(item.Quantity, item.UnitPrice, item.LineTotal, width))
             Next
 
@@ -246,5 +249,13 @@ Namespace Services
         Private Shared Sub AddSeparator(doc As FlowDocument, layout As ReceiptLayout)
             AddLine(doc, New String("-"c, layout.SeparatorLength), layout.FontSize, False, layout.LineMargin)
         End Sub
+
+        Private Shared Function FormatReceiptLineLabel(line As SaleLineRecord) As String
+            If line Is Nothing Then Return String.Empty
+            If line.IsService AndAlso Not String.IsNullOrWhiteSpace(line.StylistName) Then
+                Return $"{line.Name} ({line.StylistName})"
+            End If
+            Return line.Name
+        End Function
     End Class
 End Namespace

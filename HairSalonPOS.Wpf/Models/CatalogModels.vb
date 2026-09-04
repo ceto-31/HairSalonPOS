@@ -81,6 +81,8 @@ Namespace Models
         Public Property Name As String = String.Empty
         Public Property Price As Decimal
         Public Property DurationMinutes As Integer
+        Public Property MinDurationMinutes As Integer
+        Public Property MaxDurationMinutes As Integer
         Public Property Icon As String = "✂️"
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
@@ -124,6 +126,30 @@ Namespace Models
                 Return If(IsActive, "Active", "Archived")
             End Get
         End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property DurationRangeLabel As String
+            Get
+                Dim min = EffectiveMinDurationMinutes()
+                Dim max = EffectiveMaxDurationMinutes()
+                If min <= 0 AndAlso max <= 0 Then Return "—"
+                If min = max Then Return $"{min} min"
+                Return $"{min}–{max} min"
+            End Get
+        End Property
+
+        Public Function EffectiveMinDurationMinutes() As Integer
+            If MinDurationMinutes > 0 Then Return MinDurationMinutes
+            If DurationMinutes > 0 Then Return DurationMinutes
+            Return 0
+        End Function
+
+        Public Function EffectiveMaxDurationMinutes() As Integer
+            If MaxDurationMinutes > 0 Then Return MaxDurationMinutes
+            If MinDurationMinutes > 0 Then Return MinDurationMinutes
+            If DurationMinutes > 0 Then Return DurationMinutes
+            Return 0
+        End Function
     End Class
 
     Public Class ProductItem
@@ -354,6 +380,16 @@ Namespace Models
 
         Public Property IsService As Boolean
 
+        Private _stylistName As String = String.Empty
+        Public Property StylistName As String
+            Get
+                Return _stylistName
+            End Get
+            Set(value As String)
+                SetProperty(_stylistName, If(value, String.Empty))
+            End Set
+        End Property
+
         Public Property ConsumableSelections As New List(Of ServiceConsumableLine)
 
         Public Property ConsumableSummary As String = String.Empty
@@ -379,6 +415,7 @@ Namespace Models
         Public Property UnitPrice As Decimal
         Public Property LineTotal As Decimal
         Public Property IsService As Boolean
+        Public Property StylistName As String = String.Empty
     End Class
 
     Public Class SaleRecord

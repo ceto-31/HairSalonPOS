@@ -190,13 +190,8 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(RevenueBars))
 
             StylistPerformance = New ObservableCollection(Of StylistPerformanceItem)(
-                filtered.Where(Function(s) Not String.IsNullOrWhiteSpace(s.StylistName)).
-                GroupBy(Function(s) s.StylistName).
-                Select(Function(g) New StylistPerformanceItem With {
-                    .StylistName = g.Key,
-                    .ServiceCount = g.SelectMany(Function(s) s.Lines.Where(Function(l) l.IsService)).Sum(Function(l) l.Quantity),
-                    .Revenue = g.Sum(Function(s) s.Total)
-                }).OrderByDescending(Function(x) x.Revenue))
+                BuildStylistPerformance(filtered).
+                OrderByDescending(Function(x) x.Revenue))
 
             OnPropertyChanged(NameOf(Sales))
             OnPropertyChanged(NameOf(StylistPerformance))
@@ -226,6 +221,28 @@ Namespace ViewModels
                 Case Else
                     Return (SelectedDate.Date, SelectedDate.Date.AddDays(1))
             End Select
+        End Function
+
+        Private Shared Function BuildStylistPerformance(sales As IEnumerable(Of SaleRecord)) As IEnumerable(Of StylistPerformanceItem)
+            Dim stats As New Dictionary(Of String, (ServiceCount As Integer, Revenue As Decimal))(StringComparer.OrdinalIgnoreCase)
+
+            For Each sale In sales
+                If sale?.Lines Is Nothing Then Continue For
+
+                For Each line In sale.Lines.Where(Function(l) l IsNot Nothing AndAlso l.IsService)
+                    Dim stylist = SaleStylistHelper.ResolveLineStylist(line, sale)
+                    If String.IsNullOrWhiteSpace(stylist) Then Continue For
+
+                    Dim current = If(stats.ContainsKey(stylist), stats(stylist), (0, 0D))
+                    stats(stylist) = (current.Item1 + line.Quantity, current.Item2 + line.LineTotal)
+                Next
+            Next
+
+            Return stats.Select(Function(entry) New StylistPerformanceItem With {
+                .StylistName = entry.Key,
+                .ServiceCount = entry.Value.Item1,
+                .Revenue = entry.Value.Item2
+            })
         End Function
 
         Private Sub ExportReport()
