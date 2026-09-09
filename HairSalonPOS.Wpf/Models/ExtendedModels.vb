@@ -72,6 +72,17 @@ Namespace Models
                 Return String.Empty
             End Get
         End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property AppointmentStaffLabel As String
+            Get
+                Dim nameText = If(Name, String.Empty).Trim()
+                Dim categoryText = If(Category, String.Empty).Trim()
+                If String.IsNullOrWhiteSpace(nameText) Then Return String.Empty
+                If String.IsNullOrWhiteSpace(categoryText) Then Return nameText
+                Return $"{nameText} — {categoryText}"
+            End Get
+        End Property
     End Class
 
     Public Class PackageItem
@@ -175,7 +186,16 @@ Namespace Models
             End Get
             Set(value As String)
                 SetProperty(_staffName, value)
+                OnPropertyChanged(NameOf(StaffDisplayLabel))
             End Set
+        End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property StaffDisplayLabel As String
+            Get
+                If String.IsNullOrWhiteSpace(StaffName) Then Return "—"
+                Return StaffName.Trim()
+            End Get
         End Property
 
         Public Property ServiceName As String
@@ -213,6 +233,12 @@ Namespace Models
         Public ReadOnly Property TimeLabel As String
             Get
                 Return StartTime.ToString("h:mm tt")
+            End Get
+        End Property
+
+        Public ReadOnly Property EndTimeLabel As String
+            Get
+                Return EndTime.ToString("h:mm tt")
             End Get
         End Property
 
@@ -362,6 +388,20 @@ Namespace Models
         Public Property UserName As String = String.Empty
         Public Property CreatedAt As DateTime
         Public Property Notes As String = String.Empty
+        Public Property ExpirationDate As Date?
+        Public Property BoxCode As String = String.Empty
+
+        Public ReadOnly Property ExpirationDateLabel As String
+            Get
+                Return If(ExpirationDate.HasValue, ExpirationDate.Value.ToString("M/d/yyyy"), String.Empty)
+            End Get
+        End Property
+
+        Public ReadOnly Property BoxCodeLabel As String
+            Get
+                Return If(String.IsNullOrWhiteSpace(BoxCode), String.Empty, BoxCode.Trim())
+            End Get
+        End Property
     End Class
 
     Public Class CatalogTile
@@ -504,6 +544,53 @@ Namespace Models
         Public ReadOnly Property HasImage As Boolean
             Get
                 Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
+    End Class
+
+    Public Class ExpirationAlertRow
+        Public Property Sku As String = String.Empty
+        Public Property ProductName As String = String.Empty
+        Public Property ExpirationDate As Date
+        Public Property BoxCode As String = String.Empty
+        Public Property ImagePath As String = String.Empty
+
+        Public ReadOnly Property HasImage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(ImagePath)
+            End Get
+        End Property
+
+        Public ReadOnly Property ExpirationDateLabel As String
+            Get
+                Return ExpirationDate.ToString("MMMM d, yyyy")
+            End Get
+        End Property
+
+        Public ReadOnly Property IsExpired As Boolean
+            Get
+                Return ExpirationDate.Date < Date.Today
+            End Get
+        End Property
+
+        Public ReadOnly Property DaysRemaining As Integer
+            Get
+                Return (ExpirationDate.Date - Date.Today).Days
+            End Get
+        End Property
+
+        Public ReadOnly Property DaysRemainingLabel As String
+            Get
+                If IsExpired Then Return "Expired"
+                If DaysRemaining = 0 Then Return "Expires today"
+                If DaysRemaining = 1 Then Return "1 day remaining"
+                Return $"{DaysRemaining} days remaining"
+            End Get
+        End Property
+
+        Public ReadOnly Property BoxCodeDisplay As String
+            Get
+                Return If(String.IsNullOrWhiteSpace(BoxCode), "—", BoxCode.Trim())
             End Get
         End Property
     End Class

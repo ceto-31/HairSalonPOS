@@ -132,44 +132,89 @@
                         <ComboBox ItemsSource="{Binding ServiceNames}" SelectedItem="{Binding EditService}"
                                   IsEditable="True" Style="{StaticResource ModernComboBox}"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="Time" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding SelectedDayBusinessHoursLabel}"
-                                   Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,0,4"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="8"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <ComboBox ItemsSource="{Binding HourOptions}"
-                                      SelectedItem="{Binding EditHour}"
-                                      Style="{StaticResource ModernComboBox}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Converter={StaticResource HourToDisplay}}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <ComboBox Grid.Column="2"
-                                      ItemsSource="{Binding MinuteOptions}"
-                                      SelectedItem="{Binding EditMinute}"
-                                      Style="{StaticResource ModernComboBox}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding StringFormat={}{0:D2}}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </Grid>
-                    </StackPanel>
-                    <StackPanel Visibility="{Binding IsAddingAppointment, Converter={StaticResource InverseBoolToVis}}">
-                        <TextBlock Text="Status" Style="{StaticResource SectionHeader}"/>
-                        <ComboBox ItemsSource="{Binding EditStatusOptions}"
-                                  SelectedItem="{Binding EditStatusDisplay, UpdateSourceTrigger=PropertyChanged}"
-                                  Style="{StaticResource ModernComboBox}"/>
-                    </StackPanel>
                 </UniformGrid>
+
+                <TextBlock Text="Appointment information" Style="{StaticResource SectionHeader}" Margin="0,4,0,8"/>
+                <Border Background="{DynamicResource NavActiveBackgroundBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                    <UniformGrid Columns="2">
+                        <StackPanel Margin="0,0,8,8">
+                            <TextBlock Text="Starting time" Style="{StaticResource SectionHeader}"/>
+                            <TextBlock Text="{Binding SelectedDayBusinessHoursLabel}"
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox ItemsSource="{Binding HourOptions}"
+                                          SelectedItem="{Binding EditHour}"
+                                          Style="{StaticResource ModernComboBox}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource HourToDisplay}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ComboBox Grid.Column="2"
+                                          ItemsSource="{Binding MinuteOptions}"
+                                          SelectedItem="{Binding EditMinute}"
+                                          Style="{StaticResource ModernComboBox}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat={}{0:D2}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="Expected end time" Style="{StaticResource SectionHeader}"/>
+                            <TextBlock Text="{Binding EditExpectedEndTimeLabel}" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,0"/>
+                            <TextBlock Text="{Binding EditDurationHintLabel}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Staff" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding StaffOptions}" SelectedItem="{Binding SelectedStaff}"
+                                      Style="{StaticResource ModernComboBox}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding AppointmentStaffLabel}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="Optional. When selected, staff availability is checked for overlaps."
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding IsAddingAppointment, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="Status" Style="{StaticResource SectionHeader}"/>
+                            <ComboBox ItemsSource="{Binding EditStatusOptions}"
+                                      SelectedItem="{Binding EditStatusDisplay, UpdateSourceTrigger=PropertyChanged}"
+                                      Style="{StaticResource ModernComboBox}"/>
+                        </StackPanel>
+                    </UniformGrid>
+                </Border>
+
+                <Border Background="{DynamicResource WarningBadgeBrush}"
+                        BorderBrush="{DynamicResource ShellBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14,12"
+                        Margin="0,0,0,12"
+                        Visibility="{Binding HasCapacityAlert, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Fully booked"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding CapacityAlertMessage}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <StackPanel Orientation="Horizontal">
                     <Button Content="Save" Style="{StaticResource PrimaryButton}"
                             Command="{Binding SaveAppointmentCommand}"
@@ -226,14 +271,22 @@
                                    FontSize="14" Foreground="{DynamicResource TextBrush}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="0,0,0,12">
-                        <TextBlock Text="Start time" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding ViewAppointment.TimeLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
+                        <TextBlock Text="Starting time" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="{Binding ViewStartTimeLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Margin="0,0,12,0">
+                    <StackPanel Grid.Row="1" Margin="0,0,12,12">
+                        <TextBlock Text="Expected end time" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="{Binding ViewEndTimeLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+                        <TextBlock Text="Staff" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="{Binding ViewStaffLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Margin="0,0,12,0">
                         <TextBlock Text="Contact number" Style="{StaticResource SectionHeader}"/>
                         <TextBlock Text="{Binding ViewContactLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="1">
+                    <StackPanel Grid.Row="2" Grid.Column="1">
                         <TextBlock Text="Email" Style="{StaticResource SectionHeader}"/>
                         <TextBlock Text="{Binding ViewEmailLabel}" FontSize="14" Foreground="{DynamicResource TextBrush}"/>
                     </StackPanel>
@@ -341,12 +394,19 @@
                                                                 <ColumnDefinition Width="*"/>
                                                                 <ColumnDefinition Width="Auto"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding TimeLabel}" FontWeight="SemiBold" FontSize="15"
-                                                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Top"/>
+                                                            <StackPanel VerticalAlignment="Top">
+                                                                <TextBlock FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource AccentBrush}">
+                                                                    <Run Text="{Binding TimeLabel, Mode=OneWay}"/>
+                                                                    <Run Text=" – " Foreground="{DynamicResource MutedTextBrush}"/>
+                                                                    <Run Text="{Binding EndTimeLabel, Mode=OneWay}"/>
+                                                                </TextBlock>
+                                                            </StackPanel>
                                                             <StackPanel Grid.Column="1" Margin="8,0,12,0">
                                                                 <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" FontSize="15"/>
                                                                 <TextBlock Text="{Binding ServiceName}" Margin="0,4,0,0"
                                                                            Foreground="{DynamicResource MutedTextBrush}"/>
+                                                                <TextBlock Text="{Binding StaffDisplayLabel, Mode=OneWay, StringFormat='Staff: {0}'}"
+                                                                           Margin="0,4,0,0" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
                                                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                                                     <Button Content="View" Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,6,0"
                                                                             Command="{Binding DataContext.ViewAppointmentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
