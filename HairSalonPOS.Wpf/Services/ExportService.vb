@@ -192,12 +192,13 @@ Namespace Services
             _store.PersistCatalog()
         End Sub
 
-        Public Sub StockIn(sku As String, quantity As Integer, userName As String, notes As String)
+        Public Sub StockIn(sku As String, quantity As Integer, userName As String, notes As String, Optional expirationDate As Date? = Nothing, Optional boxCode As String = Nothing)
             RequireAdmin()
             If quantity <= 0 Then Throw New InvalidOperationException("Stock in quantity must be positive.")
             Dim product = _store.Products.First(Function(p) p.Sku = sku)
             product.StockOnHand += quantity
-            _store.LogMovement(sku, quantity, "Stock In", userName, If(notes, String.Empty))
+            ApplyProductExpiration(product, expirationDate)
+            _store.LogMovement(sku, quantity, "Stock In", userName, If(notes, String.Empty), expirationDate, boxCode)
             _store.PersistCatalog()
         End Sub
 
@@ -214,15 +215,16 @@ Namespace Services
         End Sub
 
         ''' <summary>Add units to the reserve stock pool (independent from on-hand).</summary>
-        Public Sub ReserveStock(sku As String, quantity As Integer, userName As String, notes As String)
+        Public Sub ReserveStock(sku As String, quantity As Integer, userName As String, notes As String, Optional expirationDate As Date? = Nothing)
             RequireAdmin()
             If quantity <= 0 Then Throw New InvalidOperationException("Reserve quantity must be positive.")
             Dim product = _store.Products.First(Function(p) p.Sku = sku)
             product.EnsureDefaults()
             product.ReservedQty += quantity
+            ApplyProductExpiration(product, expirationDate)
             Dim detail = $"Reserve stock +{quantity}"
             If Not String.IsNullOrWhiteSpace(notes) Then detail &= $" — {notes.Trim()}"
-            _store.LogMovement(sku, quantity, "Add Reserve Stock", userName, detail)
+            _store.LogMovement(sku, quantity, "Add Reserve Stock", userName, detail, expirationDate)
             _store.PersistCatalog()
         End Sub
 
@@ -254,6 +256,13 @@ Namespace Services
             _images.DeleteImage(product.ImagePath)
             _store.Products.Remove(product)
             _store.PersistCatalog()
+        End Sub
+
+        Private Shared Sub ApplyProductExpiration(product As ProductItem, expirationDate As Date?)
+            If product Is Nothing OrElse Not expirationDate.HasValue Then Return
+            If Not product.ExpirationDate.HasValue OrElse expirationDate.Value < product.ExpirationDate.Value Then
+                product.ExpirationDate = expirationDate.Value
+            End If
         End Sub
 
         Private Shared Sub RequireAdmin()

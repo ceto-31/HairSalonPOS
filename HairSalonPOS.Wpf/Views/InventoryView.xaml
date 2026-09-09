@@ -303,19 +303,100 @@
                     </Grid>
                 </Border>
 
-                <DataGrid Grid.Row="4"
-                          ItemsSource="{Binding Movements}" Style="{StaticResource DataGridStyle}"
-                          Visibility="{Binding ShowMovementLog, Converter={StaticResource BoolToVis}}">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Date/Time" Binding="{Binding CreatedAt, StringFormat=g}" Width="150"/>
-                        <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="70"/>
-                        <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*"/>
-                        <DataGridTextColumn Header="Change" Binding="{Binding ChangeQty}" Width="70"/>
-                        <DataGridTextColumn Header="Type" Binding="{Binding MovementType}" Width="100"/>
-                        <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="120"/>
-                        <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Grid Grid.Row="4" Visibility="{Binding ShowMovementLog, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="All" Command="{Binding SetMovementAllCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementAll}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Today" Command="{Binding SetMovementDailyCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementDaily}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="This week" Command="{Binding SetMovementWeeklyCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementWeekly}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="This month" Command="{Binding SetMovementMonthlyCommand}" Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementMonthly}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="This year" Command="{Binding SetMovementYearlyCommand}" Margin="0,0,16,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementYearly}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <DatePicker SelectedDate="{Binding MovementSelectedDate, UpdateSourceTrigger=PropertyChanged}"
+                                    Style="{StaticResource LargeDatePicker}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Movements}"
+                              Style="{StaticResource DataGridStyle}"
+                              VerticalAlignment="Stretch"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.CanContentScroll="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date/Time" Binding="{Binding CreatedAt, StringFormat=g}" Width="150"/>
+                            <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="70"/>
+                            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*"/>
+                            <DataGridTextColumn Header="Change" Binding="{Binding ChangeQty}" Width="70"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding MovementType}" Width="120"/>
+                            <DataGridTextColumn Header="Expires" Binding="{Binding ExpirationDateLabel}" Width="90"/>
+                            <DataGridTextColumn Header="Box code" Binding="{Binding BoxCodeLabel}" Width="90"/>
+                            <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="120"/>
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
 
                 <TextBlock Grid.Row="5" Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="{DynamicResource AccentBrush}"/>
             </Grid>

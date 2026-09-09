@@ -379,9 +379,14 @@
                         </DockPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel>
-                                <TextBlock Text="No low stock items." Foreground="{DynamicResource MutedTextBrush}"
+                                <TextBlock Text="No inventory alerts."
+                                           Foreground="{DynamicResource MutedTextBrush}"
                                            Visibility="{Binding HasInventoryAlerts, Converter={StaticResource InverseBoolToVis}}"/>
-                                <ItemsControl ItemsSource="{Binding LowStockAlerts}" Visibility="{Binding HasInventoryAlerts, Converter={StaticResource BoolToVis}}">
+
+                                <TextBlock Text="Low stock" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"
+                                           Foreground="{DynamicResource LowStockAlertBrush}"
+                                           Visibility="{Binding HasLowStockAlerts, Converter={StaticResource BoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding LowStockAlerts}" Visibility="{Binding HasLowStockAlerts, Converter={StaticResource BoolToVis}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="10"
@@ -419,6 +424,53 @@
                                                             <Run Text="Reorder at "/>
                                                             <Run Text="{Binding ReorderLevel, Mode=OneWay}"/>
                                                         </TextBlock>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="Expiration alerts" FontWeight="SemiBold" FontSize="13" Margin="0,8,0,8"
+                                           Foreground="{DynamicResource LowStockAlertBrush}"
+                                           Visibility="{Binding HasExpirationAlerts, Converter={StaticResource BoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding ExpirationAlerts}" Visibility="{Binding HasExpirationAlerts, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="10"
+                                                    Background="{DynamicResource LowStockAlertSoftBrush}"
+                                                    BorderBrush="{DynamicResource LowStockAlertBrush}"
+                                                    BorderThickness="1">
+                                                <DockPanel>
+                                                    <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="8"
+                                                            Background="{DynamicResource LowStockAlertBackgroundBrush}" Margin="0,0,10,0"
+                                                            BorderBrush="{DynamicResource LowStockAlertBrush}" BorderThickness="1">
+                                                        <Border.Clip>
+                                                            <RectangleGeometry Rect="0,0,40,40" RadiusX="8" RadiusY="8"/>
+                                                        </Border.Clip>
+                                                        <Grid>
+                                                            <TextBlock Text="!" FontSize="16" FontWeight="Bold"
+                                                                       Foreground="{DynamicResource LowStockAlertBrush}"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Visibility="{Binding HasImage, Converter={StaticResource InverseBoolToVis}}"/>
+                                                            <Image Stretch="UniformToFill"
+                                                                   Source="{Binding ImagePath, Converter={StaticResource CatalogImagePath}}"
+                                                                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <Border DockPanel.Dock="Right" CornerRadius="8" Padding="8,4" VerticalAlignment="Center"
+                                                            Background="{DynamicResource LowStockAlertBrush}"
+                                                            Visibility="{Binding IsExpired, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="Expired" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                                    </Border>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}" Margin="0,2,0,0">
+                                                            <Run Text="Expires: "/>
+                                                            <Run Text="{Binding ExpirationDateLabel, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding DaysRemainingLabel}" FontSize="11" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource LowStockAlertBrush}" Margin="0,2,0,0"/>
                                                     </StackPanel>
                                                 </DockPanel>
                                             </Border>

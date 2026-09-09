@@ -313,6 +313,35 @@ Namespace Services
             Return Products.Where(Function(p) p.StockOnHand <= p.ReorderLevel).Count()
         End Function
 
+        Public Function GetExpirationAlerts(Optional warningDays As Integer = 7) As List(Of ExpirationAlertRow)
+            Dim today = Date.Today
+            Dim cutoff = today.AddDays(warningDays)
+            Dim productLookup = Products.ToDictionary(Function(p) p.Sku, StringComparer.OrdinalIgnoreCase)
+
+            Return StockMovements.
+                Where(Function(m) m.MovementType = "Stock In" AndAlso m.ExpirationDate.HasValue).
+                Where(Function(m) m.ExpirationDate.Value.Date <= cutoff).
+                GroupBy(Function(m) $"{m.Sku}|{m.ExpirationDate.Value.Date:yyyyMMdd}|{If(m.BoxCode, String.Empty).Trim()}").
+                Select(Function(g) g.OrderByDescending(Function(m) m.CreatedAt).First()).
+                Where(Function(m)
+                          Dim product As ProductItem = Nothing
+                          Return productLookup.TryGetValue(m.Sku, product) AndAlso product.IsActive AndAlso product.StockOnHand > 0
+                      End Function).
+                OrderBy(Function(m) m.ExpirationDate.Value).
+                ThenBy(Function(m) m.ProductName).
+                Select(Function(m)
+                           Dim product = productLookup(m.Sku)
+                           Return New ExpirationAlertRow With {
+                               .Sku = m.Sku,
+                               .ProductName = product.Name,
+                               .ExpirationDate = m.ExpirationDate.Value.Date,
+                               .BoxCode = m.BoxCode,
+                               .ImagePath = product.ImagePath
+                           }
+                       End Function).
+                ToList()
+        End Function
+
         Public Function ApplyDiscount(subTotal As Decimal, promoCode As String) As Decimal
             If String.IsNullOrWhiteSpace(promoCode) Then Return 0D
             Dim discount = Discounts.FirstOrDefault(Function(d) d.Code.Equals(promoCode.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso d.IsActive)
@@ -322,7 +351,7 @@ Namespace Services
             Return Math.Min(subTotal, discount.Value)
         End Function
 
-        Public Sub LogMovement(sku As String, changeQty As Integer, movementType As String, userName As String, notes As String)
+        Public Sub LogMovement(sku As String, changeQty As Integer, movementType As String, userName As String, notes As String, Optional expirationDate As Date? = Nothing, Optional boxCode As String = Nothing)
             Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
             StockMovements.Insert(0, New StockMovement With {
                 .MovementId = NextMovementId,
@@ -332,7 +361,9 @@ Namespace Services
                 .MovementType = movementType,
                 .UserName = userName,
                 .CreatedAt = DateTime.Now,
-                .Notes = notes
+                .Notes = notes,
+                .ExpirationDate = expirationDate,
+                .BoxCode = If(boxCode, String.Empty).Trim()
             })
             NextMovementId += 1
             PersistStockMovements()

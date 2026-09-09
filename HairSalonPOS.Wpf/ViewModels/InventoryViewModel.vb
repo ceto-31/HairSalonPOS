@@ -42,6 +42,9 @@ Namespace ViewModels
         Private _suppressStockPrompt As Boolean
         Private _stockDialogOpen As Boolean
         Private _lastStockCommandUtc As DateTime = DateTime.MinValue
+        Private _movementPeriod As String = "All"
+        Private _movementSelectedDate As Date = Date.Today
+        Private _allMovements As List(Of StockMovement) = New List(Of StockMovement)()
 
         Public Sub New()
             Products = New ObservableCollection(Of ProductItem)()
@@ -65,6 +68,11 @@ Namespace ViewModels
             ChooseImageCommand = New RelayCommand(AddressOf ChooseImage)
             RemoveImageCommand = New RelayCommand(AddressOf RemoveImage)
             ClearLowStockFilterCommand = New RelayCommand(AddressOf ClearLowStockFilter, Function() ShowLowStockOnly)
+            SetMovementAllCommand = New RelayCommand(AddressOf SelectMovementAllPeriod)
+            SetMovementDailyCommand = New RelayCommand(AddressOf SelectMovementDailyPeriod)
+            SetMovementWeeklyCommand = New RelayCommand(AddressOf SelectMovementWeeklyPeriod)
+            SetMovementMonthlyCommand = New RelayCommand(AddressOf SelectMovementMonthlyPeriod)
+            SetMovementYearlyCommand = New RelayCommand(AddressOf SelectMovementYearlyPeriod)
 
             AddHandler _store.SaleCompleted, Sub() LoadAll()
             AddHandler _store.InventoryChanged, Sub() LoadMovements()
@@ -109,6 +117,7 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_activeTab, value) Then
+                    If value = InventoryTabs.MovementLog Then LoadMovements()
                     NotifyTabPropertiesChanged()
                 End If
             End Set
@@ -369,6 +378,60 @@ Namespace ViewModels
         Public Property ChooseImageCommand As RelayCommand
         Public Property RemoveImageCommand As RelayCommand
         Public Property ClearLowStockFilterCommand As RelayCommand
+        Public Property SetMovementAllCommand As RelayCommand
+        Public Property SetMovementDailyCommand As RelayCommand
+        Public Property SetMovementWeeklyCommand As RelayCommand
+        Public Property SetMovementMonthlyCommand As RelayCommand
+        Public Property SetMovementYearlyCommand As RelayCommand
+
+        Public Property MovementPeriod As String
+            Get
+                Return _movementPeriod
+            End Get
+            Set(value As String)
+                ApplyMovementPeriod(value)
+            End Set
+        End Property
+
+        Public Property MovementSelectedDate As Date
+            Get
+                Return _movementSelectedDate
+            End Get
+            Set(value As Date)
+                If Not SetProperty(_movementSelectedDate, value.Date) Then Return
+                SelectMovementDateFilter()
+            End Set
+        End Property
+
+        Public ReadOnly Property IsMovementAll As Boolean
+            Get
+                Return MovementPeriod = "All"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsMovementDaily As Boolean
+            Get
+                Return MovementPeriod = "Daily" AndAlso MovementSelectedDate.Date = Date.Today
+            End Get
+        End Property
+
+        Public ReadOnly Property IsMovementWeekly As Boolean
+            Get
+                Return MovementPeriod = "Weekly"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsMovementMonthly As Boolean
+            Get
+                Return MovementPeriod = "Monthly"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsMovementYearly As Boolean
+            Get
+                Return MovementPeriod = "Yearly"
+            End Get
+        End Property
 
         Public Sub ApplyLowStockFilter()
             ActiveTab = InventoryTabs.Products
@@ -504,10 +567,87 @@ Namespace ViewModels
         End Sub
 
         Public Sub LoadMovements()
-            Movements = New ObservableCollection(Of StockMovement)(_store.StockMovements.OrderByDescending(Function(m) m.CreatedAt))
+            _allMovements = _store.StockMovements.OrderByDescending(Function(m) m.CreatedAt).ToList()
+            ApplyMovementDateFilter()
+        End Sub
+
+        Private Sub ApplyMovementDateFilter()
+            Dim range = GetMovementDateRange()
+            Dim filtered = _allMovements.
+                Where(Function(m) m.CreatedAt.Date >= range.FromDate AndAlso m.CreatedAt.Date < range.ToDateExclusive).
+                ToList()
+            Movements = New ObservableCollection(Of StockMovement)(filtered)
             OnPropertyChanged(NameOf(Movements))
             RefreshProductMovements()
         End Sub
+
+        Private Sub ApplyMovementPeriod(value As String)
+            If Not SetProperty(_movementPeriod, value) Then Return
+            ApplyMovementDateFilter()
+            NotifyMovementPeriodFlags()
+        End Sub
+
+        Private Sub SelectMovementDateFilter()
+            _movementPeriod = "Daily"
+            OnPropertyChanged(NameOf(MovementPeriod))
+            ApplyMovementDateFilter()
+            NotifyMovementPeriodFlags()
+        End Sub
+
+        Private Sub NotifyMovementPeriodFlags()
+            OnPropertyChanged(NameOf(IsMovementAll))
+            OnPropertyChanged(NameOf(IsMovementDaily))
+            OnPropertyChanged(NameOf(IsMovementWeekly))
+            OnPropertyChanged(NameOf(IsMovementMonthly))
+            OnPropertyChanged(NameOf(IsMovementYearly))
+        End Sub
+
+        Private Sub SelectMovementAllPeriod()
+            ApplyMovementPeriod("All")
+        End Sub
+
+        Private Sub SelectMovementDailyPeriod()
+            _movementSelectedDate = Date.Today
+            OnPropertyChanged(NameOf(MovementSelectedDate))
+            ApplyMovementPeriod("Daily")
+        End Sub
+
+        Private Sub SelectMovementWeeklyPeriod()
+            _movementSelectedDate = Date.Today
+            OnPropertyChanged(NameOf(MovementSelectedDate))
+            ApplyMovementPeriod("Weekly")
+        End Sub
+
+        Private Sub SelectMovementMonthlyPeriod()
+            _movementSelectedDate = Date.Today
+            OnPropertyChanged(NameOf(MovementSelectedDate))
+            ApplyMovementPeriod("Monthly")
+        End Sub
+
+        Private Sub SelectMovementYearlyPeriod()
+            _movementSelectedDate = Date.Today
+            OnPropertyChanged(NameOf(MovementSelectedDate))
+            ApplyMovementPeriod("Yearly")
+        End Sub
+
+        Private Function GetMovementDateRange() As (FromDate As Date, ToDateExclusive As Date)
+            Select Case MovementPeriod
+                Case "Weekly"
+                    Dim start = MovementSelectedDate.Date.AddDays(-CInt(MovementSelectedDate.DayOfWeek))
+                    Return (start, start.AddDays(7))
+                Case "Monthly"
+                    Dim start = New Date(MovementSelectedDate.Year, MovementSelectedDate.Month, 1)
+                    Return (start, start.AddMonths(1))
+                Case "Yearly"
+                    Dim start = New Date(MovementSelectedDate.Year, 1, 1)
+                    Return (start, start.AddYears(1))
+                Case "Daily"
+                    Dim day = MovementSelectedDate.Date
+                    Return (day, day.AddDays(1))
+                Case Else
+                    Return (Date.MinValue, Date.MaxValue)
+            End Select
+        End Function
 
         Public Sub LoadAll()
             LoadProducts()
@@ -677,7 +817,7 @@ Namespace ViewModels
                 product.EnsureDefaults()
                 Dim prompt = AppDialogService.PromptStockMovement(product, True, initialQty:=suggestedQty)
                 If prompt Is Nothing Then Return False
-                _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
+                _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes, prompt.ExpirationDate, prompt.BoxCode)
                 StatusMessage = $"Stocked in {prompt.Quantity} of {product.Name}."
                 LoadAll()
                 Return True
@@ -725,7 +865,7 @@ Namespace ViewModels
                     _inventory.ReleaseReserve(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
                     StatusMessage = $"Used {prompt.Quantity} units from reserve stock for {product.Name} (restored to on-hand)."
                 Else
-                    _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
+                    _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes, prompt.ExpirationDate)
                     StatusMessage = $"Added {prompt.Quantity} units to reserve stock for {product.Name}."
                 End If
                 LoadAll()

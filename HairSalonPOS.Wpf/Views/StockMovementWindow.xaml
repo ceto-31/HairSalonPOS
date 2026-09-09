@@ -21,7 +21,7 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               MinWidth="400"
-              MaxWidth="460"
+              MaxWidth="500"
               PreviewMouseDown="DialogContent_PreviewMouseDown">
             <Border Style="{StaticResource FloatingDialogSurface}">
                 <StackPanel>
@@ -82,9 +82,37 @@
                     <TextBlock x:Name="PreviewText" FontSize="13" Margin="0,0,0,14"
                                Foreground="{DynamicResource MutedTextBrush}"/>
 
-                    <TextBlock Text="Reason" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="ReasonBox" Style="{StaticResource ModernComboBox}"
-                              Margin="0,0,0,12"/>
+                    <Grid x:Name="StockInBatchPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Product/Box Code" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BoxCodeBox" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Expiration date" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                            <DatePicker x:Name="StockInExpirationDatePicker"
+                                        Style="{StaticResource LargeDatePicker}"
+                                        SelectedDateFormat="Short"
+                                        HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel x:Name="ExpirationDatePanel" Visibility="Collapsed" Margin="0,0,0,12">
+                        <TextBlock Text="Expiration date" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                        <DatePicker x:Name="ExpirationDatePicker"
+                                    Style="{StaticResource LargeDatePicker}"
+                                    SelectedDateFormat="Short"
+                                    HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ReasonPanel" Margin="0,0,0,12">
+                        <TextBlock Text="Reason" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="ReasonBox" Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
 
                     <TextBlock Text="Notes (optional)" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
                     <TextBox x:Name="NotesBox" Style="{StaticResource ModernTextBox}"

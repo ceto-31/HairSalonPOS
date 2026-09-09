@@ -77,6 +77,7 @@ Namespace ViewModels
             Appointments = New ObservableCollection(Of DashboardAppointmentRow)()
             RecentSales = New ObservableCollection(Of DashboardSaleRow)()
             LowStockAlerts = New ObservableCollection(Of LowStockAlertRow)()
+            ExpirationAlerts = New ObservableCollection(Of ExpirationAlertRow)()
             TopServices = New ObservableCollection(Of DashboardTopServiceRow)()
             CategorySlices = New ObservableCollection(Of DashboardDonutSlice)()
             PaymentMethodSlices = New ObservableCollection(Of DashboardDonutSlice)()
@@ -353,7 +354,13 @@ Namespace ViewModels
 
         Public ReadOnly Property HasInventoryAlerts As Boolean
             Get
-                Return LowStockAlerts IsNot Nothing AndAlso LowStockAlerts.Count > 0
+                Return HasLowStockAlerts OrElse HasExpirationAlerts
+            End Get
+        End Property
+
+        Public ReadOnly Property HasExpirationAlerts As Boolean
+            Get
+                Return ExpirationAlerts IsNot Nothing AndAlso ExpirationAlerts.Count > 0
             End Get
         End Property
 
@@ -452,6 +459,7 @@ Namespace ViewModels
         Public Property Appointments As ObservableCollection(Of DashboardAppointmentRow)
         Public Property RecentSales As ObservableCollection(Of DashboardSaleRow)
         Public Property LowStockAlerts As ObservableCollection(Of LowStockAlertRow)
+        Public Property ExpirationAlerts As ObservableCollection(Of ExpirationAlertRow)
         Public Property TopServices As ObservableCollection(Of DashboardTopServiceRow)
         Public Property CategorySlices As ObservableCollection(Of DashboardDonutSlice)
         Public Property PaymentMethodSlices As ObservableCollection(Of DashboardDonutSlice)
@@ -546,6 +554,11 @@ Namespace ViewModels
                     .ImagePath = p.ImagePath
                 }))
             OnPropertyChanged(NameOf(LowStockAlerts))
+            OnPropertyChanged(NameOf(HasLowStockAlerts))
+
+            ExpirationAlerts = New ObservableCollection(Of ExpirationAlertRow)(_store.GetExpirationAlerts())
+            OnPropertyChanged(NameOf(ExpirationAlerts))
+            OnPropertyChanged(NameOf(HasExpirationAlerts))
             OnPropertyChanged(NameOf(HasInventoryAlerts))
 
             RefreshPeriodVisuals()

@@ -12,10 +12,7 @@ Namespace Views
         Inherits Window
 
         Private Shared ReadOnly DigitsOnly As New Regex("^\d+$")
-        Private Shared ReadOnly StockInReasons As String() = {"Purchase", "Customer return", "Transfer in", "Other"}
         Private Shared ReadOnly StockOutReasons As String() = {"Damaged", "Expired", "Used in service", "Missing", "Return to supplier", "Other"}
-        Private Shared ReadOnly AddReserveStockReasons As String() = {"Building backup stock", "Seasonal buffer", "Safety stock", "Other"}
-        Private Shared ReadOnly UseReserveStockReasons As String() = {"Typhoon / disaster", "Late delivery", "Supplier delay", "Cannot reorder", "Other"}
 
         Private ReadOnly _kind As StockMovementKind
         Private _currentQty As Integer
@@ -29,6 +26,8 @@ Namespace Views
         Public Property ResultReason As String = String.Empty
         Public Property ResultNotes As String = String.Empty
         Public Property ResultIsReleaseReserve As Boolean
+        Public Property ResultExpirationDate As Date?
+        Public Property ResultBoxCode As String = String.Empty
         Public ReadOnly Property LoadSucceeded As Boolean
             Get
                 Return Not _loadFailed
@@ -96,13 +95,18 @@ Namespace Views
                     TitleText.Text = "Stock in"
                     ConfirmButton.Content = "Stock in"
                     ReserveModePanel.Visibility = Visibility.Collapsed
-                    ReasonBox.ItemsSource = StockInReasons
+                    ShowStockInBatchPanel(True)
+                    ShowExpirationDatePanel(False)
+                    ShowReasonPanel(False)
                     Dim accent = TryCast(TryFindResource("LinkStockInBrush"), Brush)
                     If accent IsNot Nothing Then AccentBar.Background = accent
                 Case StockMovementKind.StockOut
                     TitleText.Text = "Stock out"
                     ConfirmButton.Content = "Stock out"
                     ReserveModePanel.Visibility = Visibility.Collapsed
+                    ShowStockInBatchPanel(False)
+                    ShowExpirationDatePanel(False)
+                    ShowReasonPanel(True)
                     ReasonBox.ItemsSource = StockOutReasons
                     Dim accent = TryCast(TryFindResource("LinkDeleteBrush"), Brush)
                     If accent IsNot Nothing Then AccentBar.Background = accent
@@ -124,15 +128,42 @@ Namespace Views
             If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
         End Sub
 
+        Private Sub ShowStockInBatchPanel(show As Boolean)
+            If StockInBatchPanel Is Nothing Then Return
+            StockInBatchPanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+            If show AndAlso StockInExpirationDatePicker IsNot Nothing AndAlso Not StockInExpirationDatePicker.SelectedDate.HasValue Then
+                StockInExpirationDatePicker.SelectedDate = Date.Today.AddYears(1)
+            End If
+            If show AndAlso BoxCodeBox IsNot Nothing Then
+                BoxCodeBox.Text = String.Empty
+            End If
+        End Sub
+
+        Private Sub ShowExpirationDatePanel(show As Boolean)
+            If ExpirationDatePanel Is Nothing Then Return
+            ExpirationDatePanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+            If show AndAlso ExpirationDatePicker IsNot Nothing AndAlso Not ExpirationDatePicker.SelectedDate.HasValue Then
+                ExpirationDatePicker.SelectedDate = Date.Today.AddYears(1)
+            End If
+        End Sub
+
+        Private Sub ShowReasonPanel(show As Boolean)
+            If ReasonPanel Is Nothing Then Return
+            ReasonPanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+        End Sub
+
         Private Sub ApplyReserveStockMode()
             If _isUseReserveStock Then
                 ConfirmButton.Content = "Use reserve stock"
-                ReasonBox.ItemsSource = UseReserveStockReasons
+                ShowStockInBatchPanel(False)
+                ShowExpirationDatePanel(False)
+                ShowReasonPanel(False)
             Else
                 ConfirmButton.Content = "Add to reserve stock"
-                ReasonBox.ItemsSource = AddReserveStockReasons
+                ShowStockInBatchPanel(False)
+                ShowExpirationDatePanel(True)
+                ShowReasonPanel(False)
             End If
-            If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
         End Sub
 
         Private Sub UpdateReserveModeAvailability()
@@ -201,7 +232,12 @@ Namespace Views
         Private Sub DisableFormControls()
             ConfirmButton.IsEnabled = False
             QtyBox.IsEnabled = False
-            ReasonBox.IsEnabled = False
+            If ReasonPanel IsNot Nothing Then ReasonBox.IsEnabled = False
+            If StockInBatchPanel IsNot Nothing Then
+                BoxCodeBox.IsEnabled = False
+                StockInExpirationDatePicker.IsEnabled = False
+            End If
+            If ExpirationDatePanel IsNot Nothing Then ExpirationDatePicker.IsEnabled = False
             NotesBox.IsEnabled = False
         End Sub
 
@@ -339,14 +375,42 @@ Namespace Views
                     End If
             End Select
 
+            If RequiresExpirationDate() Then
+                Dim datePicker = ActiveExpirationDatePicker()
+                If datePicker Is Nothing OrElse Not datePicker.SelectedDate.HasValue Then
+                    ShowError("Select an expiration date.")
+                    datePicker?.Focus()
+                    Return
+                End If
+                ResultExpirationDate = datePicker.SelectedDate.Value.Date
+            Else
+                ResultExpirationDate = Nothing
+            End If
+
+            ResultBoxCode = If(_kind = StockMovementKind.StockIn, If(BoxCodeBox?.Text, String.Empty).Trim(), String.Empty)
+
             ResultQuantity = parsed
-            ResultReason = If(TryCast(ReasonBox.SelectedItem, String), String.Empty)
+            ResultReason = If(UsesReasonField(), If(TryCast(ReasonBox.SelectedItem, String), String.Empty), String.Empty)
             ResultNotes = If(NotesBox.Text, String.Empty).Trim()
             ResultIsReleaseReserve = _isUseReserveStock
             Confirmed = True
             DialogResult = True
             Close()
         End Sub
+
+        Private Function ActiveExpirationDatePicker() As DatePicker
+            If _kind = StockMovementKind.StockIn Then Return StockInExpirationDatePicker
+            Return ExpirationDatePicker
+        End Function
+
+        Private Function RequiresExpirationDate() As Boolean
+            If _kind = StockMovementKind.StockIn Then Return True
+            Return _kind = StockMovementKind.Reserve AndAlso Not _isUseReserveStock
+        End Function
+
+        Private Function UsesReasonField() As Boolean
+            Return _kind = StockMovementKind.StockOut
+        End Function
 
         Private Sub CancelSelection()
             Confirmed = False
