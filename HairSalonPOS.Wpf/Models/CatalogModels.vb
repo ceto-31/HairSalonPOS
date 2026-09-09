@@ -3,6 +3,7 @@ Imports System.Linq
 Imports System.Text.Json.Serialization
 Imports CommunityToolkit.Mvvm.ComponentModel
 Imports HairSalonPOS.Wpf.Helpers
+Imports HairSalonPOS.Wpf.Services
 
 Namespace Models
     Public Class UserAccount
@@ -162,8 +163,6 @@ Namespace Models
     Public Class ProductItem
         Inherits ObservableObject
 
-        Private _stockOnHand As Integer
-        Private _reservedQty As Integer
         Private _imagePath As String = String.Empty
 
         Public Property Sku As String = String.Empty
@@ -188,6 +187,14 @@ Namespace Models
         Public Property SubCategory As String = String.Empty
         Public Property IsActive As Boolean = True
         Public Property ExpirationDate As Date?
+
+        ''' <summary>How many pieces come in one box/case for this product. 1 = stocked as pieces only.</summary>
+        Public Property UnitsPerBox As Integer = 1
+        Public Property UnitLabel As String = "pc"
+        Public Property BoxLabel As String = "box"
+        ''' <summary>Optional per-product override of the global expiration warning window.</summary>
+        Public Property ExpirationWarningDays As Integer?
+
         Public Property ImagePath As String
             Get
                 Return _imagePath
@@ -212,27 +219,29 @@ Namespace Models
             End Get
         End Property
 
-        Public Property StockOnHand As Integer
+        ''' <summary>Legacy JSON field — migrated into StockBatch on first run; not used for reads after migration.</summary>
+        <JsonPropertyName("StockOnHand")>
+        Public Property StockOnHandLegacy As Integer
+
+        ''' <summary>Legacy JSON field — migrated into StockBatch on first run; not used for reads after migration.</summary>
+        <JsonPropertyName("ReservedQty")>
+        Public Property ReservedQtyLegacy As Integer
+
+        <JsonIgnore>
+        Public ReadOnly Property StockOnHand As Integer
             Get
-                Return _stockOnHand
+                If String.IsNullOrWhiteSpace(Sku) Then Return Math.Max(0, StockOnHandLegacy)
+                Return InMemoryDataStore.Instance.StockOnHandForSku(Sku)
             End Get
-            Set(value As Integer)
-                If SetProperty(_stockOnHand, value) Then
-                    NotifyStockPresentationChanged()
-                End If
-            End Set
         End Property
 
         ''' <summary>Reserve stock — emergency backup separate from daily on-hand; used only with confirmation at checkout.</summary>
-        Public Property ReservedQty As Integer
+        <JsonIgnore>
+        Public ReadOnly Property ReservedQty As Integer
             Get
-                Return _reservedQty
+                If String.IsNullOrWhiteSpace(Sku) Then Return Math.Max(0, ReservedQtyLegacy)
+                Return InMemoryDataStore.Instance.ReservedQtyForSku(Sku)
             End Get
-            Set(value As Integer)
-                If SetProperty(_reservedQty, Math.Max(0, value)) Then
-                    NotifyStockPresentationChanged()
-                End If
-            End Set
         End Property
 
         <JsonIgnore>
@@ -251,24 +260,28 @@ Namespace Models
         End Property
 
         ''' <summary>Legacy flag: true when on hand is at or below reorder (includes Out).</summary>
+        <JsonIgnore>
         Public ReadOnly Property IsLowStock As Boolean
             Get
                 Return StockOnHand <= ReorderLevel
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property IsOutOfStock As Boolean
             Get
                 Return StockOnHand <= 0
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property IsStockLow As Boolean
             Get
                 Return StockOnHand > 0 AndAlso StockOnHand <= ReorderLevel
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property IsStockOk As Boolean
             Get
                 Return StockOnHand > ReorderLevel
@@ -276,6 +289,7 @@ Namespace Models
         End Property
 
         ''' <summary>OK, Low, or Out — used for pills and styling.</summary>
+        <JsonIgnore>
         Public ReadOnly Property StockStatus As String
             Get
                 If IsOutOfStock Then Return "Out"
@@ -284,12 +298,14 @@ Namespace Models
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property Status As String
             Get
                 Return StockStatus
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property StockShortfall As Integer
             Get
                 If StockOnHand >= ReorderLevel Then Return 0
@@ -297,6 +313,7 @@ Namespace Models
             End Get
         End Property
 
+        <JsonIgnore>
         Public ReadOnly Property SuggestedOrderQty As Integer
             Get
                 Return Math.Max(1, StockShortfall)
@@ -337,6 +354,12 @@ Namespace Models
             End Get
         End Property
 
+        Public Sub RefreshStockPresentation()
+            OnPropertyChanged(NameOf(StockOnHand))
+            OnPropertyChanged(NameOf(ReservedQty))
+            NotifyStockPresentationChanged()
+        End Sub
+
         Private Sub NotifyStockPresentationChanged()
             OnPropertyChanged(NameOf(AvailableQty))
             OnPropertyChanged(NameOf(StockSummaryLabel))
@@ -362,8 +385,11 @@ Namespace Models
             SubCategory = If(SubCategory, String.Empty).Trim()
             ImagePath = If(ImagePath, String.Empty).Trim()
             If ReorderLevel <= 0 Then ReorderLevel = 10
-            If StockOnHand < 0 Then StockOnHand = 0
-            If ReservedQty < 0 Then ReservedQty = 0
+            If UnitsPerBox <= 0 Then UnitsPerBox = 1
+            If UnitLabel Is Nothing Then UnitLabel = "pc"
+            If BoxLabel Is Nothing Then BoxLabel = "box"
+            If StockOnHandLegacy < 0 Then StockOnHandLegacy = 0
+            If ReservedQtyLegacy < 0 Then ReservedQtyLegacy = 0
         End Sub
     End Class
 

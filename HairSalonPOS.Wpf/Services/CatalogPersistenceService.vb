@@ -4,12 +4,22 @@ Imports HairSalonPOS.Wpf.Models
 
 Namespace Services
     Public Class CatalogFileData
+        ''' <summary>0 or absent = pre-batch-tracking catalog; 2 = legacy stock migrated to StockBatch lots.</summary>
+        Public Property SchemaVersion As Integer
         Public Property Services As New List(Of ServiceItem)
         Public Property Products As New List(Of ProductItem)
         Public Property Categories As New List(Of CatalogCategoryNode)
     End Class
 
     Public Class CatalogPersistenceService
+        ''' <summary>Catalogs below this version receive a one-time OPENING-BAL batch migration.</summary>
+        Public Const BatchTrackingSchemaVersion As Integer = 2
+
+        Private Shared ReadOnly JsonOptions As JsonSerializerOptions = New JsonSerializerOptions With {
+            .WriteIndented = True,
+            .IgnoreReadOnlyProperties = True
+        }
+
         Private Shared ReadOnly _instance As New Lazy(Of CatalogPersistenceService)(Function() New CatalogPersistenceService())
         Private ReadOnly _catalogPath As String
 
@@ -28,19 +38,23 @@ Namespace Services
         Public Function Load() As CatalogFileData
             If Not File.Exists(_catalogPath) Then Return Nothing
             Try
-                Return JsonSerializer.Deserialize(Of CatalogFileData)(File.ReadAllText(_catalogPath))
+                Return JsonSerializer.Deserialize(Of CatalogFileData)(File.ReadAllText(_catalogPath), JsonOptions)
             Catch
                 Return Nothing
             End Try
         End Function
 
-        Public Sub Save(services As IEnumerable(Of ServiceItem), products As IEnumerable(Of ProductItem), categories As IEnumerable(Of CatalogCategoryNode))
+        Public Sub Save(services As IEnumerable(Of ServiceItem),
+                        products As IEnumerable(Of ProductItem),
+                        categories As IEnumerable(Of CatalogCategoryNode),
+                        schemaVersion As Integer)
             Dim data As New CatalogFileData With {
+                .SchemaVersion = schemaVersion,
                 .Services = services.ToList(),
                 .Products = products.ToList(),
                 .Categories = categories.ToList()
             }
-            File.WriteAllText(_catalogPath, JsonSerializer.Serialize(data, New JsonSerializerOptions With {.WriteIndented = True}))
+            File.WriteAllText(_catalogPath, JsonSerializer.Serialize(data, JsonOptions))
         End Sub
     End Class
 End Namespace

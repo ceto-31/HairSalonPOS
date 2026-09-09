@@ -404,6 +404,62 @@ Namespace Models
         End Property
     End Class
 
+    ''' <summary>
+    ''' One received lot of a product. StockOnHand/ReservedQty on ProductItem become
+    ''' computed sums over these instead of standalone fields.
+    ''' </summary>
+    Public Class StockBatch
+        Public Property BatchId As Integer
+        Public Property Sku As String = String.Empty
+        Public Property BoxCode As String = String.Empty
+        Public Property ExpirationDate As Date?
+        Public Property ReceivedDate As Date = Date.Today
+
+        ''' <summary>Conversion snapshot at receipt time so later UnitsPerBox changes don't rewrite old batches.</summary>
+        Public Property UnitsPerBoxAtReceipt As Integer = 1
+        Public Property BoxesReceived As Integer
+        Public Property QuantityReceived As Integer
+        Public Property QuantityRemaining As Integer
+
+        Public Property IsReserve As Boolean
+        Public Property SourceMovementType As String = String.Empty
+
+        ''' <summary>When set, expiration alerts for this batch are snoozed until this date passes.</summary>
+        Public Property AcknowledgedUntil As Date?
+
+        Public ReadOnly Property IsDepleted As Boolean
+            Get
+                Return QuantityRemaining <= 0
+            End Get
+        End Property
+
+        Public ReadOnly Property IsExpired As Boolean
+            Get
+                Return ExpirationDate.HasValue AndAlso ExpirationDate.Value.Date < Date.Today
+            End Get
+        End Property
+    End Class
+
+    Public Class ExpiredBatchBlockedException
+        Inherits InvalidOperationException
+
+        Public ReadOnly Property Batch As StockBatch
+        Public ReadOnly Property ProductName As String
+
+        Public Sub New(batch As StockBatch, productName As String)
+            MyBase.New(BuildMessage(batch, productName))
+            Me.Batch = batch
+            Me.ProductName = productName
+        End Sub
+
+        Private Shared Function BuildMessage(batch As StockBatch, productName As String) As String
+            Dim lot = If(String.IsNullOrWhiteSpace(batch.BoxCode), "—", batch.BoxCode.Trim())
+            Dim expiredOn = If(batch.ExpirationDate.HasValue, batch.ExpirationDate.Value.ToString("MMMM d, yyyy"), "unknown date")
+            Return $"Oldest available batch for {productName} (Lot {lot}) expired on {expiredOn}. " &
+                   "Expired stock should normally be stock-out'd as Damaged/Expired instead of sold."
+        End Function
+    End Class
+
     Public Class CatalogTile
         Public Property Sku As String = String.Empty
         Public Property Name As String = String.Empty
@@ -554,6 +610,8 @@ Namespace Models
         Public Property ExpirationDate As Date
         Public Property BoxCode As String = String.Empty
         Public Property ImagePath As String = String.Empty
+        Public Property QuantityRemaining As Integer
+        Public Property IsReserve As Boolean
 
         Public ReadOnly Property HasImage As Boolean
             Get

@@ -19,10 +19,13 @@ Namespace Services
         Public ReadOnly Property Discounts As New List(Of DiscountItem)
         Public ReadOnly Property Appointments As New List(Of AppointmentItem)
         Public ReadOnly Property StockMovements As New List(Of StockMovement)
+        Public ReadOnly Property StockBatches As New List(Of StockBatch)
         Public ReadOnly Property Sales As New List(Of SaleRecord)
 
         Public Property NextSaleId As Integer = 8
         Public Property NextMovementId As Integer = 1
+        Private _nextBatchId As Integer = 1
+        Private _catalogSchemaVersion As Integer
         Public Const TaxRate As Decimal = 0.12D
 
         Public Event SaleCompleted As EventHandler
@@ -50,6 +53,7 @@ Namespace Services
 
             Dim catalog = CatalogPersistenceService.Instance.Load()
             If catalog IsNot Nothing Then
+                _catalogSchemaVersion = catalog.SchemaVersion
                 If catalog.Services IsNot Nothing Then Services.AddRange(catalog.Services)
                 If catalog.Products IsNot Nothing Then Products.AddRange(catalog.Products)
                 If catalog.Categories IsNot Nothing AndAlso catalog.Categories.Count > 0 Then
@@ -65,17 +69,16 @@ Namespace Services
             ' Do not re-seed missing SKUs on later startups — that would undo intentional deletes.
             If catalog Is Nothing Then
                 Products.AddRange({
-                    New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 50, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
-                    New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHand = 45, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
-                    New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 7, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
-                    New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHand = 25, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
-                    New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHand = 40, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"}
+                    New ProductItem With {.Sku = "P001", .Name = "Shampoo 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHandLegacy = 50, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                    New ProductItem With {.Sku = "P002", .Name = "Conditioner 500ml", .Brand = "Dove", .Price = 250D, .Cost = 120D, .StockOnHandLegacy = 45, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"},
+                    New ProductItem With {.Sku = "P003", .Name = "Hair Color Black", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHandLegacy = 7, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                    New ProductItem With {.Sku = "P004", .Name = "Hair Color Brown", .Brand = "Revlon", .Price = 350D, .Cost = 180D, .StockOnHandLegacy = 25, .ReorderLevel = 8, .Category = "HAIR SERVICES", .SubCategory = "Hair Color"},
+                    New ProductItem With {.Sku = "P005", .Name = "Hair Serum", .Brand = "Vitress", .Price = 180D, .Cost = 90D, .StockOnHandLegacy = 40, .ReorderLevel = 10, .Category = "HAIR SERVICES", .SubCategory = "Hair Treatment"}
                 })
             End If
 
             BackfillProductCategories()
             BackfillServiceDurations()
-            PersistCatalog()
 
             Dim persistedStaff = StaffPersistenceService.Instance.Load()
             If persistedStaff IsNot Nothing Then
@@ -118,9 +121,18 @@ Namespace Services
             RefreshAppointmentStatuses()
 
             LoadStockMovements()
+            LoadStockBatches()
+            MigrateLegacyStockToBatchesIfNeeded()
+            PersistCatalog()
 
             SeedSampleSales()
         End Sub
+
+        Public Function NextBatchId() As Integer
+            Dim id = _nextBatchId
+            _nextBatchId += 1
+            Return id
+        End Function
 
         Private Sub LoadStockMovements()
             Dim persisted = StockMovementPersistenceService.Instance.Load()
@@ -132,12 +144,22 @@ Namespace Services
             End If
         End Sub
 
+        Private Sub LoadStockBatches()
+            Dim persisted = StockBatchPersistenceService.Instance.Load()
+            If persisted IsNot Nothing Then
+                StockBatches.AddRange(persisted)
+                If StockBatches.Count > 0 Then
+                    _nextBatchId = StockBatches.Max(Function(b) b.BatchId) + 1
+                End If
+            End If
+        End Sub
+
         Public Sub PersistUsers()
             UserPersistenceService.Instance.SaveUsers(Users)
         End Sub
 
         Public Sub PersistCatalog()
-            CatalogPersistenceService.Instance.Save(Services, Products, Categories)
+            CatalogPersistenceService.Instance.Save(Services, Products, Categories, _catalogSchemaVersion)
         End Sub
 
         Public Sub PersistAppointments()
@@ -155,6 +177,198 @@ Namespace Services
         Public Sub PersistStockMovements()
             StockMovementPersistenceService.Instance.Save(StockMovements)
         End Sub
+
+        Public Sub PersistStockBatches()
+            StockBatchPersistenceService.Instance.Save(StockBatches)
+        End Sub
+
+        Public Function StockOnHandForSku(sku As String) As Integer
+            Return StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso Not b.IsReserve).
+                Sum(Function(b) b.QuantityRemaining)
+        End Function
+
+        Public Function ReservedQtyForSku(sku As String) As Integer
+            Return StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve).
+                Sum(Function(b) b.QuantityRemaining)
+        End Function
+
+        Public Sub NotifyProductStockChanged(sku As String)
+            Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
+            product?.RefreshStockPresentation()
+        End Sub
+
+        Public Function AddStockBatch(sku As String,
+                                      quantityPieces As Integer,
+                                      isReserve As Boolean,
+                                      sourceMovementType As String,
+                                      Optional expirationDate As Date? = Nothing,
+                                      Optional boxCode As String = Nothing,
+                                      Optional boxesReceived As Integer = 0) As StockBatch
+            If quantityPieces <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(quantityPieces))
+            Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
+            product?.EnsureDefaults()
+            Dim unitsPerBox = If(product Is Nothing OrElse product.UnitsPerBox <= 0, 1, product.UnitsPerBox)
+
+            Dim batch As New StockBatch With {
+                .BatchId = NextBatchId(),
+                .Sku = sku,
+                .BoxCode = If(boxCode, String.Empty).Trim(),
+                .ExpirationDate = expirationDate,
+                .ReceivedDate = Date.Today,
+                .UnitsPerBoxAtReceipt = unitsPerBox,
+                .BoxesReceived = Math.Max(0, boxesReceived),
+                .QuantityReceived = quantityPieces,
+                .QuantityRemaining = quantityPieces,
+                .IsReserve = isReserve,
+                .SourceMovementType = sourceMovementType
+            }
+            StockBatches.Add(batch)
+            PersistStockBatches()
+            NotifyProductStockChanged(sku)
+            RaiseEvent InventoryChanged(Me, EventArgs.Empty)
+            Return batch
+        End Function
+
+        ''' <summary>Deducts qty pieces from a SKU's batches, earliest expiration first (nulls last), then earliest received.</summary>
+        Public Function DeductFefo(sku As String, qty As Integer, allowReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
+            Dim plan = PlanFefoDeduction(sku, qty, allowReserve)
+            Dim plannedTotal = plan.Sum(Function(t) t.Taken)
+            If plannedTotal < qty Then
+                Throw New InvalidOperationException($"Insufficient stock for {sku}: short by {qty - plannedTotal}.")
+            End If
+
+            For Each item In plan
+                item.Batch.QuantityRemaining -= item.Taken
+            Next
+
+            PersistStockBatches()
+            NotifyProductStockChanged(sku)
+            RaiseEvent InventoryChanged(Me, EventArgs.Empty)
+            Return plan
+        End Function
+
+        Private Function PlanFefoDeduction(sku As String, qty As Integer, allowReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
+            Dim result As New List(Of (StockBatch, Integer))
+            Dim remaining = qty
+
+            Dim pools As New List(Of Boolean) From {False}
+            If allowReserve Then pools.Add(True)
+
+            For Each isReservePool In pools
+                If remaining <= 0 Then Exit For
+                Dim planned = PlanFromPool(sku, remaining, isReservePool)
+                result.AddRange(planned)
+                remaining -= planned.Sum(Function(t) t.Taken)
+            Next
+
+            Return result
+        End Function
+
+        Private Function PlanFromPool(sku As String, qty As Integer, isReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
+            Dim result As New List(Of (StockBatch, Integer))
+            Dim remaining = qty
+
+            Dim batches = StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve = isReserve AndAlso b.QuantityRemaining > 0).
+                OrderBy(Function(b) If(b.ExpirationDate.HasValue, b.ExpirationDate.Value, Date.MaxValue)).
+                ThenBy(Function(b) b.ReceivedDate).
+                ToList()
+
+            For Each batch In batches
+                If remaining <= 0 Then Exit For
+                Dim take = Math.Min(batch.QuantityRemaining, remaining)
+                remaining -= take
+                result.Add((batch, take))
+            Next
+
+            Return result
+        End Function
+
+        Public Function PeekNextFefoBatch(sku As String, isReserve As Boolean) As StockBatch
+            Return StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve = isReserve AndAlso b.QuantityRemaining > 0).
+                OrderBy(Function(b) If(b.ExpirationDate.HasValue, b.ExpirationDate.Value, Date.MaxValue)).
+                ThenBy(Function(b) b.ReceivedDate).
+                FirstOrDefault()
+        End Function
+
+        Public Function DeductFromPool(sku As String, qty As Integer, isReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
+            Dim result As New List(Of (StockBatch, Integer))
+            Dim remaining = qty
+
+            Dim batches = StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve = isReserve AndAlso b.QuantityRemaining > 0).
+                OrderBy(Function(b) If(b.ExpirationDate.HasValue, b.ExpirationDate.Value, Date.MaxValue)).
+                ThenBy(Function(b) b.ReceivedDate).
+                ToList()
+
+            For Each batch In batches
+                If remaining <= 0 Then Exit For
+                Dim take = Math.Min(batch.QuantityRemaining, remaining)
+                batch.QuantityRemaining -= take
+                remaining -= take
+                result.Add((batch, take))
+            Next
+
+            Return result
+        End Function
+
+        Private Sub MigrateLegacyStockToBatchesIfNeeded()
+            If _catalogSchemaVersion >= CatalogPersistenceService.BatchTrackingSchemaVersion Then Return
+
+            Dim openingBalances As New List(Of StockBatch)
+
+            For Each product In Products
+                product.EnsureDefaults()
+                If String.IsNullOrWhiteSpace(product.Sku) Then Continue For
+
+                ' A batch already exists for this SKU, so an earlier attempt persisted it before
+                ' failing. Skipping keeps a retry from adding a second opening balance.
+                If StockBatches.Any(Function(b) b.Sku = product.Sku) Then Continue For
+
+                If product.StockOnHandLegacy > 0 Then
+                    openingBalances.Add(BuildOpeningBalanceBatch(product, product.StockOnHandLegacy, False))
+                End If
+
+                If product.ReservedQtyLegacy > 0 Then
+                    openingBalances.Add(BuildOpeningBalanceBatch(product, product.ReservedQtyLegacy, True))
+                End If
+            Next
+
+            ' Nothing above touches disk, so a failure mid-scan leaves both files at their
+            ' pre-migration state and the next launch retries from scratch.
+            StockBatches.AddRange(openingBalances)
+            For Each product In Products
+                product.StockOnHandLegacy = 0
+                product.ReservedQtyLegacy = 0
+            Next
+            _catalogSchemaVersion = CatalogPersistenceService.BatchTrackingSchemaVersion
+
+            PersistStockBatches()
+            PersistCatalog()
+
+            For Each sku In openingBalances.Select(Function(b) b.Sku).Distinct()
+                NotifyProductStockChanged(sku)
+            Next
+            If openingBalances.Count > 0 Then RaiseEvent InventoryChanged(Me, EventArgs.Empty)
+        End Sub
+
+        Private Function BuildOpeningBalanceBatch(product As ProductItem, quantityPieces As Integer, isReserve As Boolean) As StockBatch
+            Return New StockBatch With {
+                .BatchId = NextBatchId(),
+                .Sku = product.Sku,
+                .BoxCode = "OPENING-BAL",
+                .ExpirationDate = product.ExpirationDate,
+                .ReceivedDate = Date.Today,
+                .UnitsPerBoxAtReceipt = Math.Max(1, product.UnitsPerBox),
+                .QuantityReceived = quantityPieces,
+                .QuantityRemaining = quantityPieces,
+                .IsReserve = isReserve,
+                .SourceMovementType = "Migration"
+            }
+        End Function
 
         Private Sub BackfillProductCategories()
             Const defaultCategory = "HAIR SERVICES"
@@ -311,35 +525,6 @@ Namespace Services
 
         Public Function GetLowStockCount() As Integer
             Return Products.Where(Function(p) p.StockOnHand <= p.ReorderLevel).Count()
-        End Function
-
-        Public Function GetExpirationAlerts(Optional warningDays As Integer = 7) As List(Of ExpirationAlertRow)
-            Dim today = Date.Today
-            Dim cutoff = today.AddDays(warningDays)
-            Dim productLookup = Products.ToDictionary(Function(p) p.Sku, StringComparer.OrdinalIgnoreCase)
-
-            Return StockMovements.
-                Where(Function(m) m.MovementType = "Stock In" AndAlso m.ExpirationDate.HasValue).
-                Where(Function(m) m.ExpirationDate.Value.Date <= cutoff).
-                GroupBy(Function(m) $"{m.Sku}|{m.ExpirationDate.Value.Date:yyyyMMdd}|{If(m.BoxCode, String.Empty).Trim()}").
-                Select(Function(g) g.OrderByDescending(Function(m) m.CreatedAt).First()).
-                Where(Function(m)
-                          Dim product As ProductItem = Nothing
-                          Return productLookup.TryGetValue(m.Sku, product) AndAlso product.IsActive AndAlso product.StockOnHand > 0
-                      End Function).
-                OrderBy(Function(m) m.ExpirationDate.Value).
-                ThenBy(Function(m) m.ProductName).
-                Select(Function(m)
-                           Dim product = productLookup(m.Sku)
-                           Return New ExpirationAlertRow With {
-                               .Sku = m.Sku,
-                               .ProductName = product.Name,
-                               .ExpirationDate = m.ExpirationDate.Value.Date,
-                               .BoxCode = m.BoxCode,
-                               .ImagePath = product.ImagePath
-                           }
-                       End Function).
-                ToList()
         End Function
 
         Public Function ApplyDiscount(subTotal As Decimal, promoCode As String) As Decimal

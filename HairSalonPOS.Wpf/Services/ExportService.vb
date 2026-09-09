@@ -158,26 +158,28 @@ Namespace Services
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
         Private ReadOnly _images As CatalogImageService = CatalogImageService.Instance
 
-        Public Function SaveProduct(product As ProductItem, isNew As Boolean, userName As String) As ProductItem
+        Public Function SaveProduct(product As ProductItem, isNew As Boolean, userName As String, targetStockQty As Integer) As ProductItem
             RequireAdmin()
             If isNew Then
                 If _store.Products.Any(Function(p) p.Sku.Equals(product.Sku, StringComparison.OrdinalIgnoreCase)) Then
                     Throw New InvalidOperationException("SKU already exists.")
                 End If
                 _store.Products.Add(product)
-                _store.LogMovement(product.Sku, product.StockOnHand, "Restock", userName, "Initial stock")
+                If targetStockQty > 0 Then
+                    _store.AddStockBatch(product.Sku, targetStockQty, False, "Restock")
+                    _store.LogMovement(product.Sku, targetStockQty, "Restock", userName, "Initial stock")
+                End If
             Else
                 Dim existing = _store.Products.First(Function(p) p.Sku = product.Sku)
-                Dim delta = product.StockOnHand - existing.StockOnHand
+                Dim delta = targetStockQty - existing.StockOnHand
                 existing.Name = product.Name
                 existing.Brand = product.Brand
                 existing.Price = product.Price
                 existing.ReorderLevel = product.ReorderLevel
-                existing.StockOnHand = product.StockOnHand
                 existing.Category = product.Category
                 existing.SubCategory = product.SubCategory
                 existing.ImagePath = If(product.ImagePath, String.Empty)
-                If delta <> 0 Then _store.LogMovement(product.Sku, delta, "Adjustment", userName, "Manual edit")
+                ApplyStockDelta(existing.Sku, delta, userName, "Manual edit")
             End If
             _store.PersistCatalog()
             Return product
@@ -187,18 +189,21 @@ Namespace Services
             RequireAdmin()
             Dim product = _store.Products.First(Function(p) p.Sku = sku)
             Dim delta = newQty - product.StockOnHand
-            product.StockOnHand = newQty
-            _store.LogMovement(sku, delta, "Adjustment", userName, "Inline qty edit")
+            ApplyStockDelta(sku, delta, userName, "Inline qty edit")
             _store.PersistCatalog()
         End Sub
 
-        Public Sub StockIn(sku As String, quantity As Integer, userName As String, notes As String, Optional expirationDate As Date? = Nothing, Optional boxCode As String = Nothing)
+        Public Sub StockIn(sku As String, quantity As Integer, userName As String, notes As String,
+                           Optional expirationDate As Date? = Nothing,
+                           Optional boxCode As String = Nothing,
+                           Optional boxesReceived As Integer = 0)
             RequireAdmin()
-            If quantity <= 0 Then Throw New InvalidOperationException("Stock in quantity must be positive.")
             Dim product = _store.Products.First(Function(p) p.Sku = sku)
-            product.StockOnHand += quantity
+            Dim quantityPieces = ResolveQuantityPieces(product, quantity, boxesReceived)
+            If quantityPieces <= 0 Then Throw New InvalidOperationException("Stock in quantity must be positive.")
+            _store.AddStockBatch(sku, quantityPieces, False, "Stock In", expirationDate, boxCode, boxesReceived)
             ApplyProductExpiration(product, expirationDate)
-            _store.LogMovement(sku, quantity, "Stock In", userName, If(notes, String.Empty), expirationDate, boxCode)
+            _store.LogMovement(sku, quantityPieces, "Stock In", userName, If(notes, String.Empty), expirationDate, boxCode)
             _store.PersistCatalog()
         End Sub
 
@@ -209,22 +214,27 @@ Namespace Services
             If quantity > product.StockOnHand Then
                 Throw New InvalidOperationException($"Insufficient stock for {product.Name}. Available: {product.StockOnHand}")
             End If
-            product.StockOnHand -= quantity
-            _store.LogMovement(sku, -quantity, "Stock Out", userName, If(notes, String.Empty))
+            For Each taken In _store.DeductFefo(sku, quantity, allowReserve:=False)
+                _store.LogMovement(sku, -taken.Taken, "Stock Out", userName, If(notes, String.Empty),
+                                    taken.Batch.ExpirationDate, taken.Batch.BoxCode)
+            Next
             _store.PersistCatalog()
         End Sub
 
         ''' <summary>Add units to the reserve stock pool (independent from on-hand).</summary>
-        Public Sub ReserveStock(sku As String, quantity As Integer, userName As String, notes As String, Optional expirationDate As Date? = Nothing)
+        Public Sub ReserveStock(sku As String, quantity As Integer, userName As String, notes As String,
+                                Optional expirationDate As Date? = Nothing,
+                                Optional boxesReceived As Integer = 0)
             RequireAdmin()
-            If quantity <= 0 Then Throw New InvalidOperationException("Reserve quantity must be positive.")
             Dim product = _store.Products.First(Function(p) p.Sku = sku)
             product.EnsureDefaults()
-            product.ReservedQty += quantity
+            Dim quantityPieces = ResolveQuantityPieces(product, quantity, boxesReceived)
+            If quantityPieces <= 0 Then Throw New InvalidOperationException("Reserve quantity must be positive.")
+            _store.AddStockBatch(sku, quantityPieces, True, "Add Reserve Stock", expirationDate, boxesReceived:=boxesReceived)
             ApplyProductExpiration(product, expirationDate)
-            Dim detail = $"Reserve stock +{quantity}"
+            Dim detail = $"Reserve stock +{quantityPieces}"
             If Not String.IsNullOrWhiteSpace(notes) Then detail &= $" — {notes.Trim()}"
-            _store.LogMovement(sku, quantity, "Add Reserve Stock", userName, detail, expirationDate)
+            _store.LogMovement(sku, quantityPieces, "Add Reserve Stock", userName, detail, expirationDate)
             _store.PersistCatalog()
         End Sub
 
@@ -242,12 +252,36 @@ Namespace Services
                 Throw New InvalidOperationException(
                     $"Cannot use {quantity} from reserve stock for {product.Name}. Only {product.ReservedQty} in reserve.")
             End If
-            product.ReservedQty -= quantity
-            product.StockOnHand += quantity
+
+            Dim taken = _store.DeductFromPool(sku, quantity, isReserve:=True)
+            If taken.Sum(Function(t) t.Taken) < quantity Then
+                Throw New InvalidOperationException(
+                    $"Cannot use {quantity} from reserve stock for {product.Name}. Only {product.ReservedQty} in reserve.")
+            End If
+
+            For Each item In taken
+                _store.AddStockBatch(sku, item.Taken, False, "Use Reserve Stock",
+                                     item.Batch.ExpirationDate, item.Batch.BoxCode)
+            Next
+            _store.PersistStockBatches()
+
             Dim detail = $"Reserve stock -{quantity} (restored to on-hand)"
             If Not String.IsNullOrWhiteSpace(notes) Then detail &= $" — {notes.Trim()}"
             _store.LogMovement(sku, quantity, "Use Reserve Stock", userName, detail)
             _store.PersistCatalog()
+        End Sub
+
+        Private Sub ApplyStockDelta(sku As String, delta As Integer, userName As String, notes As String)
+            If delta = 0 Then Return
+            If delta > 0 Then
+                _store.AddStockBatch(sku, delta, False, "Adjustment")
+                _store.LogMovement(sku, delta, "Adjustment", userName, notes)
+            Else
+                For Each taken In _store.DeductFefo(sku, -delta, allowReserve:=False)
+                    _store.LogMovement(sku, -taken.Taken, "Adjustment", userName, notes,
+                                        taken.Batch.ExpirationDate, taken.Batch.BoxCode)
+                Next
+            End If
         End Sub
 
         Public Sub DeleteProduct(product As ProductItem)
@@ -257,6 +291,15 @@ Namespace Services
             _store.Products.Remove(product)
             _store.PersistCatalog()
         End Sub
+
+        Private Shared Function ResolveQuantityPieces(product As ProductItem, quantity As Integer, boxesReceived As Integer) As Integer
+            If boxesReceived > 0 Then
+                product?.EnsureDefaults()
+                Dim unitsPerBox = If(product Is Nothing OrElse product.UnitsPerBox <= 0, 1, product.UnitsPerBox)
+                Return boxesReceived * unitsPerBox
+            End If
+            Return quantity
+        End Function
 
         Private Shared Sub ApplyProductExpiration(product As ProductItem, expirationDate As Date?)
             If product Is Nothing OrElse Not expirationDate.HasValue Then Return

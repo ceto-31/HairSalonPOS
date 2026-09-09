@@ -283,7 +283,6 @@ Namespace ViewModels
                     .Cost = 0D,
                     .Category = node.Name,
                     .SubCategory = subCat,
-                    .StockOnHand = 0,
                     .ReorderLevel = 10,
                     .IsActive = True,
                     .ImagePath = If(imagePath, String.Empty)
