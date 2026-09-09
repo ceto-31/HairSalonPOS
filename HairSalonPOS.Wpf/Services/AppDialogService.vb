@@ -186,7 +186,9 @@ Namespace Services
                 Return New StockMovementPromptResult With {
                     .Quantity = dialog.ResultQuantity,
                     .Reason = dialog.ResultReason,
-                    .Notes = dialog.ResultNotes
+                    .Notes = dialog.ResultNotes,
+                    .ExpirationDate = dialog.ResultExpirationDate,
+                    .BoxCode = dialog.ResultBoxCode
                 }
             End If
             Return Nothing
@@ -239,7 +241,9 @@ Namespace Services
                     .Quantity = dialog.ResultQuantity,
                     .Reason = dialog.ResultReason,
                     .Notes = dialog.ResultNotes,
-                    .IsReleaseReserve = dialog.ResultIsReleaseReserve
+                    .IsReleaseReserve = dialog.ResultIsReleaseReserve,
+                    .ExpirationDate = dialog.ResultExpirationDate,
+                    .BoxCode = dialog.ResultBoxCode
                 }
             End If
             Return Nothing
@@ -282,6 +286,81 @@ Namespace Services
             If result = True AndAlso dialog.Confirmed Then
                 Return dialog.Selections
             End If
+            Return Nothing
+        End Function
+
+        Public Function PromptFixedConsumablesSelection(products As IEnumerable(Of Models.ProductItem),
+                                                        currentOptions As IEnumerable(Of Models.FixedConsumableOption),
+                                                        Optional owner As Window = Nothing) As List(Of Models.FixedConsumableOption)
+            Return ShowConsumablesSelectionDialog(
+                Views.ServiceConsumablesSelectionMode.Fixed,
+                products,
+                currentOptions,
+                Nothing,
+                1D,
+                owner)?.ResultFixedOptions
+        End Function
+
+        Public Function PromptPickOneConsumablesSelection(products As IEnumerable(Of Models.ProductItem),
+                                                          currentOptions As IEnumerable(Of Models.PickOneProductOption),
+                                                          defaultQty As Decimal,
+                                                          Optional owner As Window = Nothing) As ServicePickOneConsumablesEditResult
+            Dim dialog = ShowConsumablesSelectionDialog(
+                Views.ServiceConsumablesSelectionMode.PickOne,
+                products,
+                Nothing,
+                currentOptions,
+                defaultQty,
+                owner)
+            If dialog Is Nothing OrElse Not dialog.Confirmed Then Return Nothing
+            Return New ServicePickOneConsumablesEditResult With {
+                .Options = dialog.ResultPickOneOptions,
+                .DefaultQty = dialog.ResultPickOneDefaultQty
+            }
+        End Function
+
+        Private Function ShowConsumablesSelectionDialog(mode As Views.ServiceConsumablesSelectionMode,
+                                                        products As IEnumerable(Of Models.ProductItem),
+                                                        fixedOptions As IEnumerable(Of Models.FixedConsumableOption),
+                                                        pickOneOptions As IEnumerable(Of Models.PickOneProductOption),
+                                                        pickOneDefaultQty As Decimal,
+                                                        owner As Window) As Views.ServiceConsumablesSelectionWindow
+            Dim dialog As Views.ServiceConsumablesSelectionWindow
+            Try
+                dialog = New Views.ServiceConsumablesSelectionWindow(
+                    mode,
+                    products,
+                    fixedOptions,
+                    pickOneOptions,
+                    pickOneDefaultQty)
+            Catch ex As Exception
+                ErrorLogService.LogException("ShowConsumablesSelectionDialog/ConstructWindow", ex)
+                Throw
+            End Try
+
+            Try
+                Dim ownerWin = owner
+                If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                    ownerWin = Application.Current.MainWindow
+                End If
+                If ownerWin IsNot Nothing Then
+                    dialog.Owner = ownerWin
+                    SizeDialogToOwner(dialog, ownerWin)
+                End If
+            Catch ex As Exception
+                ErrorLogService.LogException("ShowConsumablesSelectionDialog/OwnerSizing", ex)
+                Throw
+            End Try
+
+            Dim result As Boolean?
+            Try
+                result = dialog.ShowDialog()
+            Catch ex As Exception
+                ErrorLogService.LogException("ShowConsumablesSelectionDialog/ShowDialog", ex)
+                Throw
+            End Try
+
+            If result = True AndAlso dialog.Confirmed Then Return dialog
             Return Nothing
         End Function
 
@@ -345,6 +424,8 @@ Namespace Services
         Public Property Reason As String = String.Empty
         Public Property Notes As String = String.Empty
         Public Property IsReleaseReserve As Boolean
+        Public Property ExpirationDate As Date?
+        Public Property BoxCode As String = String.Empty
 
         Public ReadOnly Property CombinedNotes As String
             Get
@@ -353,5 +434,10 @@ Namespace Services
                 Return $"{Reason}. {Notes.Trim()}"
             End Get
         End Property
+    End Class
+
+    Public Class ServicePickOneConsumablesEditResult
+        Public Property Options As List(Of Models.PickOneProductOption)
+        Public Property DefaultQty As Decimal
     End Class
 End Namespace

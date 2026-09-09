@@ -74,6 +74,13 @@ Namespace Models
                 SetProperty(_quantity, value)
             End Set
         End Property
+
+        <JsonIgnore>
+        Public ReadOnly Property QuantityLabel As String
+            Get
+                Return $"Qty {Quantity:0.##}"
+            End Get
+        End Property
     End Class
 
     Public Class ServiceItem
@@ -180,6 +187,7 @@ Namespace Models
         Public Property Category As String = String.Empty
         Public Property SubCategory As String = String.Empty
         Public Property IsActive As Boolean = True
+        Public Property ExpirationDate As Date?
         Public Property ImagePath As String
             Get
                 Return _imagePath

@@ -51,6 +51,8 @@ Namespace ViewModels
             EditSubCategoryOptions = New ObservableCollection(Of String)()
             FixedConsumableOptions = New ObservableCollection(Of FixedConsumableOption)()
             PickOneConsumableOptions = New ObservableCollection(Of PickOneProductOption)()
+            SelectedFixedConsumables = New ObservableCollection(Of FixedConsumableOption)()
+            SelectedPickOneConsumables = New ObservableCollection(Of PickOneProductOption)()
             ProductOptions = New ObservableCollection(Of ProductItem)()
 
             SelectCategoryCommand = New RelayCommand(Of String)(AddressOf SelectCategory)
@@ -59,10 +61,8 @@ Namespace ViewModels
             EditServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf BeginEdit)
             SaveServiceCommand = New RelayCommand(AddressOf SaveService)
             CancelEditCommand = New RelayCommand(AddressOf CancelEdit)
-            SelectAllFixedConsumablesCommand = New RelayCommand(AddressOf SelectAllFixedConsumables)
-            ClearFixedConsumablesCommand = New RelayCommand(AddressOf ClearFixedConsumables)
-            SelectAllPickOneConsumablesCommand = New RelayCommand(AddressOf SelectAllPickOneConsumables)
-            ClearPickOneConsumablesCommand = New RelayCommand(AddressOf ClearPickOneConsumables)
+            OpenFixedConsumablesPickerCommand = New RelayCommand(AddressOf OpenFixedConsumablesPicker)
+            OpenPickOneConsumablesPickerCommand = New RelayCommand(AddressOf OpenPickOneConsumablesPicker)
             DeleteServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf DeleteService)
             ArchiveServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf ArchiveService)
             UnarchiveServiceCommand = New RelayCommand(Of ServiceItem)(AddressOf UnarchiveService)
@@ -196,6 +196,8 @@ Namespace ViewModels
         Public Property EditSubCategoryOptions As ObservableCollection(Of String)
         Public Property FixedConsumableOptions As ObservableCollection(Of FixedConsumableOption)
         Public Property PickOneConsumableOptions As ObservableCollection(Of PickOneProductOption)
+        Public Property SelectedFixedConsumables As ObservableCollection(Of FixedConsumableOption)
+        Public Property SelectedPickOneConsumables As ObservableCollection(Of PickOneProductOption)
         Public Property ProductOptions As ObservableCollection(Of ProductItem)
         Public Property ManageCategories As ObservableCollection(Of CatalogCategoryNode)
         Public Property ManageSubCategories As ObservableCollection(Of String)
@@ -407,6 +409,40 @@ Namespace ViewModels
             End Set
         End Property
 
+        Public ReadOnly Property HasSelectedFixedConsumables As Boolean
+            Get
+                Return SelectedFixedConsumables IsNot Nothing AndAlso SelectedFixedConsumables.Count > 0
+            End Get
+        End Property
+
+        Public ReadOnly Property HasSelectedPickOneConsumables As Boolean
+            Get
+                Return SelectedPickOneConsumables IsNot Nothing AndAlso SelectedPickOneConsumables.Count > 0
+            End Get
+        End Property
+
+        Public ReadOnly Property FixedConsumablesSummary As String
+            Get
+                Dim count = If(SelectedFixedConsumables Is Nothing, 0, SelectedFixedConsumables.Count)
+                Select Case count
+                    Case 0
+                        Return "No products selected"
+                    Case 1
+                        Return "1 product deducts on every sale"
+                    Case Else
+                        Return $"{count} products deduct on every sale"
+                End Select
+            End Get
+        End Property
+
+        Public ReadOnly Property PickOneConsumablesSummary As String
+            Get
+                Dim count = If(SelectedPickOneConsumables Is Nothing, 0, SelectedPickOneConsumables.Count)
+                If count = 0 Then Return "No products selected"
+                Return $"{count} options · customer picks at POS (qty {PickOneDefaultQty:0.##})"
+            End Get
+        End Property
+
         Public Property PickOneDefaultQty As Decimal
             Get
                 Return _pickOneDefaultQty
@@ -472,10 +508,8 @@ Namespace ViewModels
         Public Property EditServiceCommand As RelayCommand(Of ServiceItem)
         Public Property SaveServiceCommand As RelayCommand
         Public Property CancelEditCommand As RelayCommand
-        Public Property SelectAllFixedConsumablesCommand As RelayCommand
-        Public Property ClearFixedConsumablesCommand As RelayCommand
-        Public Property SelectAllPickOneConsumablesCommand As RelayCommand
-        Public Property ClearPickOneConsumablesCommand As RelayCommand
+        Public Property OpenFixedConsumablesPickerCommand As RelayCommand
+        Public Property OpenPickOneConsumablesPickerCommand As RelayCommand
         Public Property DeleteServiceCommand As RelayCommand(Of ServiceItem)
         Public Property ArchiveServiceCommand As RelayCommand(Of ServiceItem)
         Public Property UnarchiveServiceCommand As RelayCommand(Of ServiceItem)
@@ -835,30 +869,44 @@ Namespace ViewModels
 
             OnPropertyChanged(NameOf(FixedConsumableOptions))
             OnPropertyChanged(NameOf(PickOneConsumableOptions))
+            RefreshSelectedConsumableDisplays()
         End Sub
 
-        Private Sub SelectAllFixedConsumables()
-            For Each opt In FixedConsumableOptions
-                opt.IsSelected = True
-            Next
+        Private Sub RefreshSelectedConsumableDisplays()
+            SelectedFixedConsumables = New ObservableCollection(Of FixedConsumableOption)(
+                If(FixedConsumableOptions, Enumerable.Empty(Of FixedConsumableOption)()).Where(Function(o) o.IsSelected))
+            SelectedPickOneConsumables = New ObservableCollection(Of PickOneProductOption)(
+                If(PickOneConsumableOptions, Enumerable.Empty(Of PickOneProductOption)()).Where(Function(o) o.IsSelected))
+
+            OnPropertyChanged(NameOf(SelectedFixedConsumables))
+            OnPropertyChanged(NameOf(SelectedPickOneConsumables))
+            OnPropertyChanged(NameOf(HasSelectedFixedConsumables))
+            OnPropertyChanged(NameOf(HasSelectedPickOneConsumables))
+            OnPropertyChanged(NameOf(FixedConsumablesSummary))
+            OnPropertyChanged(NameOf(PickOneConsumablesSummary))
         End Sub
 
-        Private Sub ClearFixedConsumables()
-            For Each opt In FixedConsumableOptions
-                opt.IsSelected = False
-            Next
+        Private Sub OpenFixedConsumablesPicker()
+            RefreshProductOptions()
+            Dim result = AppDialogService.PromptFixedConsumablesSelection(ProductOptions, FixedConsumableOptions)
+            If result Is Nothing Then Return
+
+            FixedConsumableOptions = New ObservableCollection(Of FixedConsumableOption)(result)
+            OnPropertyChanged(NameOf(FixedConsumableOptions))
+            RefreshSelectedConsumableDisplays()
         End Sub
 
-        Private Sub SelectAllPickOneConsumables()
-            For Each opt In PickOneConsumableOptions
-                opt.IsSelected = True
-            Next
-        End Sub
+        Private Sub OpenPickOneConsumablesPicker()
+            RefreshProductOptions()
+            Dim result = AppDialogService.PromptPickOneConsumablesSelection(
+                ProductOptions, PickOneConsumableOptions, PickOneDefaultQty)
+            If result Is Nothing Then Return
 
-        Private Sub ClearPickOneConsumables()
-            For Each opt In PickOneConsumableOptions
-                opt.IsSelected = False
-            Next
+            PickOneConsumableOptions = New ObservableCollection(Of PickOneProductOption)(result.Options)
+            PickOneDefaultQty = result.DefaultQty
+            OnPropertyChanged(NameOf(PickOneConsumableOptions))
+            OnPropertyChanged(NameOf(PickOneDefaultQty))
+            RefreshSelectedConsumableDisplays()
         End Sub
 
         Private Function TryBuildConsumablesFromEdit(ByRef consumables As List(Of ServiceConsumableLine)) As Boolean
