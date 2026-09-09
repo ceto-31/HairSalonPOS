@@ -16,4 +16,5 @@
     <helpers:AppointmentStatusToBadgeBrushConverter x:Key="AppointmentStatusBg"/>
     <helpers:DateHasAppointmentsConverter x:Key="DateHasAppointments"/>
     <helpers:DateIsPastConverter x:Key="DateIsPast"/>
+    <helpers:IntegerAtMostConverter x:Key="IntAtMost"/>
 </ResourceDictionary>

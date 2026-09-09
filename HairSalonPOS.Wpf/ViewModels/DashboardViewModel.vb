@@ -43,6 +43,7 @@ Namespace ViewModels
 
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
         Private ReadOnly _history As TransactionHistoryService = TransactionHistoryService.Instance
+        Private ReadOnly _expirationScan As ExpirationScanService = ExpirationScanService.Instance
 
         Private _todaySales As Decimal
         Private _transactionCount As Integer
@@ -96,6 +97,18 @@ Namespace ViewModels
             AddHandler _store.SaleCompleted, Sub() LoadDashboard()
             AddHandler _store.InventoryChanged, Sub() LoadDashboard()
             AddHandler _store.AppointmentsChanged, Sub() LoadDashboard()
+            AddHandler _expirationScan.AlertsUpdated, AddressOf OnExpirationAlertsUpdated
+        End Sub
+
+        Private Sub OnExpirationAlertsUpdated(sender As Object, e As EventArgs)
+            LoadExpirationAlerts()
+        End Sub
+
+        Public Sub LoadExpirationAlerts()
+            ExpirationAlerts = New ObservableCollection(Of ExpirationAlertRow)(_expirationScan.Scan())
+            OnPropertyChanged(NameOf(ExpirationAlerts))
+            OnPropertyChanged(NameOf(HasExpirationAlerts))
+            OnPropertyChanged(NameOf(HasInventoryAlerts))
         End Sub
 
         Private _goToPos As Action
@@ -556,10 +569,7 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(LowStockAlerts))
             OnPropertyChanged(NameOf(HasLowStockAlerts))
 
-            ExpirationAlerts = New ObservableCollection(Of ExpirationAlertRow)(_store.GetExpirationAlerts())
-            OnPropertyChanged(NameOf(ExpirationAlerts))
-            OnPropertyChanged(NameOf(HasExpirationAlerts))
-            OnPropertyChanged(NameOf(HasInventoryAlerts))
+            LoadExpirationAlerts()
 
             RefreshPeriodVisuals()
             RefreshTopServices()

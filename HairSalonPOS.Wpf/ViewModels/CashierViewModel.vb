@@ -1469,6 +1469,16 @@ Namespace ViewModels
                     allowReserveUse = True
                 End If
 
+                Dim allowExpiredBatchUse = False
+                Dim expiredBatchWarnings = _checkout.AnalyzeExpiredFefoBatches(Cart.ToList(), allowReserveUse)
+                If expiredBatchWarnings.Count > 0 Then
+                    If Not AppDialogService.ConfirmUseExpiredBatch(expiredBatchWarnings) Then
+                        StatusMessage = "Checkout cancelled."
+                        Return
+                    End If
+                    allowExpiredBatchUse = True
+                End If
+
                 Dim request As New CheckoutRequest With {
                     .Cart = Cart.ToList(),
                     .PaymentMethod = PaymentMethod,
@@ -1476,7 +1486,8 @@ Namespace ViewModels
                     .CustomerName = NormalizeCustomerName(CustomerName),
                     .PromoCode = PromoCode,
                     .AmountTendered = AmountTendered,
-                    .AllowReserveUse = allowReserveUse
+                    .AllowReserveUse = allowReserveUse,
+                    .AllowExpiredBatchUse = allowExpiredBatchUse
                 }
                 LastReceipt = _checkout.FinalizeSale(request)
                 If _pendingAppointmentId > 0 Then

@@ -437,10 +437,23 @@
                                 <ItemsControl ItemsSource="{Binding ExpirationAlerts}" Visibility="{Binding HasExpirationAlerts, Converter={StaticResource BoolToVis}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="10"
-                                                    Background="{DynamicResource LowStockAlertSoftBrush}"
-                                                    BorderBrush="{DynamicResource LowStockAlertBrush}"
-                                                    BorderThickness="1">
+                                            <Border Margin="0,0,0,8" Padding="10,8" CornerRadius="10" BorderThickness="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource LowStockAlertSoftBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding IsExpired}" Value="False"/>
+                                                                    <Condition Binding="{Binding DaysRemaining, Converter={StaticResource IntAtMost}, ConverterParameter=3}" Value="True"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Background" Value="#FFFBEB"/>
+                                                                <Setter Property="BorderBrush" Value="#D97706"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <DockPanel>
                                                     <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="8"
                                                             Background="{DynamicResource LowStockAlertBackgroundBrush}" Margin="0,0,10,0"
@@ -458,19 +471,51 @@
                                                                    Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"/>
                                                         </Grid>
                                                     </Border>
-                                                    <Border DockPanel.Dock="Right" CornerRadius="8" Padding="8,4" VerticalAlignment="Center"
-                                                            Background="{DynamicResource LowStockAlertBrush}"
-                                                            Visibility="{Binding IsExpired, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="Expired" FontSize="11" FontWeight="Bold" Foreground="White"/>
-                                                    </Border>
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border CornerRadius="8" Padding="8,4" Margin="0,0,6,0"
+                                                                Background="#6366F1"
+                                                                Visibility="{Binding IsReserve, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="Reserve" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                                        </Border>
+                                                        <Border CornerRadius="8" Padding="8,4"
+                                                                Background="{DynamicResource LowStockAlertBrush}"
+                                                                Visibility="{Binding IsExpired, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="Expired" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                                        </Border>
+                                                    </StackPanel>
                                                     <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}" Margin="0,2,0,0">
+                                                            <Run Text="Lot: "/>
+                                                            <Run Text="{Binding BoxCodeDisplay, Mode=OneWay}"/>
+                                                            <Run Text=" · "/>
+                                                            <Run Text="{Binding QuantityRemaining, Mode=OneWay}"/>
+                                                            <Run Text=" pc"/>
+                                                        </TextBlock>
                                                         <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}" Margin="0,2,0,0">
                                                             <Run Text="Expires: "/>
                                                             <Run Text="{Binding ExpirationDateLabel, Mode=OneWay}"/>
                                                         </TextBlock>
-                                                        <TextBlock Text="{Binding DaysRemainingLabel}" FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="{DynamicResource LowStockAlertBrush}" Margin="0,2,0,0"/>
+                                                        <TextBlock FontSize="11" FontWeight="SemiBold" Margin="0,2,0,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsExpired}" Value="True">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                                        </DataTrigger>
+                                                                        <MultiDataTrigger>
+                                                                            <MultiDataTrigger.Conditions>
+                                                                                <Condition Binding="{Binding IsExpired}" Value="False"/>
+                                                                                <Condition Binding="{Binding DaysRemaining, Converter={StaticResource IntAtMost}, ConverterParameter=3}" Value="True"/>
+                                                                            </MultiDataTrigger.Conditions>
+                                                                            <Setter Property="Foreground" Value="#D97706"/>
+                                                                        </MultiDataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                            <Run Text="{Binding DaysRemainingLabel, Mode=OneWay}"/>
+                                                        </TextBlock>
                                                     </StackPanel>
                                                 </DockPanel>
                                             </Border>

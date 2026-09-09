@@ -756,13 +756,12 @@ Namespace ViewModels
                     .Name = EditName.Trim(),
                     .Brand = EditBrand.Trim(),
                     .Price = EditPrice,
-                    .StockOnHand = If(_isAdding, EditQty, If(SelectedProduct?.StockOnHand, 0)),
                     .ReorderLevel = EditReorder,
                     .Category = node.Name,
                     .SubCategory = subCat,
                     .ImagePath = If(imagePath, String.Empty)
                 }
-                _inventory.SaveProduct(product, _isAdding, CurrentUserNameOrThrow())
+                _inventory.SaveProduct(product, _isAdding, CurrentUserNameOrThrow(), EditQty)
                 IsEditMode = False
                 _isAdding = False
                 StatusMessage = "Product saved."
@@ -817,8 +816,10 @@ Namespace ViewModels
                 product.EnsureDefaults()
                 Dim prompt = AppDialogService.PromptStockMovement(product, True, initialQty:=suggestedQty)
                 If prompt Is Nothing Then Return False
-                _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes, prompt.ExpirationDate, prompt.BoxCode)
-                StatusMessage = $"Stocked in {prompt.Quantity} of {product.Name}."
+                Dim pieces = If(prompt.QuantityPieces > 0, prompt.QuantityPieces, prompt.Quantity)
+                _inventory.StockIn(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes,
+                                   prompt.ExpirationDate, prompt.BoxCode, prompt.BoxesReceived)
+                StatusMessage = $"Stocked in {pieces} of {product.Name}."
                 LoadAll()
                 Return True
             Catch ex As InvalidOperationException
@@ -865,8 +866,10 @@ Namespace ViewModels
                     _inventory.ReleaseReserve(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
                     StatusMessage = $"Used {prompt.Quantity} units from reserve stock for {product.Name} (restored to on-hand)."
                 Else
-                    _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes, prompt.ExpirationDate)
-                    StatusMessage = $"Added {prompt.Quantity} units to reserve stock for {product.Name}."
+                    Dim pieces = If(prompt.QuantityPieces > 0, prompt.QuantityPieces, prompt.Quantity)
+                    _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes,
+                                            prompt.ExpirationDate, prompt.BoxesReceived)
+                    StatusMessage = $"Added {pieces} units to reserve stock for {product.Name}."
                 End If
                 LoadAll()
                 Return True

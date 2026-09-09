@@ -67,7 +67,16 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <TextBlock Text="Quantity" Style="{StaticResource SectionHeader}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="QuantityHeaderText" Text="Quantity" Style="{StaticResource SectionHeader}" Margin="0,0,0,6"/>
+                    <StackPanel x:Name="EntryUnitPanel" Visibility="Collapsed" Orientation="Horizontal"
+                                HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <TextBlock Text="Enter as:" VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Foreground="{DynamicResource MutedTextBrush}" FontSize="13"/>
+                        <RadioButton x:Name="PiecesRadio" Content="Pieces" IsChecked="True" GroupName="EntryUnit"
+                                     Checked="EntryUnit_Changed"/>
+                        <RadioButton x:Name="BoxesRadio" Content="Boxes" Margin="16,0,0,0" GroupName="EntryUnit"
+                                     Checked="EntryUnit_Changed"/>
+                    </StackPanel>
                     <DockPanel Margin="0,0,0,8">
                         <Button DockPanel.Dock="Left" Content="−" Width="44" MinHeight="40"
                                 Style="{StaticResource SecondaryButton}" Click="Minus_Click" Margin="0,0,8,0"/>
@@ -79,6 +88,8 @@
                                  PreviewTextInput="QtyBox_PreviewTextInput"
                                  TextChanged="QtyBox_TextChanged"/>
                     </DockPanel>
+                    <TextBlock x:Name="ConversionPreviewText" FontSize="13" Margin="0,0,0,6"
+                               Foreground="{DynamicResource TextBrush}" Visibility="Collapsed"/>
                     <TextBlock x:Name="PreviewText" FontSize="13" Margin="0,0,0,14"
                                Foreground="{DynamicResource MutedTextBrush}"/>
 
@@ -89,8 +100,9 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="Product/Box Code" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
-                            <TextBox x:Name="BoxCodeBox" Style="{StaticResource ModernTextBox}"/>
+                            <TextBlock Text="Batch / Lot Code" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BoxCodeBox" Style="{StaticResource SearchTextBox}"
+                                     Tag="e.g. supplier lot number or box sticker"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Expiration date" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>

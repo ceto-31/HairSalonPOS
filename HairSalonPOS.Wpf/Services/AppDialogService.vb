@@ -68,6 +68,48 @@ Namespace Services
             }) = AppDialogResult.Yes
         End Function
 
+        Public Function ConfirmUseExpiredBatch(warnings As IList(Of ConsumableExpiredBatchWarning),
+                                               Optional owner As Window = Nothing) As Boolean
+            If warnings Is Nothing OrElse warnings.Count = 0 Then Return True
+
+            Dim body As New System.Text.StringBuilder()
+            If warnings.Count = 1 Then
+                Dim item = warnings(0)
+                Dim lot = If(String.IsNullOrWhiteSpace(item.Batch.BoxCode), "—", item.Batch.BoxCode.Trim())
+                Dim expiredOn = If(item.Batch.ExpirationDate.HasValue,
+                                   item.Batch.ExpirationDate.Value.ToString("MMMM d, yyyy"),
+                                   "unknown date")
+                Dim poolLabel = If(item.IsReservePool, "reserve ", String.Empty)
+                body.AppendLine($"Oldest available {poolLabel}batch for {item.Product.Name} (Lot {lot}) expired on {expiredOn}.")
+                body.AppendLine("Deducting it will still remove it from stock — expired stock should normally be stock-out'd as Damaged/Expired instead of sold.")
+                body.AppendLine()
+                body.AppendLine("Continue anyway?")
+            Else
+                body.AppendLine("Some products would deduct from expired batches:")
+                For Each item In warnings
+                    Dim lot = If(String.IsNullOrWhiteSpace(item.Batch.BoxCode), "—", item.Batch.BoxCode.Trim())
+                    Dim expiredOn = If(item.Batch.ExpirationDate.HasValue,
+                                       item.Batch.ExpirationDate.Value.ToString("MMM d, yyyy"),
+                                       "unknown")
+                    Dim poolLabel = If(item.IsReservePool, "reserve ", String.Empty)
+                    body.AppendLine($"• {item.Product.Name}: {poolLabel}Lot {lot}, expired {expiredOn}")
+                Next
+                body.AppendLine()
+                body.AppendLine("Expired stock should normally be stock-out'd as Damaged/Expired instead of sold.")
+                body.AppendLine("Continue anyway?")
+            End If
+
+            Return Show(New AppDialogOptions With {
+                .Title = "Expired batch warning",
+                .Message = body.ToString().Trim(),
+                .Buttons = AppDialogButtons.YesNo,
+                .DialogType = AppDialogType.Warning,
+                .PrimaryButtonText = "Use expired batch",
+                .SecondaryButtonText = "Cancel",
+                .Owner = owner
+            }) = AppDialogResult.Yes
+        End Function
+
         Public Function ConfirmUseReserveStock(shortfalls As IList(Of ConsumableStockShortfall),
                                                Optional owner As Window = Nothing) As Boolean
             If shortfalls Is Nothing OrElse shortfalls.Count = 0 Then Return True
@@ -185,6 +227,8 @@ Namespace Services
             If result = True AndAlso dialog.Confirmed AndAlso dialog.LoadSucceeded Then
                 Return New StockMovementPromptResult With {
                     .Quantity = dialog.ResultQuantity,
+                    .QuantityPieces = dialog.ResultQuantityPieces,
+                    .BoxesReceived = dialog.ResultBoxesReceived,
                     .Reason = dialog.ResultReason,
                     .Notes = dialog.ResultNotes,
                     .ExpirationDate = dialog.ResultExpirationDate,
@@ -239,6 +283,8 @@ Namespace Services
             If result = True AndAlso dialog.Confirmed AndAlso dialog.LoadSucceeded Then
                 Return New StockMovementPromptResult With {
                     .Quantity = dialog.ResultQuantity,
+                    .QuantityPieces = dialog.ResultQuantityPieces,
+                    .BoxesReceived = dialog.ResultBoxesReceived,
                     .Reason = dialog.ResultReason,
                     .Notes = dialog.ResultNotes,
                     .IsReleaseReserve = dialog.ResultIsReleaseReserve,
@@ -421,6 +467,8 @@ Namespace Services
 
     Public Class StockMovementPromptResult
         Public Property Quantity As Integer
+        Public Property QuantityPieces As Integer
+        Public Property BoxesReceived As Integer
         Public Property Reason As String = String.Empty
         Public Property Notes As String = String.Empty
         Public Property IsReleaseReserve As Boolean

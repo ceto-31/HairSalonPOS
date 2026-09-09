@@ -15,14 +15,21 @@ Namespace Views
         Private Shared ReadOnly StockOutReasons As String() = {"Damaged", "Expired", "Used in service", "Missing", "Return to supplier", "Other"}
 
         Private ReadOnly _kind As StockMovementKind
+        Private _product As ProductItem
         Private _currentQty As Integer
         Private _reservedQty As Integer
         Private _quantity As Integer = 1
+        Private _unitsPerBox As Integer = 1
+        Private _unitLabel As String = "pc"
+        Private _boxLabel As String = "box"
         Private _loadFailed As Boolean
         Private _isUseReserveStock As Boolean
+        Private _enterAsBoxes As Boolean
 
         Public Property Confirmed As Boolean
         Public Property ResultQuantity As Integer
+        Public Property ResultQuantityPieces As Integer
+        Public Property ResultBoxesReceived As Integer
         Public Property ResultReason As String = String.Empty
         Public Property ResultNotes As String = String.Empty
         Public Property ResultIsReleaseReserve As Boolean
@@ -72,8 +79,12 @@ Namespace Views
                     Return False
                 End If
 
+                _product = product
                 _currentQty = product.StockOnHand
                 _reservedQty = product.ReservedQty
+                _unitsPerBox = Math.Max(1, product.UnitsPerBox)
+                _unitLabel = If(String.IsNullOrWhiteSpace(product.UnitLabel), "pc", product.UnitLabel.Trim())
+                _boxLabel = If(String.IsNullOrWhiteSpace(product.BoxLabel), "box", product.BoxLabel.Trim())
 
                 ConfigureForKind()
                 ProductNameText.Text = product.Name
@@ -126,6 +137,7 @@ Namespace Views
             End Select
 
             If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
+            UpdateEntryUnitPanel()
         End Sub
 
         Private Sub ShowStockInBatchPanel(show As Boolean)
@@ -164,7 +176,54 @@ Namespace Views
                 ShowExpirationDatePanel(True)
                 ShowReasonPanel(False)
             End If
+            UpdateEntryUnitPanel()
         End Sub
+
+        Private Function SupportsBoxEntry() As Boolean
+            Return _unitsPerBox > 1 AndAlso ShowsEntryUnitToggle()
+        End Function
+
+        Private Function ShowsEntryUnitToggle() As Boolean
+            If _kind = StockMovementKind.StockIn Then Return True
+            Return _kind = StockMovementKind.Reserve AndAlso Not _isUseReserveStock
+        End Function
+
+        Private Sub UpdateEntryUnitPanel()
+            If EntryUnitPanel Is Nothing Then Return
+            Dim show = SupportsBoxEntry()
+            EntryUnitPanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+            If Not show Then
+                _enterAsBoxes = False
+                If PiecesRadio IsNot Nothing Then PiecesRadio.IsChecked = True
+            Else
+                _enterAsBoxes = BoxesRadio IsNot Nothing AndAlso BoxesRadio.IsChecked = True
+            End If
+            RefreshQuantityHeader()
+            UpdatePreview()
+        End Sub
+
+        Private Sub RefreshQuantityHeader()
+            If QuantityHeaderText Is Nothing Then Return
+            If SupportsBoxEntry() AndAlso _enterAsBoxes Then
+                QuantityHeaderText.Text = $"Quantity ({_boxLabel})"
+            ElseIf SupportsBoxEntry() Then
+                QuantityHeaderText.Text = $"Quantity ({_unitLabel})"
+            Else
+                QuantityHeaderText.Text = "Quantity"
+            End If
+        End Sub
+
+        Private Sub EntryUnit_Changed(sender As Object, e As RoutedEventArgs)
+            If _loadFailed Then Return
+            _enterAsBoxes = BoxesRadio IsNot Nothing AndAlso BoxesRadio.IsChecked = True
+            RefreshQuantityHeader()
+            UpdatePreview()
+        End Sub
+
+        Private Function EffectivePieces(enteredQty As Integer) As Integer
+            If SupportsBoxEntry() AndAlso _enterAsBoxes Then Return enteredQty * _unitsPerBox
+            Return enteredQty
+        End Function
 
         Private Sub UpdateReserveModeAvailability()
             If _kind <> StockMovementKind.Reserve Then Return
@@ -238,6 +297,10 @@ Namespace Views
                 StockInExpirationDatePicker.IsEnabled = False
             End If
             If ExpirationDatePanel IsNot Nothing Then ExpirationDatePicker.IsEnabled = False
+            If EntryUnitPanel IsNot Nothing Then
+                PiecesRadio.IsEnabled = False
+                BoxesRadio.IsEnabled = False
+            End If
             NotesBox.IsEnabled = False
         End Sub
 
@@ -317,25 +380,50 @@ Namespace Views
         Private Sub UpdatePreview()
             If _loadFailed OrElse PreviewText Is Nothing Then Return
 
+            Dim pieces = EffectivePieces(_quantity)
+            UpdateConversionPreview(pieces)
+
             Select Case _kind
                 Case StockMovementKind.StockIn
-                    Dim nextQty = _currentQty + _quantity
+                    Dim nextQty = _currentQty + pieces
                     PreviewText.Text = $"On hand: {_currentQty} → {nextQty}"
                 Case StockMovementKind.StockOut
-                    Dim nextQty = _currentQty - _quantity
+                    Dim nextQty = _currentQty - pieces
                     PreviewText.Text = $"On hand: {_currentQty} → {Math.Max(0, nextQty)}"
                 Case StockMovementKind.Reserve
                     If _isUseReserveStock Then
-                        Dim nextOnHand = _currentQty + _quantity
-                        Dim nextReserve = Math.Max(0, _reservedQty - _quantity)
+                        Dim nextOnHand = _currentQty + pieces
+                        Dim nextReserve = Math.Max(0, _reservedQty - pieces)
                         PreviewText.Text = $"On hand: {_currentQty} → {nextOnHand}  •  Reserve stock: {_reservedQty} → {nextReserve}"
                     Else
-                        Dim nextReserve = _reservedQty + _quantity
+                        Dim nextReserve = _reservedQty + pieces
                         PreviewText.Text = $"On hand: {_currentQty} (unchanged)  •  Reserve stock: {_reservedQty} → {nextReserve}"
                     End If
             End Select
 
             HideError()
+        End Sub
+
+        Private Sub UpdateConversionPreview(pieces As Integer)
+            If ConversionPreviewText Is Nothing Then Return
+
+            If SupportsBoxEntry() AndAlso _enterAsBoxes Then
+                ConversionPreviewText.Visibility = Visibility.Visible
+                ConversionPreviewText.Text =
+                    $"= {pieces} {_unitLabel} ({_quantity} {_boxLabel} × {_unitsPerBox}/{_unitLabel})"
+            ElseIf SupportsBoxEntry() AndAlso _unitsPerBox > 1 AndAlso pieces >= _unitsPerBox Then
+                Dim wholeBoxes = pieces \ _unitsPerBox
+                Dim remainder = pieces Mod _unitsPerBox
+                ConversionPreviewText.Visibility = Visibility.Visible
+                If remainder = 0 Then
+                    ConversionPreviewText.Text = $"= {pieces} {_unitLabel} ({wholeBoxes} {_boxLabel} × {_unitsPerBox}/{_unitLabel})"
+                Else
+                    ConversionPreviewText.Text = $"= {pieces} {_unitLabel} ({wholeBoxes} {_boxLabel} + {remainder} {_unitLabel})"
+                End If
+            Else
+                ConversionPreviewText.Visibility = Visibility.Collapsed
+                ConversionPreviewText.Text = String.Empty
+            End If
         End Sub
 
         Private Sub ConfirmSelection()
@@ -352,9 +440,11 @@ Namespace Views
                 Return
             End If
 
+            Dim pieces = EffectivePieces(parsed)
+
             Select Case _kind
                 Case StockMovementKind.StockOut
-                    If parsed > _currentQty Then
+                    If pieces > _currentQty Then
                         ShowError($"Cannot stock out more than {_currentQty} on hand.")
                         QtyBox.Focus()
                         QtyBox.SelectAll()
@@ -366,7 +456,7 @@ Namespace Views
                             ShowError("Reserve stock can only be used when on-hand is depleted.")
                             Return
                         End If
-                        If parsed > _reservedQty Then
+                        If pieces > _reservedQty Then
                             ShowError($"Cannot use more than {_reservedQty} from reserve stock.")
                             QtyBox.Focus()
                             QtyBox.SelectAll()
@@ -390,6 +480,8 @@ Namespace Views
             ResultBoxCode = If(_kind = StockMovementKind.StockIn, If(BoxCodeBox?.Text, String.Empty).Trim(), String.Empty)
 
             ResultQuantity = parsed
+            ResultQuantityPieces = pieces
+            ResultBoxesReceived = If(SupportsBoxEntry() AndAlso _enterAsBoxes, parsed, 0)
             ResultReason = If(UsesReasonField(), If(TryCast(ReasonBox.SelectedItem, String), String.Empty), String.Empty)
             ResultNotes = If(NotesBox.Text, String.Empty).Trim()
             ResultIsReleaseReserve = _isUseReserveStock

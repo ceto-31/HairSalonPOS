@@ -261,6 +261,7 @@ Namespace ViewModels
             IsLoggedIn = True
             UpdateStatus()
             _clockTimer.Start()
+            ExpirationScanService.Instance.StartPeriodicScan()
             NavigateDashboard()
         End Sub
 
@@ -350,6 +351,7 @@ Namespace ViewModels
 
         Private Sub Logout()
             _clockTimer.Stop()
+            ExpirationScanService.Instance.StopPeriodicScan()
             CloseDrawer()
             SessionContext.CurrentUser = Nothing
             IsLoggedIn = False

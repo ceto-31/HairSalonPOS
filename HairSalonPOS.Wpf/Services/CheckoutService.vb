@@ -10,6 +10,7 @@ Namespace Services
         Public Property PromoCode As String
         Public Property AmountTendered As Decimal
         Public Property AllowReserveUse As Boolean
+        Public Property AllowExpiredBatchUse As Boolean
     End Class
 
     Public Class ConsumableStockShortfall
@@ -22,6 +23,12 @@ Namespace Services
     Public Class ConsumableStockAnalysis
         Public Property ReserveShortfalls As New List(Of ConsumableStockShortfall)
         Public Property InsufficientMessage As String = String.Empty
+    End Class
+
+    Public Class ConsumableExpiredBatchWarning
+        Public Property Product As ProductItem
+        Public Property Batch As StockBatch
+        Public Property IsReservePool As Boolean
     End Class
 
     Public Class CheckoutService
@@ -63,6 +70,27 @@ Namespace Services
             Return analysis
         End Function
 
+        Public Function AnalyzeExpiredFefoBatches(cart As IEnumerable(Of CartLine), allowReserveUse As Boolean) As List(Of ConsumableExpiredBatchWarning)
+            Dim warnings As New List(Of ConsumableExpiredBatchWarning)
+            Dim consumableNeeds = BuildConsumableNeeds(cart)
+
+            For Each need In consumableNeeds.Values
+                need.Product.EnsureDefaults()
+                Dim fromOnHand = Math.Min(need.Product.StockOnHand, need.UnitsNeeded)
+
+                If fromOnHand > 0 Then
+                    AddExpiredBatchWarningIfNeeded(warnings, need.Product, isReserve:=False)
+                End If
+
+                Dim fromReserve = need.UnitsNeeded - fromOnHand
+                If fromReserve > 0 AndAlso allowReserveUse Then
+                    AddExpiredBatchWarningIfNeeded(warnings, need.Product, isReserve:=True)
+                End If
+            Next
+
+            Return warnings
+        End Function
+
         Public Function FinalizeSale(request As CheckoutRequest) As ReceiptModel
             Dim cart = request.Cart
             If cart Is Nothing OrElse cart.Count = 0 Then Throw New InvalidOperationException("Cart is empty.")
@@ -74,6 +102,12 @@ Namespace Services
             End If
             If stockAnalysis.ReserveShortfalls.Count > 0 AndAlso Not request.AllowReserveUse Then
                 Throw New InvalidOperationException("Reserve stock confirmation is required before checkout.")
+            End If
+
+            Dim expiredBatchWarnings = AnalyzeExpiredFefoBatches(cart, request.AllowReserveUse)
+            If expiredBatchWarnings.Count > 0 AndAlso Not request.AllowExpiredBatchUse Then
+                Dim first = expiredBatchWarnings(0)
+                Throw New ExpiredBatchBlockedException(first.Batch, first.Product.Name)
             End If
 
             Dim subTotal = cart.Sum(Function(c) c.LineTotal)
@@ -100,26 +134,16 @@ Namespace Services
 
             For Each need In consumableNeeds.Values
                 need.Product.EnsureDefaults()
-                Dim fromOnHand = Math.Min(need.Product.StockOnHand, need.UnitsNeeded)
-                Dim fromReserve = need.UnitsNeeded - fromOnHand
                 Dim notes = String.Join("; ", need.ServiceNotes.Distinct())
+                Dim needsReserve = need.UnitsNeeded > need.Product.StockOnHand
+                Dim taken = _store.DeductFefo(need.Product.Sku, need.UnitsNeeded, allowReserve:=needsReserve)
 
-                If fromOnHand > 0 Then
-                    need.Product.StockOnHand -= fromOnHand
-                    _store.LogMovement(need.Product.Sku, -fromOnHand, "Service Use", request.CashierName, notes)
-                End If
-
-                If fromReserve > 0 Then
-                    If need.Product.ReservedQty < fromReserve Then
-                        Throw New InvalidOperationException(String.Format(
-                            "Insufficient reserve stock for {0}. Need {1}, have {2}.",
-                            need.Product.Name, fromReserve, need.Product.ReservedQty))
-                    End If
-                    need.Product.ReservedQty -= fromReserve
-                    _store.LogMovement(need.Product.Sku, -fromReserve, "Use Reserve Stock (Checkout)", request.CashierName, notes)
-                End If
+                For Each item In taken
+                    Dim movementType = If(item.Batch.IsReserve, "Use Reserve Stock (Checkout)", "Service Use")
+                    _store.LogMovement(need.Product.Sku, -item.Taken, movementType, request.CashierName, notes,
+                                        item.Batch.ExpirationDate, item.Batch.BoxCode)
+                Next
             Next
-            _store.PersistCatalog()
 
             Dim saleId = _store.NextSaleId
             _store.NextSaleId += 1
@@ -222,6 +246,21 @@ Namespace Services
 
             Return needs
         End Function
+
+        Private Sub AddExpiredBatchWarningIfNeeded(warnings As List(Of ConsumableExpiredBatchWarning),
+                                                   product As ProductItem,
+                                                   isReserve As Boolean)
+            Dim nextBatch = _store.PeekNextFefoBatch(product.Sku, isReserve)
+            If nextBatch Is Nothing OrElse Not nextBatch.IsExpired Then Return
+
+            If warnings.Any(Function(w) w.Product.Sku = product.Sku AndAlso w.IsReservePool = isReserve) Then Return
+
+            warnings.Add(New ConsumableExpiredBatchWarning With {
+                .Product = product,
+                .Batch = nextBatch,
+                .IsReservePool = isReserve
+            })
+        End Sub
 
         Private Sub AddConsumableNeed(needs As Dictionary(Of String, ConsumableNeed),
                                       productSku As String,
