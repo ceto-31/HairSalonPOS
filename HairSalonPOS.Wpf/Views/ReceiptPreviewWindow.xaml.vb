@@ -7,15 +7,34 @@ Namespace Views
 
         Private ReadOnly _receipt As ReceiptModel
         Private ReadOnly _print As New ReceiptPrintService()
+        Private ReadOnly _settings As AppSettings = AppSettingsService.Instance.Settings
 
         Public Sub New(receipt As ReceiptModel)
             InitializeComponent()
             _receipt = receipt
             Title = $"Receipt {receipt.ReceiptNumber}"
             TitleText.Text = $"Receipt {receipt.ReceiptNumber}"
-            Dim settings = AppSettingsService.Instance.Settings
-            Dim layout = ReceiptLayout.FromSettings(settings)
-            ReceiptViewer.Document = ReceiptPrintService.BuildFlowDocument(receipt, settings, layout)
+        End Sub
+
+        Private Sub Window_Loaded(sender As Object, e As RoutedEventArgs)
+            RenderReceiptPreview()
+        End Sub
+
+        Private Sub Window_SizeChanged(sender As Object, e As SizeChangedEventArgs)
+            If Not IsLoaded Then Return
+            RenderReceiptPreview()
+        End Sub
+
+        Private Sub RenderReceiptPreview()
+            If _receipt Is Nothing Then Return
+
+            Dim availableWidth = Math.Max(ActualWidth - 64, 280)
+            Dim layout = ReceiptLayout.ForPreview(availableWidth)
+            Dim doc = ReceiptPrintService.BuildFlowDocument(_receipt, _settings, layout)
+
+            ReceiptViewer.Document = doc
+            ReceiptViewer.Width = layout.PageWidth
+            ReceiptPaperBorder.Width = layout.PageWidth
         End Sub
 
         Private Sub PrintButton_Click(sender As Object, e As RoutedEventArgs)

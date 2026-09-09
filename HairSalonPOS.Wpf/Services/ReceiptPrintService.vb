@@ -55,7 +55,8 @@ Namespace Services
                 .TextAlignment = TextAlignment.Left,
                 .Foreground = ResolveReceiptForeground(),
                 .PageWidth = layout.PageWidth,
-                .ColumnWidth = layout.PageWidth
+                .ColumnWidth = layout.PageWidth,
+                .IsColumnWidthFlexible = False
             }
 
             Dim width = layout.CharWidth
@@ -88,7 +89,7 @@ Namespace Services
                 Dim lineLabel = FormatReceiptLineLabel(line)
                 If useFixedWidth Then
                     AddReceiptLines(doc, ReceiptTextFormatter.WrapText(lineLabel, width), layout.FontSize, False, layout.LineMargin)
-                    AddLine(doc, ReceiptTextFormatter.FormatItemDetailLine(line.Quantity, line.UnitPrice, line.LineTotal, width), layout.DetailFontSize, False, layout.LineMargin)
+                    AddAlignedAmountLine(doc, $"  {line.Quantity} x {line.UnitPrice:N2} = ", line.LineTotal.ToString("N2"), layout, layout.DetailFontSize, False)
                 Else
                     AddLine(doc, lineLabel, layout.FontSize, False, layout.LineMargin)
                     AddLine(doc, $"{line.Quantity} x {line.UnitPrice:N2} = {line.LineTotal:N2}", layout.DetailFontSize, False, layout.LineMargin)
@@ -97,13 +98,13 @@ Namespace Services
 
             AddSeparator(doc, layout)
             If useFixedWidth Then
-                AddLine(doc, ReceiptTextFormatter.FormatAmountLine("Subtotal:", receipt.SubTotal, width), layout.FontSize, False, layout.LineMargin)
+                AddAlignedAmountLine(doc, "Subtotal:", receipt.SubTotal.ToString("N2"), layout, layout.FontSize, False)
                 If receipt.DiscountAmount > 0 Then
-                    AddLine(doc, ReceiptTextFormatter.FormatLeftRight($"Discount ({receipt.DiscountLabel}):", $"-{receipt.DiscountAmount:N2}", width), layout.FontSize, False, layout.LineMargin)
+                    AddAlignedAmountLine(doc, $"Discount ({receipt.DiscountLabel}):", $"-{receipt.DiscountAmount:N2}", layout, layout.FontSize, False)
                 Else
-                    AddLine(doc, ReceiptTextFormatter.FormatAmountLine("Discount:", 0D, width), layout.FontSize, False, layout.LineMargin)
+                    AddAlignedAmountLine(doc, "Discount:", "0.00", layout, layout.FontSize, False)
                 End If
-                AddLine(doc, ReceiptTextFormatter.FormatAmountLine("TOTAL:", receipt.Total, width), layout.TotalFontSize, True, layout.LineMargin)
+                AddAlignedAmountLine(doc, "TOTAL:", receipt.Total.ToString("N2"), layout, layout.TotalFontSize, True)
             Else
                 AddLine(doc, $"Subtotal: {receipt.SubTotal:N2}", layout.FontSize, False, layout.LineMargin)
                 If receipt.DiscountAmount > 0 Then
@@ -117,8 +118,8 @@ Namespace Services
             AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Payment: {receipt.PaymentMethod}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
             If receipt.PaymentMethod = "Cash" Then
                 If useFixedWidth Then
-                    AddLine(doc, ReceiptTextFormatter.FormatAmountLine("Amount tendered:", receipt.AmountTendered, width), layout.FontSize, False, layout.LineMargin)
-                    AddLine(doc, ReceiptTextFormatter.FormatAmountLine("Change due:", receipt.ChangeGiven, width), layout.FontSize, False, layout.LineMargin)
+                    AddAlignedAmountLine(doc, "Amount tendered:", receipt.AmountTendered.ToString("N2"), layout, layout.FontSize, False)
+                    AddAlignedAmountLine(doc, "Change due:", receipt.ChangeGiven.ToString("N2"), layout, layout.FontSize, False)
                 Else
                     AddLine(doc, $"Amount tendered: {receipt.AmountTendered:N2}", layout.FontSize, False, layout.LineMargin)
                     AddLine(doc, $"Change due: {receipt.ChangeGiven:N2}", layout.FontSize, False, layout.LineMargin)
@@ -136,7 +137,9 @@ Namespace Services
         End Function
 
         Public Shared Function BuildThermalLines(receipt As ReceiptModel, appSettings As AppSettings, Optional printerName As String = Nothing) As List(Of String)
-            Dim width = ReceiptLayout.InferThermalCharWidth(printerName)
+            Dim layout = ReceiptLayout.FromPrinterName(printerName)
+            Dim width = layout.CharWidth
+            Dim amountCol = layout.AmountColumnWidth
             Dim lines As New List(Of String)
 
             AddCenteredWrappedLines(lines, appSettings.SalonName.ToUpper(), width)
@@ -157,22 +160,22 @@ Namespace Services
 
             For Each item In receipt.AllLines
                 lines.AddRange(ReceiptTextFormatter.WrapText(FormatReceiptLineLabel(item), width))
-                lines.Add(ReceiptTextFormatter.FormatItemDetailLine(item.Quantity, item.UnitPrice, item.LineTotal, width))
+                lines.Add(ReceiptTextFormatter.FormatItemDetailLine(item.Quantity, item.UnitPrice, item.LineTotal, width, amountCol))
             Next
 
             lines.Add(New String("-"c, width))
-            lines.Add(ReceiptTextFormatter.FormatAmountLine("Subtotal:", receipt.SubTotal, width))
+            lines.Add(ReceiptTextFormatter.FormatAmountLine("Subtotal:", receipt.SubTotal, width, amountCol))
             If receipt.DiscountAmount > 0 Then
-                lines.Add(ReceiptTextFormatter.FormatLeftRight($"Disc ({receipt.DiscountLabel}):", $"-{receipt.DiscountAmount:N2}", width))
+                lines.Add(ReceiptTextFormatter.FormatWithAmountColumn($"Disc ({receipt.DiscountLabel}):", $"-{receipt.DiscountAmount:N2}", width, amountCol))
             Else
-                lines.Add(ReceiptTextFormatter.FormatAmountLine("Discount:", 0D, width))
+                lines.Add(ReceiptTextFormatter.FormatAmountLine("Discount:", 0D, width, amountCol))
             End If
-            lines.Add(ReceiptTextFormatter.FormatAmountLine("TOTAL:", receipt.Total, width))
+            lines.Add(ReceiptTextFormatter.FormatAmountLine("TOTAL:", receipt.Total, width, amountCol))
             lines.Add(New String("-"c, width))
             lines.AddRange(ReceiptTextFormatter.WrapText($"Payment: {receipt.PaymentMethod}", width))
             If receipt.PaymentMethod = "Cash" Then
-                lines.Add(ReceiptTextFormatter.FormatAmountLine("Tendered:", receipt.AmountTendered, width))
-                lines.Add(ReceiptTextFormatter.FormatAmountLine("Change:", receipt.ChangeGiven, width))
+                lines.Add(ReceiptTextFormatter.FormatAmountLine("Tendered:", receipt.AmountTendered, width, amountCol))
+                lines.Add(ReceiptTextFormatter.FormatAmountLine("Change:", receipt.ChangeGiven, width, amountCol))
             End If
             lines.Add(New String("-"c, width))
             AddCenteredWrappedLines(lines, $"Thank you for visiting {appSettings.SalonName}!", width)
@@ -244,6 +247,40 @@ Namespace Services
                 .FontWeight = If(isBold, FontWeights.Bold, FontWeights.Normal),
                 .Margin = New Thickness(0, 0, 0, lineMargin)
             })
+        End Sub
+
+        Private Shared Sub AddAlignedAmountLine(doc As FlowDocument, label As String, amountText As String, layout As ReceiptLayout, fontSize As Double, isBold As Boolean)
+            Dim contentWidth = layout.PageWidth - layout.PagePadding.Left - layout.PagePadding.Right
+            Dim amountWidth = layout.AmountColumnWidth * layout.FontSize * 0.6
+            Dim labelWidth = Math.Max(0, contentWidth - amountWidth)
+
+            Dim table As New Table With {
+                .CellSpacing = 0,
+                .Margin = New Thickness(0, 0, 0, layout.LineMargin)
+            }
+            table.Columns.Add(New TableColumn With {.Width = New GridLength(labelWidth)})
+            table.Columns.Add(New TableColumn With {.Width = New GridLength(amountWidth)})
+
+            Dim labelPara As New Paragraph(New Run(label)) With {
+                .FontSize = fontSize,
+                .FontWeight = If(isBold, FontWeights.Bold, FontWeights.Normal),
+                .Margin = New Thickness(0)
+            }
+            Dim amountPara As New Paragraph(New Run(amountText)) With {
+                .FontSize = fontSize,
+                .FontWeight = If(isBold, FontWeights.Bold, FontWeights.Normal),
+                .TextAlignment = TextAlignment.Right,
+                .Margin = New Thickness(0)
+            }
+
+            Dim row As New TableRow()
+            row.Cells.Add(New TableCell(labelPara) With {.BorderThickness = New Thickness(0), .Padding = New Thickness(0)})
+            row.Cells.Add(New TableCell(amountPara) With {.BorderThickness = New Thickness(0), .Padding = New Thickness(0)})
+
+            Dim rowGroup As New TableRowGroup()
+            rowGroup.Rows.Add(row)
+            table.RowGroups.Add(rowGroup)
+            doc.Blocks.Add(table)
         End Sub
 
         Private Shared Sub AddSeparator(doc As FlowDocument, layout As ReceiptLayout)

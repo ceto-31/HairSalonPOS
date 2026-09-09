@@ -50,26 +50,49 @@ Namespace Helpers
             Return result
         End Function
 
-        Public Function FormatLeftRight(left As String, right As String, width As Integer) As String
+        Public Function FormatWithAmountColumn(label As String, amountText As String, lineWidth As Integer, Optional amountColumnWidth As Integer = 10) As String
+            label = If(label, String.Empty)
+            amountText = If(amountText, String.Empty)
+            If lineWidth <= 0 Then Return label & amountText
+
+            Dim col = Math.Min(Math.Max(1, amountColumnWidth), lineWidth)
+            If amountText.Length > col Then amountText = amountText.Substring(amountText.Length - col)
+            amountText = amountText.PadLeft(col)
+
+            Dim labelWidth = lineWidth - col
+            If label.Length > labelWidth Then
+                label = If(labelWidth <= 3, label.Substring(0, labelWidth), label.Substring(0, labelWidth - 3) & "...")
+            End If
+
+            Return label.PadRight(labelWidth) & amountText
+        End Function
+
+        Public Function FormatLeftRight(left As String, right As String, width As Integer, Optional amountColumnWidth As Integer = 0) As String
+            If amountColumnWidth > 0 Then Return FormatWithAmountColumn(left, right, width, amountColumnWidth)
+
             left = If(left, String.Empty)
             right = If(right, String.Empty)
-            If width <= 0 Then Return left & right
+            If width <= 0 Then Return left & " " & right
 
-            Dim maxLeft = Math.Max(0, width - right.Length)
-            If left.Length > maxLeft Then left = left.Substring(0, maxLeft)
+            If right.Length >= width Then Return right.Substring(Math.Max(0, right.Length - width))
+
+            Dim maxLeft = Math.Max(0, width - right.Length - 1)
+            If left.Length > maxLeft Then
+                left = If(maxLeft <= 3, left.Substring(0, maxLeft), left.Substring(0, maxLeft - 3) & "...")
+            End If
 
             Dim padding = width - left.Length - right.Length
             If padding < 1 Then padding = 1
             Return left & New String(" "c, padding) & right
         End Function
 
-        Public Function FormatAmountLine(label As String, amount As Decimal, width As Integer) As String
-            Return FormatLeftRight(label, amount.ToString("N2"), width)
+        Public Function FormatAmountLine(label As String, amount As Decimal, width As Integer, Optional amountColumnWidth As Integer = 10) As String
+            Return FormatWithAmountColumn(label, amount.ToString("N2"), width, amountColumnWidth)
         End Function
 
-        Public Function FormatItemDetailLine(qty As Integer, unitPrice As Decimal, lineTotal As Decimal, width As Integer) As String
+        Public Function FormatItemDetailLine(qty As Integer, unitPrice As Decimal, lineTotal As Decimal, width As Integer, Optional amountColumnWidth As Integer = 10) As String
             Dim left = $"  {qty} x {unitPrice:N2} = "
-            Return FormatLeftRight(left, lineTotal.ToString("N2"), width)
+            Return FormatWithAmountColumn(left, lineTotal.ToString("N2"), width, amountColumnWidth)
         End Function
     End Module
 End Namespace
