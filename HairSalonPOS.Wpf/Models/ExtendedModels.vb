@@ -93,10 +93,46 @@ Namespace Models
         Public Property IncludedSkus As New List(Of String)
     End Class
 
+    Public Class DiscountTypes
+        Public Const Percentage As String = "Percentage"
+        Public Const FixedAmount As String = "Fixed Amount"
+
+        Public Shared ReadOnly Property All As IReadOnlyList(Of String)
+            Get
+                Return {Percentage, FixedAmount}
+            End Get
+        End Property
+
+        Public Shared Function Normalize(value As String) As String
+            If String.IsNullOrWhiteSpace(value) Then Return Percentage
+
+            Dim trimmed = value.Trim()
+            If trimmed.Equals("Percent", StringComparison.OrdinalIgnoreCase) OrElse
+               trimmed.Equals(Percentage, StringComparison.OrdinalIgnoreCase) Then
+                Return Percentage
+            End If
+
+            If trimmed.Equals("Fixed", StringComparison.OrdinalIgnoreCase) OrElse
+               trimmed.Equals(FixedAmount, StringComparison.OrdinalIgnoreCase) Then
+                Return FixedAmount
+            End If
+
+            Return trimmed
+        End Function
+
+        Public Shared Function IsPercentage(value As String) As Boolean
+            Return String.Equals(Normalize(value), Percentage, StringComparison.Ordinal)
+        End Function
+
+        Public Shared Function IsFixedAmount(value As String) As Boolean
+            Return String.Equals(Normalize(value), FixedAmount, StringComparison.Ordinal)
+        End Function
+    End Class
+
     Public Class DiscountItem
         Public Property Code As String = String.Empty
         Public Property Description As String = String.Empty
-        Public Property DiscountType As String = "Percent"
+        Public Property DiscountType As String = DiscountTypes.Percentage
         Public Property Value As Decimal
         Public Property IsSeniorPwd As Boolean
         Public Property IsActive As Boolean = True
@@ -111,9 +147,15 @@ Namespace Models
             End Get
         End Property
 
+        Public ReadOnly Property TypeLabel As String
+            Get
+                Return DiscountTypes.Normalize(DiscountType)
+            End Get
+        End Property
+
         Public ReadOnly Property PosDisplayLabel As String
             Get
-                Dim valueText = If(DiscountType.Equals("Percent", StringComparison.OrdinalIgnoreCase),
+                Dim valueText = If(DiscountTypes.IsPercentage(DiscountType),
                                    $"{Value:0}% off",
                                    $"₱{Value:N0} off")
                 If Not String.IsNullOrWhiteSpace(Description) Then Return Description
@@ -547,6 +589,37 @@ Namespace Models
         Public Property BarHeight As Double
     End Class
 
+    Public Class StockOutBatchOption
+        Public Property BatchId As Integer
+        Public Property BoxCode As String = String.Empty
+        Public Property QuantityRemaining As Integer
+        Public Property ExpirationDate As Date?
+
+        Public ReadOnly Property DisplayLabel As String
+            Get
+                Return If(String.IsNullOrWhiteSpace(BoxCode), "(No lot code)", BoxCode.Trim())
+            End Get
+        End Property
+
+        Public ReadOnly Property DetailText As String
+            Get
+                Dim expiry = If(ExpirationDate.HasValue, ExpirationDate.Value.ToString("MMM d, yyyy"), "No expiry date")
+                Return $"Available: {QuantityRemaining} pc · Expires: {expiry}"
+            End Get
+        End Property
+    End Class
+
+    Public Class SalesReportPdfData
+        Public Property Title As String = String.Empty
+        Public Property SummaryLines As IEnumerable(Of String)
+        Public Property Sales As IEnumerable(Of SaleRecord)
+        Public Property DailyChart As DashboardLineChart
+        Public Property WeeklyChart As DashboardLineChart
+        Public Property YearlyChart As DashboardLineChart
+        Public Property RevenueBars As IEnumerable(Of RevenueBarItem)
+        Public Property StylistPerformance As IEnumerable(Of StylistPerformanceItem)
+    End Class
+
     Public Class StylistPerformanceItem
         Public Property StylistName As String = String.Empty
         Public Property ServiceCount As Integer
@@ -605,6 +678,7 @@ Namespace Models
     End Class
 
     Public Class ExpirationAlertRow
+        Public Property BatchId As Integer
         Public Property Sku As String = String.Empty
         Public Property ProductName As String = String.Empty
         Public Property ExpirationDate As Date

@@ -50,6 +50,7 @@ Namespace Services
                 If daysRemaining > warningDays Then Continue For
 
                 rows.Add(New ExpirationAlertRow With {
+                    .BatchId = batch.BatchId,
                     .Sku = batch.Sku,
                     .ProductName = product.Name,
                     .BoxCode = batch.BoxCode,

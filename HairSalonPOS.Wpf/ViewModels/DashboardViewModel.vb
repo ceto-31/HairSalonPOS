@@ -44,10 +44,12 @@ Namespace ViewModels
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
         Private ReadOnly _history As TransactionHistoryService = TransactionHistoryService.Instance
         Private ReadOnly _expirationScan As ExpirationScanService = ExpirationScanService.Instance
+        Private ReadOnly _inventory As InventoryService = New InventoryService()
 
         Private _todaySales As Decimal
         Private _transactionCount As Integer
         Private _lowStockCount As Integer
+        Private _nearExpireCount As Integer
         Private _appointmentCount As Integer
         Private _salesChangeText As String = "vs yesterday  0.0%"
         Private _txChangeText As String = "vs yesterday  0.0%"
@@ -89,6 +91,7 @@ Namespace ViewModels
             NewAppointmentCommand = New RelayCommand(Sub() _goToNewAppointment?.Invoke())
             GoToInventoryCommand = New RelayCommand(Sub() _goToInventory?.Invoke(), Function() CanViewAdminScreens)
             ReorderProductCommand = New RelayCommand(Of String)(Sub(sku) _goToStockIn?.Invoke(sku), Function(sku) CanViewAdminScreens AndAlso Not String.IsNullOrWhiteSpace(sku))
+            ReleaseReserveCommand = New RelayCommand(Of ExpirationAlertRow)(AddressOf ReleaseReserveBatch, AddressOf CanReleaseReserveBatch)
             GoToReportsCommand = New RelayCommand(Sub() _goToReports?.Invoke())
             GoToAppointmentsCommand = New RelayCommand(Sub() _goToAppointments?.Invoke())
             GoToTransactionsCommand = New RelayCommand(Sub() _goToTransactions?.Invoke())
@@ -106,6 +109,7 @@ Namespace ViewModels
 
         Public Sub LoadExpirationAlerts()
             ExpirationAlerts = New ObservableCollection(Of ExpirationAlertRow)(_expirationScan.Scan())
+            NearExpireCount = ExpirationAlerts.Count
             OnPropertyChanged(NameOf(ExpirationAlerts))
             OnPropertyChanged(NameOf(HasExpirationAlerts))
             OnPropertyChanged(NameOf(HasInventoryAlerts))
@@ -190,6 +194,31 @@ Namespace ViewModels
                 If LowStockCount <= 0 Then Return "All stock levels OK"
                 If LowStockCount = 1 Then Return "1 item needs restock"
                 Return $"{LowStockCount} items need restock"
+            End Get
+        End Property
+
+        Public Property NearExpireCount As Integer
+            Get
+                Return _nearExpireCount
+            End Get
+            Private Set(value As Integer)
+                SetProperty(_nearExpireCount, value)
+                OnPropertyChanged(NameOf(NearExpireSubtitle))
+                OnPropertyChanged(NameOf(HasNearExpireAlerts))
+            End Set
+        End Property
+
+        Public ReadOnly Property HasNearExpireAlerts As Boolean
+            Get
+                Return NearExpireCount > 0
+            End Get
+        End Property
+
+        Public ReadOnly Property NearExpireSubtitle As String
+            Get
+                If NearExpireCount <= 0 Then Return "No batches near expiry"
+                If NearExpireCount = 1 Then Return "1 batch near expiry"
+                Return $"{NearExpireCount} batches near expiry"
             End Get
         End Property
 
@@ -482,6 +511,7 @@ Namespace ViewModels
         Public Property NewAppointmentCommand As RelayCommand
         Public Property GoToInventoryCommand As RelayCommand
         Public Property ReorderProductCommand As RelayCommand(Of String)
+        Public Property ReleaseReserveCommand As RelayCommand(Of ExpirationAlertRow)
         Public Property GoToReportsCommand As RelayCommand
         Public Property GoToAppointmentsCommand As RelayCommand
         Public Property GoToTransactionsCommand As RelayCommand
@@ -578,8 +608,73 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(CanViewAdminScreens))
             GoToInventoryCommand.NotifyCanExecuteChanged()
             ReorderProductCommand.NotifyCanExecuteChanged()
+            ReleaseReserveCommand.NotifyCanExecuteChanged()
             GoToServicesCommand.NotifyCanExecuteChanged()
         End Sub
+
+        Private Function CanReleaseReserveBatch(alert As ExpirationAlertRow) As Boolean
+            Return CanViewAdminScreens AndAlso
+                   alert IsNot Nothing AndAlso
+                   alert.BatchId > 0 AndAlso
+                   alert.QuantityRemaining > 0
+        End Function
+
+        Private Sub ReleaseReserveBatch(alert As ExpirationAlertRow)
+            If Not CanReleaseReserveBatch(alert) Then Return
+
+            Dim product = _store.Products.FirstOrDefault(Function(p) p.Sku = alert.Sku)
+            If product Is Nothing Then
+                AppDialogService.ShowError("Product not found.", "Release")
+                Return
+            End If
+
+            Try
+                product.EnsureDefaults()
+            Catch ex As Exception
+                ErrorLogService.LogException($"ReleaseReserveBatch/EnsureDefaults — {alert.Sku}", ex)
+                AppDialogService.ShowError(ErrorLogService.Describe(ex), "Release")
+                Return
+            End Try
+
+            Dim prompt = AppDialogService.PromptStockOutForBatch(
+                product, alert.BatchId, alert.IsReserve, Math.Max(1, alert.QuantityRemaining))
+            If prompt Is Nothing OrElse Not prompt.BatchId.HasValue Then Return
+
+            Try
+                Dim pieces = If(prompt.QuantityPieces > 0, prompt.QuantityPieces, prompt.Quantity)
+                If alert.IsReserve Then
+                    _inventory.StockOutFromReserve(
+                        product.Sku,
+                        pieces,
+                        CurrentUserNameOrThrow(),
+                        prompt.CombinedNotes,
+                        prompt.BatchId.Value)
+                Else
+                    _inventory.StockOut(
+                        product.Sku,
+                        pieces,
+                        CurrentUserNameOrThrow(),
+                        prompt.CombinedNotes,
+                        prompt.BatchId.Value)
+                End If
+                LoadDashboard()
+            Catch ex As InvalidOperationException
+                AppDialogService.ShowError(ex.Message, "Release")
+            Catch ex As Exception
+                ErrorLogService.LogException($"ReleaseReserveBatch — {alert.Sku}", ex)
+                AppDialogService.ShowError(
+                    $"Could not release stock for {product.Name}.{Environment.NewLine}{Environment.NewLine}{ErrorLogService.Describe(ex)}",
+                    "Release")
+            End Try
+        End Sub
+
+        Private Shared Function CurrentUserNameOrThrow() As String
+            Dim user = SessionContext.CurrentUser
+            If user Is Nothing OrElse String.IsNullOrWhiteSpace(user.FullName) Then
+                Throw New InvalidOperationException("You must be logged in to release stock.")
+            End If
+            Return user.FullName
+        End Function
 
         Private Sub RefreshPeriodVisuals()
             Dim today = Date.Today

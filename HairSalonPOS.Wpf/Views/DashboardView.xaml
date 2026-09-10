@@ -26,7 +26,7 @@
                 <TextBlock Text="Today's salon overview" FontSize="14" Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <UniformGrid Columns="4" Margin="0,0,0,16">
+            <UniformGrid Columns="5" Margin="0,0,0,16">
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,10,0" Padding="16">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource DashboardKpiWell}">
@@ -132,6 +132,74 @@
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HasLowStockAlerts}" Value="True">
                                                 <Setter Property="Foreground" Value="{DynamicResource LowStockAlertBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Border Margin="0,0,10,0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CardBorder}">
+                            <Setter Property="Padding" Value="16"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasNearExpireAlerts}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#D97706"/>
+                                    <Setter Property="Background" Value="#FFFBEB"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource DashboardKpiWell}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasNearExpireAlerts}" Value="True">
+                                            <Setter Property="Background" Value="#FEF3C7"/>
+                                            <Setter Property="BorderBrush" Value="#D97706"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Image Source="pack://application:,,,/Assets/Icons/icon_inventory.png"
+                                   Style="{StaticResource DashboardKpiImage}"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="Near expire">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SectionHeader}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNearExpireAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="#D97706"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding NearExpireCount}" FontSize="22" FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNearExpireAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="#D97706"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding NearExpireSubtitle}" FontSize="12" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNearExpireAlerts}" Value="True">
+                                                <Setter Property="Foreground" Value="#D97706"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -472,11 +540,10 @@
                                                         </Grid>
                                                     </Border>
                                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Border CornerRadius="8" Padding="8,4" Margin="0,0,6,0"
-                                                                Background="#6366F1"
-                                                                Visibility="{Binding IsReserve, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="Reserve" FontSize="11" FontWeight="Bold" Foreground="White"/>
-                                                        </Border>
+                                                        <Button Content="Release" Style="{StaticResource PrimaryButton}" Padding="10,6" Margin="0,0,6,0"
+                                                                Command="{Binding DataContext.ReleaseReserveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Visibility="{Binding DataContext.CanViewAdminScreens, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
                                                         <Border CornerRadius="8" Padding="8,4"
                                                                 Background="{DynamicResource LowStockAlertBrush}"
                                                                 Visibility="{Binding IsExpired, Converter={StaticResource BoolToVis}}">
@@ -541,7 +608,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <DockPanel Margin="0,0,0,10">
-                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Total, StringFormat=₱{0:N0}}" FontWeight="SemiBold"/>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Total, StringFormat=₱{0:N2}}" FontWeight="SemiBold"/>
                                                 <StackPanel MinWidth="0">
                                                     <TextBlock Text="{Binding ServiceLabel}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock FontSize="11" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis">
