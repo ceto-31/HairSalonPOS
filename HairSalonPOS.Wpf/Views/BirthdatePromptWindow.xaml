@@ -13,7 +13,9 @@
         Loaded="Window_Loaded"
         PreviewKeyDown="Window_PreviewKeyDown">
     <Grid>
-        <Border Background="{DynamicResource DialogOverlayBrush}"/>
+        <Border HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="{DynamicResource DialogOverlayBrush}"/>
 
         <Grid HorizontalAlignment="Center"
               VerticalAlignment="Center"

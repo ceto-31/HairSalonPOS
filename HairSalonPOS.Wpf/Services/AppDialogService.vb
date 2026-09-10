@@ -33,6 +33,7 @@ Namespace Services
             ElseIf Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
                 dialog.Owner = Application.Current.MainWindow
             End If
+            ApplyOwnerOverlaySizing(dialog)
             dialog.ShowDialog()
             Return dialog.Result
         End Function
@@ -232,7 +233,85 @@ Namespace Services
                     .Reason = dialog.ResultReason,
                     .Notes = dialog.ResultNotes,
                     .ExpirationDate = dialog.ResultExpirationDate,
-                    .BoxCode = dialog.ResultBoxCode
+                    .BoxCode = dialog.ResultBoxCode,
+                    .BatchId = dialog.ResultBatchId
+                }
+            End If
+            Return Nothing
+        End Function
+
+        Public Function PromptStockOutForBatch(product As Models.ProductItem,
+                                               batchId As Integer,
+                                               fromReserve As Boolean,
+                                               Optional initialQty As Integer = 1,
+                                               Optional owner As Window = Nothing) As StockMovementPromptResult
+            If product Is Nothing Then Return Nothing
+
+            Try
+                product.EnsureDefaults()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockOutForBatch/EnsureDefaults", ex)
+                Throw
+            End Try
+
+            If fromReserve Then
+                If product.ReservedQty <= 0 Then
+                    ShowWarning($"{If(product.Name, "This product")} has no reserve stock to release.", "Release")
+                    Return Nothing
+                End If
+            ElseIf product.StockOnHand <= 0 Then
+                ShowWarning($"{If(product.Name, "This product")} has no on-hand stock to release.", "Release")
+                Return Nothing
+            End If
+
+            Dim options As New StockMovementStockOutOptions With {
+                .FromReserve = fromReserve,
+                .PreselectedBatchId = batchId,
+                .LockBatchSelection = False,
+                .DefaultReason = "Expired"
+            }
+
+            Dim dialog As Views.StockMovementWindow
+            Try
+                dialog = New Views.StockMovementWindow(product, StockMovementKind.StockOut, Math.Max(1, initialQty), options)
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockOutForBatch/ConstructWindow", ex)
+                Throw
+            End Try
+
+            Try
+                Dim ownerWin = owner
+                If ownerWin Is Nothing AndAlso Application.Current?.MainWindow IsNot Nothing AndAlso Application.Current.MainWindow.IsLoaded Then
+                    ownerWin = Application.Current.MainWindow
+                End If
+                If ownerWin IsNot Nothing Then
+                    dialog.Owner = ownerWin
+                    SizeDialogToOwner(dialog, ownerWin)
+                End If
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockOutForBatch/OwnerSizing", ex)
+                Throw
+            End Try
+
+            Dim result As Boolean?
+            Try
+                result = dialog.ShowDialog()
+            Catch ex As Exception
+                ErrorLogService.LogException("PromptStockOutForBatch/ShowDialog", ex)
+                Throw
+            End Try
+
+            If result = True AndAlso dialog.Confirmed AndAlso dialog.LoadSucceeded Then
+                Return New StockMovementPromptResult With {
+                    .Quantity = dialog.ResultQuantity,
+                    .QuantityPieces = dialog.ResultQuantityPieces,
+                    .BoxesReceived = dialog.ResultBoxesReceived,
+                    .Reason = dialog.ResultReason,
+                    .Notes = dialog.ResultNotes,
+                    .ExpirationDate = dialog.ResultExpirationDate,
+                    .BoxCode = dialog.ResultBoxCode,
+                    .BatchId = dialog.ResultBatchId,
+                    .StockOutFromReserve = fromReserve
                 }
             End If
             Return Nothing
@@ -410,58 +489,29 @@ Namespace Services
             Return Nothing
         End Function
 
-        Private Function TrySizeDialogToOwner(dialog As Window, ownerWin As Window) As Boolean
-            Dim ownerWidth = If(ownerWin.ActualWidth > 0, ownerWin.ActualWidth, ownerWin.Width)
-            Dim ownerHeight = If(ownerWin.ActualHeight > 0, ownerWin.ActualHeight, ownerWin.Height)
-            If Double.IsNaN(ownerWidth) OrElse Double.IsNaN(ownerHeight) OrElse
-               Double.IsNaN(ownerWin.Left) OrElse Double.IsNaN(ownerWin.Top) Then
-                Return False
-            End If
+        ''' <summary>
+        ''' Covers the full virtual screen so the dim overlay has no gaps at edges, sidebars, or headers.
+        ''' </summary>
+        Private Sub ApplyFullScreenOverlaySizing(dialog As Window)
+            If dialog Is Nothing Then Return
 
             dialog.WindowStartupLocation = WindowStartupLocation.Manual
-            dialog.Width = Math.Max(ownerWidth, 400)
-            dialog.Height = Math.Max(ownerHeight, 300)
-            dialog.Left = ownerWin.Left
-            dialog.Top = ownerWin.Top
-            Return True
-        End Function
-
-        Private Sub SizeDialogToWorkArea(dialog As Window)
-            Dim area = SystemParameters.WorkArea
-            dialog.WindowStartupLocation = WindowStartupLocation.Manual
-            dialog.Width = area.Width
-            dialog.Height = area.Height
-            dialog.Left = area.Left
-            dialog.Top = area.Top
+            dialog.Left = SystemParameters.VirtualScreenLeft
+            dialog.Top = SystemParameters.VirtualScreenTop
+            dialog.Width = SystemParameters.VirtualScreenWidth
+            dialog.Height = SystemParameters.VirtualScreenHeight
+            dialog.Topmost = True
         End Sub
 
         Private Sub SizeDialogToOwner(dialog As Window, ownerWin As Window)
-            If Not TrySizeDialogToOwner(dialog, ownerWin) Then
-                SizeDialogToWorkArea(dialog)
-            End If
+            ApplyFullScreenOverlaySizing(dialog)
         End Sub
 
         ''' <summary>
-        ''' Stretches a dialog over its owner so its scrim reads as a full-window dim rather than a
-        ''' rectangle hugging the rounded card.
+        ''' Stretches a dialog over the full viewport so its scrim dims the entire background consistently.
         ''' </summary>
         Public Sub ApplyOwnerOverlaySizing(dialog As Window)
-            If dialog Is Nothing Then Return
-
-            Dim ownerWin = dialog.Owner
-            If ownerWin Is Nothing AndAlso
-               Application.Current?.MainWindow IsNot Nothing AndAlso
-               Application.Current.MainWindow.IsLoaded AndAlso
-               Not ReferenceEquals(Application.Current.MainWindow, dialog) Then
-                ownerWin = Application.Current.MainWindow
-            End If
-
-            ' Without explicit bounds the window keeps its NaN size and collapses, so an
-            ' unmeasurable owner (or none at all, as on the login screen) falls back to the
-            ' work area. Either way the scrim covers a full window rather than hugging the card.
-            If ownerWin Is Nothing OrElse Not TrySizeDialogToOwner(dialog, ownerWin) Then
-                SizeDialogToWorkArea(dialog)
-            End If
+            ApplyFullScreenOverlaySizing(dialog)
         End Sub
     End Module
 
@@ -474,6 +524,8 @@ Namespace Services
         Public Property IsReleaseReserve As Boolean
         Public Property ExpirationDate As Date?
         Public Property BoxCode As String = String.Empty
+        Public Property BatchId As Integer?
+        Public Property StockOutFromReserve As Boolean
 
         Public ReadOnly Property CombinedNotes As String
             Get

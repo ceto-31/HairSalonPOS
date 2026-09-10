@@ -669,6 +669,7 @@
                         </Border>
                         <Popup x:Name="PART_Popup"
                                Placement="Bottom"
+                               PlacementTarget="{Binding ElementName=border}"
                                IsOpen="{TemplateBinding IsDropDownOpen}"
                                AllowsTransparency="True"
                                Focusable="False"

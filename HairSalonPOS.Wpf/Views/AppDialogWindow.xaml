@@ -38,7 +38,11 @@
     </Window.Resources>
 
     <Grid>
-        <Border x:Name="Overlay" Background="{DynamicResource DialogOverlayBrush}" Opacity="0"/>
+        <Border x:Name="Overlay"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="{DynamicResource DialogOverlayBrush}"
+                Opacity="0"/>
 
         <Grid x:Name="DialogCard"
               HorizontalAlignment="Center"

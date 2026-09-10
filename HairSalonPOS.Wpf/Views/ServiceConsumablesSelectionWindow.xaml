@@ -14,6 +14,8 @@
         PreviewKeyDown="Window_PreviewKeyDown">
     <Grid>
         <Border x:Name="OverlayScrim"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
                 Background="{DynamicResource DialogOverlayBrush}"
                 PreviewMouseDown="OverlayScrim_PreviewMouseDown"/>
 
