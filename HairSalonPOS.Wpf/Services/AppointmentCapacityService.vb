@@ -145,12 +145,29 @@ Namespace Services
                 Return GetFullyBookedMessage(category, count, max)
             End If
 
-            If HasStaffOverlap(appointments, services, day, startTime, durationMinutes, staffName, excludeAppointmentId) Then
-                Dim endTime = startTime.AddMinutes(durationMinutes)
-                Return $"{staffName.Trim()} is unavailable from {startTime:h:mm tt} to {endTime:h:mm tt}."
-            End If
+            Dim staffMessage = GetStaffUnavailableMessage(
+                appointments, services, day, startTime, durationMinutes, staffName, excludeAppointmentId)
+            If Not String.IsNullOrEmpty(staffMessage) Then Return staffMessage
 
             Return String.Empty
+        End Function
+
+        Public Function GetStaffUnavailableMessage(
+            appointments As IEnumerable(Of AppointmentItem),
+            services As IEnumerable(Of ServiceItem),
+            day As Date,
+            startTime As DateTime,
+            durationMinutes As Integer,
+            staffName As String,
+            Optional excludeAppointmentId As Integer = 0) As String
+
+            If String.IsNullOrWhiteSpace(staffName) Then Return String.Empty
+            If Not HasStaffOverlap(appointments, services, day, startTime, durationMinutes, staffName, excludeAppointmentId) Then
+                Return String.Empty
+            End If
+
+            Dim endTime = startTime.AddMinutes(durationMinutes)
+            Return $"{staffName.Trim()} is already booked from {startTime:h:mm tt} to {endTime:h:mm tt}. Please choose a different time or staff member."
         End Function
 
         Public Function GetFullyBookedMessage(category As String, count As Integer, max As Integer) As String
