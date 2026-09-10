@@ -96,7 +96,7 @@
                             <TextBlock Text="{Binding Label}" FontSize="10" TextAlignment="Center"
                                        Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis"
                                        Visibility="{Binding ShowLabel, Converter={StaticResource BoolToVis}}"/>
-                            <TextBlock Text="{Binding Amount, StringFormat=₱{0:N0}}" FontSize="9" TextAlignment="Center"
+                            <TextBlock Text="{Binding Amount, StringFormat=₱{0:N2}}" FontSize="9" TextAlignment="Center"
                                        Foreground="{DynamicResource TextBrush}" Margin="0,2,0,0"
                                        Visibility="{Binding ShowLabel, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>

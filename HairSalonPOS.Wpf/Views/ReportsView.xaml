@@ -14,9 +14,58 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                <Button Content="Daily" Command="{Binding SetDailyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
-                <Button Content="Weekly" Command="{Binding SetWeeklyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,8,0"/>
-                <Button Content="Monthly" Command="{Binding SetMonthlyCommand}" Style="{StaticResource PillTabButton}" Margin="0,0,16,0"/>
+                <Button Content="Daily" Command="{Binding SetDailyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDaily}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Weekly" Command="{Binding SetWeeklyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsWeekly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Monthly" Command="{Binding SetMonthlyCommand}" Margin="0,0,8,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMonthly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Yearly" Command="{Binding SetYearlyCommand}" Margin="0,0,16,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource PillTabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsYearly}" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource CtaForegroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ChipActiveBackgroundBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <DatePicker SelectedDate="{Binding SelectedDate}" Style="{StaticResource LargeDatePicker}" VerticalAlignment="Center"/>
                 <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Margin="12,0,0,0"/>
                 <Button Content="Export" Style="{StaticResource PrimaryButton}" Command="{Binding ExportCommand}" Margin="12,0,0,0"/>
@@ -32,13 +81,13 @@
                 <Border Style="{StaticResource SummaryCard}">
                     <StackPanel>
                         <TextBlock Text="Total sales" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding TotalSales, StringFormat=₱{0:N0}}" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalSales, StringFormat=₱{0:N2}}" FontSize="28" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource SummaryCard}">
                     <StackPanel>
                         <TextBlock Text="Avg transaction" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding AverageSale, StringFormat=₱{0:N0}}" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding AverageSale, StringFormat=₱{0:N2}}" FontSize="28" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource SummaryCard}" Margin="0">
@@ -81,7 +130,7 @@
                                         <Border Background="{DynamicResource AccentBrush}" CornerRadius="6,6,0,0"
                                                 Height="{Binding BarHeight}" VerticalAlignment="Bottom" MinHeight="8" Opacity="0.85"/>
                                         <TextBlock Text="{Binding Label}" FontSize="11" TextAlignment="Center" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Amount, StringFormat=₱{0:N0}}" FontSize="10" TextAlignment="Center" Foreground="{DynamicResource MutedTextBrush}"/>
+                                        <TextBlock Text="{Binding Amount, StringFormat=₱{0:N2}}" FontSize="10" TextAlignment="Center" Foreground="{DynamicResource MutedTextBrush}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -95,7 +144,7 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Stylist" Binding="{Binding StylistName}" Width="*"/>
                                 <DataGridTextColumn Header="Services" Binding="{Binding ServiceCount}" Width="80"/>
-                                <DataGridTextColumn Header="Revenue" Binding="{Binding Revenue, StringFormat=₱{0:N0}}" Width="100"/>
+                                <DataGridTextColumn Header="Revenue" Binding="{Binding Revenue, StringFormat=₱{0:N2}}" Width="100"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </StackPanel>
@@ -114,7 +163,7 @@
                             <DataGridTextColumn Header="Cashier" Binding="{Binding CashierName}" Width="90"/>
                             <DataGridTextColumn Header="Stylist" Binding="{Binding StylistName}" Width="90"/>
                             <DataGridTextColumn Header="Payment" Binding="{Binding PaymentMethod}" Width="70"/>
-                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=₱{0:N0}}" Width="90"/>
+                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=₱{0:N2}}" Width="90"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

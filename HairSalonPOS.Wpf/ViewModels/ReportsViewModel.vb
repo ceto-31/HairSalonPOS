@@ -34,6 +34,7 @@ Namespace ViewModels
             SetDailyCommand = New RelayCommand(Sub() Period = "Daily")
             SetWeeklyCommand = New RelayCommand(Sub() Period = "Weekly")
             SetMonthlyCommand = New RelayCommand(Sub() Period = "Monthly")
+            SetYearlyCommand = New RelayCommand(Sub() Period = "Yearly")
             ExportCommand = New RelayCommand(AddressOf ExportReport)
 
             AddHandler _store.SaleCompleted, Sub() LoadReports()
@@ -50,6 +51,7 @@ Namespace ViewModels
                 OnPropertyChanged(NameOf(IsDaily))
                 OnPropertyChanged(NameOf(IsWeekly))
                 OnPropertyChanged(NameOf(IsMonthly))
+                OnPropertyChanged(NameOf(IsYearly))
             End Set
         End Property
 
@@ -157,10 +159,17 @@ Namespace ViewModels
             End Get
         End Property
 
+        Public ReadOnly Property IsYearly As Boolean
+            Get
+                Return Period = "Yearly"
+            End Get
+        End Property
+
         Public Property RefreshCommand As RelayCommand
         Public Property SetDailyCommand As RelayCommand
         Public Property SetWeeklyCommand As RelayCommand
         Public Property SetMonthlyCommand As RelayCommand
+        Public Property SetYearlyCommand As RelayCommand
         Public Property ExportCommand As RelayCommand
 
         Public Sub LoadReports()
@@ -218,6 +227,9 @@ Namespace ViewModels
                 Case "Monthly"
                     Dim start = New Date(SelectedDate.Year, SelectedDate.Month, 1)
                     Return (start, start.AddMonths(1))
+                Case "Yearly"
+                    Dim start = New Date(SelectedDate.Year, 1, 1)
+                    Return (start, start.AddYears(1))
                 Case Else
                     Return (SelectedDate.Date, SelectedDate.Date.AddDays(1))
             End Select
@@ -255,7 +267,16 @@ Namespace ViewModels
                 $"Average sale: ₱{AverageSale:N2}",
                 $"Top service: {TopService}"
             }
-            If ExportService.ExportSalesPdf(Sales, title, summary) Then
+            If ExportService.ExportSalesReportPdf(New SalesReportPdfData With {
+                .Title = title,
+                .SummaryLines = summary,
+                .Sales = Sales,
+                .DailyChart = DailyChart,
+                .WeeklyChart = WeeklyChart,
+                .YearlyChart = YearlyChart,
+                .RevenueBars = RevenueBars,
+                .StylistPerformance = StylistPerformance
+            }) Then
                 StatusMessage = "PDF report exported."
             End If
         End Sub
