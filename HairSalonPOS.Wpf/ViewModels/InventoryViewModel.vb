@@ -840,8 +840,10 @@ Namespace ViewModels
                 product.EnsureDefaults()
                 Dim prompt = AppDialogService.PromptStockMovement(product, False)
                 If prompt Is Nothing Then Return False
-                _inventory.StockOut(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes)
-                StatusMessage = $"Stocked out {prompt.Quantity} of {product.Name}."
+                Dim pieces = If(prompt.QuantityPieces > 0, prompt.QuantityPieces, prompt.Quantity)
+                _inventory.StockOut(product.Sku, pieces, CurrentUserNameOrThrow(), prompt.CombinedNotes, prompt.BatchId)
+                Dim batchLabel = If(String.IsNullOrWhiteSpace(prompt.BoxCode), "selected batch", prompt.BoxCode)
+                StatusMessage = $"Stocked out {pieces} of {product.Name} from {batchLabel}."
                 LoadAll()
                 Return True
             Catch ex As InvalidOperationException
@@ -868,7 +870,7 @@ Namespace ViewModels
                 Else
                     Dim pieces = If(prompt.QuantityPieces > 0, prompt.QuantityPieces, prompt.Quantity)
                     _inventory.ReserveStock(product.Sku, prompt.Quantity, CurrentUserNameOrThrow(), prompt.CombinedNotes,
-                                            prompt.ExpirationDate, prompt.BoxesReceived)
+                                            prompt.ExpirationDate, prompt.BoxCode, prompt.BoxesReceived)
                     StatusMessage = $"Added {pieces} units to reserve stock for {product.Name}."
                 End If
                 LoadAll()

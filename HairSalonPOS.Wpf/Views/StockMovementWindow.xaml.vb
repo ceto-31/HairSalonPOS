@@ -25,6 +25,13 @@ Namespace Views
         Private _loadFailed As Boolean
         Private _isUseReserveStock As Boolean
         Private _enterAsBoxes As Boolean
+        Private _stockOutBatches As List(Of StockOutBatchOption) = New List(Of StockOutBatchOption)()
+        Private _selectedStockOutBatch As StockOutBatchOption
+        Private ReadOnly _stockOutOptions As StockMovementStockOutOptions
+        Private ReadOnly _stockOutFromReserve As Boolean
+        Private ReadOnly _preselectedBatchId As Integer?
+        Private ReadOnly _lockBatchSelection As Boolean
+        Private ReadOnly _defaultReason As String
 
         Public Property Confirmed As Boolean
         Public Property ResultQuantity As Integer
@@ -35,6 +42,7 @@ Namespace Views
         Public Property ResultIsReleaseReserve As Boolean
         Public Property ResultExpirationDate As Date?
         Public Property ResultBoxCode As String = String.Empty
+        Public Property ResultBatchId As Integer?
         Public ReadOnly Property LoadSucceeded As Boolean
             Get
                 Return Not _loadFailed
@@ -42,10 +50,11 @@ Namespace Views
         End Property
 
         Public Sub New(product As ProductItem, isStockIn As Boolean, Optional initialQty As Integer = 1)
-            Me.New(product, If(isStockIn, StockMovementKind.StockIn, StockMovementKind.StockOut), initialQty)
+            Me.New(product, If(isStockIn, StockMovementKind.StockIn, StockMovementKind.StockOut), initialQty, Nothing)
         End Sub
 
-        Public Sub New(product As ProductItem, kind As StockMovementKind, Optional initialQty As Integer = 1)
+        Public Sub New(product As ProductItem, kind As StockMovementKind, Optional initialQty As Integer = 1,
+                       Optional stockOutOptions As StockMovementStockOutOptions = Nothing)
             Try
                 InitializeComponent()
             Catch ex As Exception
@@ -54,6 +63,11 @@ Namespace Views
             End Try
 
             _kind = kind
+            _stockOutOptions = stockOutOptions
+            _stockOutFromReserve = stockOutOptions IsNot Nothing AndAlso stockOutOptions.FromReserve
+            _preselectedBatchId = stockOutOptions?.PreselectedBatchId
+            _lockBatchSelection = stockOutOptions IsNot Nothing AndAlso stockOutOptions.LockBatchSelection
+            _defaultReason = If(stockOutOptions?.DefaultReason, String.Empty)
 
             If Not TryLoadProduct(product, initialQty) Then
                 DisableFormControls()
@@ -106,8 +120,8 @@ Namespace Views
                     TitleText.Text = "Stock in"
                     ConfirmButton.Content = "Stock in"
                     ReserveModePanel.Visibility = Visibility.Collapsed
-                    ShowStockInBatchPanel(True)
-                    ShowExpirationDatePanel(False)
+                    ShowStockInBatchPanel(True, showBoxCode:=True)
+                    ShowStockOutBatchPanel(False)
                     ShowReasonPanel(False)
                     Dim accent = TryCast(TryFindResource("LinkStockInBrush"), Brush)
                     If accent IsNot Nothing Then AccentBar.Background = accent
@@ -116,9 +130,11 @@ Namespace Views
                     ConfirmButton.Content = "Stock out"
                     ReserveModePanel.Visibility = Visibility.Collapsed
                     ShowStockInBatchPanel(False)
-                    ShowExpirationDatePanel(False)
+                    LoadStockOutBatches()
+                    ShowStockOutBatchPanel(True)
                     ShowReasonPanel(True)
                     ReasonBox.ItemsSource = StockOutReasons
+                    ApplyDefaultStockOutReason()
                     Dim accent = TryCast(TryFindResource("LinkDeleteBrush"), Brush)
                     If accent IsNot Nothing Then AccentBar.Background = accent
                 Case StockMovementKind.Reserve
@@ -136,27 +152,90 @@ Namespace Views
                     If accent IsNot Nothing Then AccentBar.Background = accent
             End Select
 
-            If ReasonBox.Items.Count > 0 Then ReasonBox.SelectedIndex = 0
+            If ReasonBox.Items.Count > 0 AndAlso String.IsNullOrWhiteSpace(_defaultReason) Then
+                ReasonBox.SelectedIndex = 0
+            End If
             UpdateEntryUnitPanel()
         End Sub
 
-        Private Sub ShowStockInBatchPanel(show As Boolean)
+        Private Sub ShowStockInBatchPanel(show As Boolean, Optional showBoxCode As Boolean = True)
             If StockInBatchPanel Is Nothing Then Return
             StockInBatchPanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+            If BoxCodePanel IsNot Nothing Then
+                BoxCodePanel.Visibility = If(show AndAlso showBoxCode, Visibility.Visible, Visibility.Collapsed)
+            End If
             If show AndAlso StockInExpirationDatePicker IsNot Nothing AndAlso Not StockInExpirationDatePicker.SelectedDate.HasValue Then
                 StockInExpirationDatePicker.SelectedDate = Date.Today.AddYears(1)
             End If
-            If show AndAlso BoxCodeBox IsNot Nothing Then
+            If show AndAlso showBoxCode AndAlso BoxCodeBox IsNot Nothing Then
                 BoxCodeBox.Text = String.Empty
             End If
         End Sub
 
-        Private Sub ShowExpirationDatePanel(show As Boolean)
-            If ExpirationDatePanel Is Nothing Then Return
-            ExpirationDatePanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
-            If show AndAlso ExpirationDatePicker IsNot Nothing AndAlso Not ExpirationDatePicker.SelectedDate.HasValue Then
-                ExpirationDatePicker.SelectedDate = Date.Today.AddYears(1)
+        Private Sub ShowStockOutBatchPanel(show As Boolean)
+            If StockOutBatchPanel Is Nothing Then Return
+            StockOutBatchPanel.Visibility = If(show, Visibility.Visible, Visibility.Collapsed)
+            If Not show Then
+                _selectedStockOutBatch = Nothing
+                If StockOutBatchDetailText IsNot Nothing Then StockOutBatchDetailText.Text = String.Empty
+                If StockOutExpirationDatePicker IsNot Nothing Then StockOutExpirationDatePicker.SelectedDate = Nothing
             End If
+        End Sub
+
+        Private Sub LoadStockOutBatches()
+            Dim store = InMemoryDataStore.Instance
+            Dim sourceBatches = If(_stockOutFromReserve,
+                                   store.GetAvailableReserveBatches(_product.Sku),
+                                   store.GetAvailableOnHandBatches(_product.Sku))
+
+            _stockOutBatches = sourceBatches.
+                Select(Function(b) New StockOutBatchOption With {
+                    .BatchId = b.BatchId,
+                    .BoxCode = b.BoxCode,
+                    .QuantityRemaining = b.QuantityRemaining,
+                    .ExpirationDate = b.ExpirationDate
+                }).ToList()
+
+            If StockOutBatchBox Is Nothing Then Return
+            StockOutBatchBox.ItemsSource = _stockOutBatches
+            StockOutBatchBox.IsEnabled = _stockOutBatches.Count > 0
+
+            If _stockOutBatches.Count = 0 Then
+                StockOutBatchBox.SelectedIndex = -1
+                _selectedStockOutBatch = Nothing
+                If StockOutBatchDetailText IsNot Nothing Then
+                    StockOutBatchDetailText.Text = If(_stockOutFromReserve,
+                        "No available reserve batches with stock for this product.",
+                        "No available batches with stock for this product.")
+                End If
+                Return
+            End If
+
+            Dim selectedIndex = 0
+            If _preselectedBatchId.HasValue Then
+                Dim matchIndex = _stockOutBatches.FindIndex(Function(b) b.BatchId = _preselectedBatchId.Value)
+                If matchIndex >= 0 Then selectedIndex = matchIndex
+            End If
+
+            StockOutBatchBox.SelectedIndex = selectedIndex
+            If _lockBatchSelection Then StockOutBatchBox.IsEnabled = False
+        End Sub
+
+        Private Sub ApplyDefaultStockOutReason()
+            If ReasonBox Is Nothing OrElse String.IsNullOrWhiteSpace(_defaultReason) Then Return
+            Dim reasonIndex = Array.IndexOf(StockOutReasons, _defaultReason)
+            If reasonIndex >= 0 Then ReasonBox.SelectedIndex = reasonIndex
+        End Sub
+
+        Private Sub StockOutBatchBox_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+            _selectedStockOutBatch = TryCast(StockOutBatchBox?.SelectedItem, StockOutBatchOption)
+            If StockOutBatchDetailText IsNot Nothing Then
+                StockOutBatchDetailText.Text = If(_selectedStockOutBatch?.DetailText, String.Empty)
+            End If
+            If StockOutExpirationDatePicker IsNot Nothing Then
+                StockOutExpirationDatePicker.SelectedDate = _selectedStockOutBatch?.ExpirationDate
+            End If
+            UpdatePreview()
         End Sub
 
         Private Sub ShowReasonPanel(show As Boolean)
@@ -168,12 +247,12 @@ Namespace Views
             If _isUseReserveStock Then
                 ConfirmButton.Content = "Use reserve stock"
                 ShowStockInBatchPanel(False)
-                ShowExpirationDatePanel(False)
+                ShowStockOutBatchPanel(False)
                 ShowReasonPanel(False)
             Else
                 ConfirmButton.Content = "Add to reserve stock"
-                ShowStockInBatchPanel(False)
-                ShowExpirationDatePanel(True)
+                ShowStockInBatchPanel(True, showBoxCode:=True)
+                ShowStockOutBatchPanel(False)
                 ShowReasonPanel(False)
             End If
             UpdateEntryUnitPanel()
@@ -243,6 +322,8 @@ Namespace Views
         Private Sub RefreshProductMetaText(productSku As String)
             If _kind = StockMovementKind.Reserve Then
                 ProductMetaText.Text = $"On hand {_currentQty}  •  {_reservedQty} reserve stock"
+            ElseIf _kind = StockMovementKind.StockOut AndAlso _stockOutFromReserve Then
+                ProductMetaText.Text = $"SKU {productSku}  •  {_reservedQty} reserve stock"
             Else
                 ProductMetaText.Text = $"SKU {productSku}  •  On hand {_currentQty}"
             End If
@@ -296,7 +377,10 @@ Namespace Views
                 BoxCodeBox.IsEnabled = False
                 StockInExpirationDatePicker.IsEnabled = False
             End If
-            If ExpirationDatePanel IsNot Nothing Then ExpirationDatePicker.IsEnabled = False
+            If StockOutBatchPanel IsNot Nothing Then
+                StockOutBatchBox.IsEnabled = False
+                If StockOutExpirationDatePicker IsNot Nothing Then StockOutExpirationDatePicker.IsEnabled = False
+            End If
             If EntryUnitPanel IsNot Nothing Then
                 PiecesRadio.IsEnabled = False
                 BoxesRadio.IsEnabled = False
@@ -306,7 +390,7 @@ Namespace Views
 
         Private Sub Window_Loaded(sender As Object, e As RoutedEventArgs)
             Try
-                AppDialogService.ApplyOwnerOverlaySizing(Me)
+                ApplyOverlaySizing()
                 If _loadFailed Then Return
                 Dispatcher.BeginInvoke(Sub()
                                            Try
@@ -319,6 +403,10 @@ Namespace Views
             Catch ex As Exception
                 ErrorLogService.LogException("StockMovementWindow/Window_Loaded", ex)
             End Try
+        End Sub
+
+        Private Sub ApplyOverlaySizing()
+            AppDialogService.ApplyOwnerOverlaySizing(Me)
         End Sub
 
         Private Sub OverlayScrim_PreviewMouseDown(sender As Object, e As MouseButtonEventArgs)
@@ -388,8 +476,23 @@ Namespace Views
                     Dim nextQty = _currentQty + pieces
                     PreviewText.Text = $"On hand: {_currentQty} → {nextQty}"
                 Case StockMovementKind.StockOut
-                    Dim nextQty = _currentQty - pieces
-                    PreviewText.Text = $"On hand: {_currentQty} → {Math.Max(0, nextQty)}"
+                    If _selectedStockOutBatch IsNot Nothing Then
+                        Dim batchNext = Math.Max(0, _selectedStockOutBatch.QuantityRemaining - pieces)
+                        If _stockOutFromReserve Then
+                            Dim nextReserve = Math.Max(0, _reservedQty - pieces)
+                            PreviewText.Text =
+                                $"Batch available: {_selectedStockOutBatch.QuantityRemaining} → {batchNext}  •  Reserve stock: {_reservedQty} → {nextReserve}"
+                        Else
+                            Dim nextQty = _currentQty - pieces
+                            PreviewText.Text =
+                                $"Batch available: {_selectedStockOutBatch.QuantityRemaining} → {batchNext}  •  On hand: {_currentQty} → {Math.Max(0, nextQty)}"
+                        End If
+                    ElseIf _stockOutFromReserve Then
+                        PreviewText.Text = $"Reserve stock: {_reservedQty} → {Math.Max(0, _reservedQty - pieces)}"
+                    Else
+                        Dim nextQty = _currentQty - pieces
+                        PreviewText.Text = $"On hand: {_currentQty} → {Math.Max(0, nextQty)}"
+                    End If
                 Case StockMovementKind.Reserve
                     If _isUseReserveStock Then
                         Dim nextOnHand = _currentQty + pieces
@@ -444,7 +547,25 @@ Namespace Views
 
             Select Case _kind
                 Case StockMovementKind.StockOut
-                    If pieces > _currentQty Then
+                    If _selectedStockOutBatch Is Nothing Then
+                        ShowError("Select a box code with available stock.")
+                        StockOutBatchBox?.Focus()
+                        Return
+                    End If
+                    If pieces > _selectedStockOutBatch.QuantityRemaining Then
+                        ShowError($"Cannot stock out more than {_selectedStockOutBatch.QuantityRemaining} from the selected batch.")
+                        QtyBox.Focus()
+                        QtyBox.SelectAll()
+                        Return
+                    End If
+                    If _stockOutFromReserve Then
+                        If pieces > _reservedQty Then
+                            ShowError($"Cannot stock out more than {_reservedQty} from reserve stock.")
+                            QtyBox.Focus()
+                            QtyBox.SelectAll()
+                            Return
+                        End If
+                    ElseIf pieces > _currentQty Then
                         ShowError($"Cannot stock out more than {_currentQty} on hand.")
                         QtyBox.Focus()
                         QtyBox.SelectAll()
@@ -477,7 +598,18 @@ Namespace Views
                 ResultExpirationDate = Nothing
             End If
 
-            ResultBoxCode = If(_kind = StockMovementKind.StockIn, If(BoxCodeBox?.Text, String.Empty).Trim(), String.Empty)
+            If _kind = StockMovementKind.StockIn OrElse
+               (_kind = StockMovementKind.Reserve AndAlso Not _isUseReserveStock) Then
+                ResultBoxCode = If(BoxCodeBox?.Text, String.Empty).Trim()
+                ResultBatchId = Nothing
+            ElseIf _kind = StockMovementKind.StockOut Then
+                ResultBoxCode = If(_selectedStockOutBatch?.BoxCode, String.Empty).Trim()
+                ResultBatchId = _selectedStockOutBatch?.BatchId
+                ResultExpirationDate = _selectedStockOutBatch?.ExpirationDate
+            Else
+                ResultBoxCode = String.Empty
+                ResultBatchId = Nothing
+            End If
 
             ResultQuantity = parsed
             ResultQuantityPieces = pieces
@@ -492,7 +624,8 @@ Namespace Views
 
         Private Function ActiveExpirationDatePicker() As DatePicker
             If _kind = StockMovementKind.StockIn Then Return StockInExpirationDatePicker
-            Return ExpirationDatePicker
+            If _kind = StockMovementKind.Reserve AndAlso Not _isUseReserveStock Then Return StockInExpirationDatePicker
+            Return Nothing
         End Function
 
         Private Function RequiresExpirationDate() As Boolean

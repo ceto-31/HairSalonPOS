@@ -96,11 +96,12 @@ Namespace Services
             Dim persistedDiscounts = DiscountPersistenceService.Instance.Load()
             If persistedDiscounts IsNot Nothing Then
                 Discounts.AddRange(persistedDiscounts)
+                NormalizeDiscountTypes(saveChanges:=True)
             Else
                 Discounts.AddRange({
-                    New DiscountItem With {.Code = "SENIOR", .Description = "Senior / PWD — 20% off · Always active · BIR compliant", .DiscountType = "Percent", .Value = 20D, .IsSeniorPwd = True, .IsActive = True},
-                    New DiscountItem With {.Code = "BDAY", .Description = "Birthday promo — 15% off · Birthday month only", .DiscountType = "Percent", .Value = 15D, .IsActive = True},
-                    New DiscountItem With {.Code = "SUMMER2026", .Description = "₱100 off · Promo code · Ends Jun 30", .DiscountType = "Fixed", .Value = 100D, .IsActive = True, .EndDate = New Date(2026, 6, 30)}
+                    New DiscountItem With {.Code = "SENIOR", .Description = "Senior / PWD — 20% off · Always active · BIR compliant", .DiscountType = DiscountTypes.Percentage, .Value = 20D, .IsSeniorPwd = True, .IsActive = True},
+                    New DiscountItem With {.Code = "BDAY", .Description = "Birthday promo — 15% off · Birthday month only", .DiscountType = DiscountTypes.Percentage, .Value = 15D, .IsActive = True},
+                    New DiscountItem With {.Code = "SUMMER2026", .Description = "₱100 off · Promo code · Ends Jun 30", .DiscountType = DiscountTypes.FixedAmount, .Value = 100D, .IsActive = True, .EndDate = New Date(2026, 6, 30)}
                 })
                 PersistDiscounts()
             End If
@@ -152,6 +153,7 @@ Namespace Services
                     _nextBatchId = StockBatches.Max(Function(b) b.BatchId) + 1
                 End If
             End If
+            ConsolidateDuplicateBoxCodes(saveChanges:=True)
         End Sub
 
         Public Sub PersistUsers()
@@ -199,6 +201,17 @@ Namespace Services
             product?.RefreshStockPresentation()
         End Sub
 
+        Public Function GetProductUsingBoxCode(boxCode As String, excludeSku As String) As ProductItem
+            Dim normalized = NormalizeBoxCode(boxCode)
+            If String.IsNullOrEmpty(normalized) Then Return Nothing
+
+            Dim conflictBatch = StockBatches.FirstOrDefault(
+                Function(b) Not String.Equals(b.Sku, excludeSku, StringComparison.OrdinalIgnoreCase) AndAlso
+                            String.Equals(NormalizeBoxCode(b.BoxCode), normalized, StringComparison.OrdinalIgnoreCase))
+            If conflictBatch Is Nothing Then Return Nothing
+            Return Products.FirstOrDefault(Function(p) p.Sku = conflictBatch.Sku)
+        End Function
+
         Public Function AddStockBatch(sku As String,
                                       quantityPieces As Integer,
                                       isReserve As Boolean,
@@ -210,11 +223,26 @@ Namespace Services
             Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
             product?.EnsureDefaults()
             Dim unitsPerBox = If(product Is Nothing OrElse product.UnitsPerBox <= 0, 1, product.UnitsPerBox)
+            Dim normalizedBoxCode = NormalizeBoxCode(boxCode)
+
+            Dim existingBatch = FindMergeableBatch(sku, normalizedBoxCode, isReserve)
+            If existingBatch IsNot Nothing Then
+                existingBatch.QuantityRemaining += quantityPieces
+                existingBatch.QuantityReceived += quantityPieces
+                existingBatch.BoxesReceived += Math.Max(0, boxesReceived)
+                existingBatch.ExpirationDate = MergeExpirationDates(existingBatch.ExpirationDate, expirationDate)
+                existingBatch.UnitsPerBoxAtReceipt = unitsPerBox
+                existingBatch.SourceMovementType = sourceMovementType
+                PersistStockBatches()
+                NotifyProductStockChanged(sku)
+                RaiseEvent InventoryChanged(Me, EventArgs.Empty)
+                Return existingBatch
+            End If
 
             Dim batch As New StockBatch With {
                 .BatchId = NextBatchId(),
                 .Sku = sku,
-                .BoxCode = If(boxCode, String.Empty).Trim(),
+                .BoxCode = normalizedBoxCode,
                 .ExpirationDate = expirationDate,
                 .ReceivedDate = Date.Today,
                 .UnitsPerBoxAtReceipt = unitsPerBox,
@@ -230,6 +258,60 @@ Namespace Services
             RaiseEvent InventoryChanged(Me, EventArgs.Empty)
             Return batch
         End Function
+
+        Private Shared Function NormalizeBoxCode(boxCode As String) As String
+            Return If(boxCode, String.Empty).Trim()
+        End Function
+
+        Private Function FindMergeableBatch(sku As String, normalizedBoxCode As String, isReserve As Boolean) As StockBatch
+            If String.IsNullOrEmpty(normalizedBoxCode) Then Return Nothing
+
+            Return StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve = isReserve AndAlso
+                                  String.Equals(NormalizeBoxCode(b.BoxCode), normalizedBoxCode, StringComparison.OrdinalIgnoreCase)).
+                OrderByDescending(Function(b) b.QuantityRemaining > 0).
+                ThenBy(Function(b) b.ReceivedDate).
+                ThenBy(Function(b) b.BatchId).
+                FirstOrDefault()
+        End Function
+
+        Private Shared Function MergeExpirationDates(existing As Date?, incoming As Date?) As Date?
+            If Not existing.HasValue Then Return incoming
+            If Not incoming.HasValue Then Return existing
+            Return If(existing.Value.Date <= incoming.Value.Date, existing.Value.Date, incoming.Value.Date)
+        End Function
+
+        Private Sub ConsolidateDuplicateBoxCodes(Optional saveChanges As Boolean = False)
+            Dim duplicateGroups = StockBatches.
+                Where(Function(b) Not String.IsNullOrWhiteSpace(b.BoxCode)).
+                GroupBy(Function(b) $"{b.Sku}|{b.IsReserve}|{NormalizeBoxCode(b.BoxCode).ToUpperInvariant()}").
+                Where(Function(g) g.Count() > 1).
+                ToList()
+
+            If duplicateGroups.Count = 0 Then Return
+
+            For Each group In duplicateGroups
+                Dim ordered = group.
+                    OrderByDescending(Function(b) b.QuantityRemaining > 0).
+                    ThenBy(Function(b) b.ReceivedDate).
+                    ThenBy(Function(b) b.BatchId).
+                    ToList()
+
+                Dim keeper = ordered(0)
+                For index = 1 To ordered.Count - 1
+                    Dim duplicate = ordered(index)
+                    keeper.QuantityRemaining += duplicate.QuantityRemaining
+                    keeper.QuantityReceived += duplicate.QuantityReceived
+                    keeper.BoxesReceived += duplicate.BoxesReceived
+                    keeper.ExpirationDate = MergeExpirationDates(keeper.ExpirationDate, duplicate.ExpirationDate)
+                    StockBatches.Remove(duplicate)
+                Next
+            Next
+
+            If saveChanges Then
+                PersistStockBatches()
+            End If
+        End Sub
 
         ''' <summary>Deducts qty pieces from a SKU's batches, earliest expiration first (nulls last), then earliest received.</summary>
         Public Function DeductFefo(sku As String, qty As Integer, allowReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
@@ -292,6 +374,41 @@ Namespace Services
                 OrderBy(Function(b) If(b.ExpirationDate.HasValue, b.ExpirationDate.Value, Date.MaxValue)).
                 ThenBy(Function(b) b.ReceivedDate).
                 FirstOrDefault()
+        End Function
+
+        Public Function GetAvailableOnHandBatches(sku As String) As List(Of StockBatch)
+            Return GetAvailableBatches(sku, isReserve:=False)
+        End Function
+
+        Public Function GetAvailableReserveBatches(sku As String) As List(Of StockBatch)
+            Return GetAvailableBatches(sku, isReserve:=True)
+        End Function
+
+        Private Function GetAvailableBatches(sku As String, isReserve As Boolean) As List(Of StockBatch)
+            Return StockBatches.
+                Where(Function(b) b.Sku = sku AndAlso b.IsReserve = isReserve AndAlso b.QuantityRemaining > 0).
+                OrderBy(Function(b) If(b.ExpirationDate.HasValue, b.ExpirationDate.Value, Date.MaxValue)).
+                ThenBy(Function(b) b.ReceivedDate).
+                ToList()
+        End Function
+
+        Public Function DeductFromBatch(batchId As Integer, qty As Integer, Optional allowReserve As Boolean = False) As (Batch As StockBatch, Taken As Integer)
+            If qty <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(qty))
+            Dim batch = StockBatches.FirstOrDefault(Function(b) b.BatchId = batchId)
+            If batch Is Nothing Then Throw New InvalidOperationException("Selected batch was not found.")
+            If batch.IsReserve AndAlso Not allowReserve Then
+                Throw New InvalidOperationException("Cannot stock out from reserve batches.")
+            End If
+            If qty > batch.QuantityRemaining Then
+                Throw New InvalidOperationException(
+                    $"Insufficient stock in batch {If(String.IsNullOrWhiteSpace(batch.BoxCode), batch.BatchId.ToString(), batch.BoxCode)}. Available: {batch.QuantityRemaining}.")
+            End If
+
+            batch.QuantityRemaining -= qty
+            PersistStockBatches()
+            NotifyProductStockChanged(batch.Sku)
+            RaiseEvent InventoryChanged(Me, EventArgs.Empty)
+            Return (batch, qty)
         End Function
 
         Public Function DeductFromPool(sku As String, qty As Integer, isReserve As Boolean) As List(Of (Batch As StockBatch, Taken As Integer))
@@ -532,9 +649,24 @@ Namespace Services
             Dim discount = Discounts.FirstOrDefault(Function(d) d.Code.Equals(promoCode.Trim(), StringComparison.OrdinalIgnoreCase) AndAlso d.IsActive)
             If discount Is Nothing Then Throw New InvalidOperationException("Invalid promo code.")
             If discount.EndDate.HasValue AndAlso discount.EndDate.Value < Date.Today Then Throw New InvalidOperationException("Promo code has expired.")
-            If discount.DiscountType = "Percent" Then Return Math.Round(subTotal * discount.Value / 100D, 2)
+            If DiscountTypes.IsPercentage(discount.DiscountType) Then Return Math.Round(subTotal * discount.Value / 100D, 2)
             Return Math.Min(subTotal, discount.Value)
         End Function
+
+        Private Sub NormalizeDiscountTypes(Optional saveChanges As Boolean = False)
+            Dim migrated = False
+            For Each discount In Discounts
+                Dim normalized = DiscountTypes.Normalize(discount.DiscountType)
+                If Not String.Equals(discount.DiscountType, normalized, StringComparison.Ordinal) Then
+                    discount.DiscountType = normalized
+                    migrated = True
+                End If
+            Next
+
+            If migrated AndAlso saveChanges Then
+                PersistDiscounts()
+            End If
+        End Sub
 
         Public Sub LogMovement(sku As String, changeQty As Integer, movementType As String, userName As String, notes As String, Optional expirationDate As Date? = Nothing, Optional boxCode As String = Nothing)
             Dim product = Products.FirstOrDefault(Function(p) p.Sku = sku)
