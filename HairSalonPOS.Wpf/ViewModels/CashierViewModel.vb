@@ -19,8 +19,8 @@ Namespace ViewModels
         Private Const DefaultCustomerName As String = "Walk-in"
         Private Const UnsavedCategoryReminder As String = "Click Save categories to update the POS tabs."
 
-        Private _customerName As String = DefaultCustomerName
-        Private _selectedStylistsLabel As String = "Select staff…"
+        Private _customerFirstName As String = DefaultCustomerName
+        Private _customerLastName As String = String.Empty
         Private _selectedDiscountOption As PosDiscountOption
         Private _discountLabel As String = "Discount"
         Private _suppressDiscountApply As Boolean
@@ -29,6 +29,9 @@ Namespace ViewModels
         Private _promoCode As String = String.Empty
         Private _paymentMethod As String = "Cash"
         Private _amountTendered As Decimal
+        Private _amountTenderedInput As String = MoneyInputHelper.FormatAmount(0D)
+        Private _gcashReferenceNumber As String = String.Empty
+        Private _gcashReferenceValidationMessage As String = String.Empty
         Private _subTotal As Decimal
         Private _discountAmount As Decimal
         Private _vatableSales As Decimal
@@ -58,8 +61,7 @@ Namespace ViewModels
         Public Sub New()
             CatalogTiles = New ObservableCollection(Of CatalogTile)()
             Cart = New ObservableCollection(Of CartLine)()
-            StylistOptions = New ObservableCollection(Of StaffSelectionOption)()
-            SelectedStylists = New ObservableCollection(Of StaffMember)()
+            AvailableStylists = New ObservableCollection(Of StaffMember)()
             DiscountOptions = New ObservableCollection(Of PosDiscountOption)()
             Categories = New ObservableCollection(Of CatalogCategoryNode)(_store.Categories.Where(Function(c) c.IsActive))
             CategoryChips = New ObservableCollection(Of SelectableChip)(Categories.Select(Function(c) New SelectableChip With {.Name = c.Name}))
@@ -91,16 +93,16 @@ Namespace ViewModels
             SelectGcashCommand = New RelayCommand(Sub() PaymentMethod = "GCash")
             ReprintLastReceiptCommand = New RelayCommand(AddressOf ReprintLastReceipt, Function() LastReceipt IsNot Nothing)
 
-            RefreshStylistOptions()
+            RefreshAvailableStylists()
             RefreshDiscountOptions()
             SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
             If Categories.Count > 0 Then SelectCategory(Categories.First().Name)
 
-            AddHandler _store.StaffChanged, Sub() RefreshStylistOptions()
+            AddHandler _store.StaffChanged, Sub() RefreshAvailableStylists()
         End Sub
 
         Public Sub RefreshLookups()
-            RefreshStylistOptions()
+            RefreshAvailableStylists()
             RefreshDiscountOptions()
             RefreshCategoriesFromStore()
             OnPropertyChanged(NameOf(CanManageCatalogItems))
@@ -123,17 +125,15 @@ Namespace ViewModels
             SeniorEligibilityText = String.Empty
 
             _pendingAppointmentId = appt.AppointmentId
-            CustomerName = If(String.IsNullOrWhiteSpace(appt.CustomerName), DefaultCustomerName, appt.CustomerName.Trim())
-
-            If Not String.IsNullOrWhiteSpace(appt.StaffName) Then
-                SelectStylistByName(appt.StaffName)
-            End If
+            Dim customerParts = SplitCustomerName(appt.CustomerName)
+            CustomerFirstName = customerParts.FirstName
+            CustomerLastName = customerParts.LastName
 
             Dim service = FindServiceByName(appt.ServiceName)
             If service IsNot Nothing Then
                 AddToCart(service.Sku, service.Name, service.Price, True)
                 AssignStylistToLine(Cart.LastOrDefault(), appt.StaffName)
-                StatusMessage = $"Appointment loaded for {CustomerName}."
+                StatusMessage = $"Appointment loaded for {BuildCustomerName()}."
             Else
                 Dim line As New CartLine With {
                     .Sku = $"APT{appt.AppointmentId}",
@@ -175,99 +175,53 @@ Namespace ViewModels
             End Get
         End Property
 
-        Private Sub RefreshStylistOptions()
-            Dim selectedNames = StylistOptions.
-                Where(Function(o) o IsNot Nothing AndAlso o.IsSelected AndAlso o.Staff IsNot Nothing).
-                Select(Function(o) o.Staff.Name).
-                ToList()
-
-            For Each opt In StylistOptions
-                RemoveHandler opt.SelectionChanged, AddressOf OnStylistOptionSelectionChanged
-            Next
-
-            StylistOptions = New ObservableCollection(Of StaffSelectionOption)(
-                _store.Staff.Where(Function(s) s.IsActive).Select(Function(staff)
-                    Dim opt As New StaffSelectionOption With {
-                        .Staff = staff,
-                        .IsSelected = selectedNames.Any(Function(name) name.Equals(staff.Name, StringComparison.OrdinalIgnoreCase))
-                    }
-                    AddHandler opt.SelectionChanged, AddressOf OnStylistOptionSelectionChanged
-                    Return opt
-                End Function))
-
-            OnPropertyChanged(NameOf(StylistOptions))
-            UpdateSelectedStylists()
+        Private Sub RefreshAvailableStylists()
+            AvailableStylists = New ObservableCollection(Of StaffMember)(
+                _store.Staff.Where(Function(s) s.IsActive).OrderBy(Function(s) s.Name))
+            OnPropertyChanged(NameOf(AvailableStylists))
+            RefreshSelectableStylistsForCart()
         End Sub
 
-        Private Sub OnStylistOptionSelectionChanged(sender As Object, e As EventArgs)
-            Dim staffOption = TryCast(sender, StaffSelectionOption)
-            If staffOption IsNot Nothing AndAlso Not staffOption.IsSelected AndAlso staffOption.Staff IsNot Nothing Then
-                ClearStylistFromCartLines(staffOption.Staff.Name)
-            End If
+        Private _isRefreshingStylistOptions As Boolean
 
-            UpdateSelectedStylists()
-            ApplySingleStylistDefaultsToCart()
-            CheckoutCommand.NotifyCanExecuteChanged()
+        Private Sub RefreshSelectableStylistsForCart()
+            If _isRefreshingStylistOptions Then Return
+
+            _isRefreshingStylistOptions = True
+            Try
+                For Each line In Cart.Where(Function(c) c.IsService)
+                    line.UpdateSelectableStylists(BuildSelectableStylistsForLine(line))
+                    line.SyncSelectedStylistFromName()
+                Next
+            Finally
+                _isRefreshingStylistOptions = False
+            End Try
         End Sub
 
-        Private Sub UpdateSelectedStylists()
-            SelectedStylists = New ObservableCollection(Of StaffMember)(
-                StylistOptions.Where(Function(o) o.IsSelected AndAlso o.Staff IsNot Nothing).Select(Function(o) o.Staff))
-            OnPropertyChanged(NameOf(SelectedStylists))
+        Private Function BuildSelectableStylistsForLine(line As CartLine) As IEnumerable(Of StaffMember)
+            If line Is Nothing OrElse Not line.IsService Then Return Enumerable.Empty(Of StaffMember)()
 
-            Dim selected = SelectedStylists.ToList()
-            If selected.Count = 0 Then
-                SelectedStylistsLabel = "Select staff…"
-            ElseIf selected.Count = 1 Then
-                SelectedStylistsLabel = selected(0).Name
-            Else
-                SelectedStylistsLabel = $"{selected.Count} staff selected"
-            End If
-            OnPropertyChanged(NameOf(SelectedStylistsLabel))
-        End Sub
+            Dim assignedElsewhere = New HashSet(Of String)(
+                Cart.Where(Function(c) c IsNot line AndAlso c.IsService AndAlso Not String.IsNullOrWhiteSpace(c.StylistName)).
+                       Select(Function(c) c.StylistName.Trim()),
+                StringComparer.OrdinalIgnoreCase)
 
-        Private Sub SelectStylistByName(stylistName As String)
-            If String.IsNullOrWhiteSpace(stylistName) Then Return
-
-            For Each opt In StylistOptions
-                If opt.Staff IsNot Nothing AndAlso opt.Staff.Name.Equals(stylistName, StringComparison.OrdinalIgnoreCase) Then
-                    opt.IsSelected = True
-                End If
-            Next
-        End Sub
-
-        Private Sub ClearStylistFromCartLines(stylistName As String)
-            For Each line In Cart.Where(Function(c) c.IsService AndAlso
-                                            Not String.IsNullOrWhiteSpace(c.StylistName) AndAlso
-                                            c.StylistName.Equals(stylistName, StringComparison.OrdinalIgnoreCase))
-                line.StylistName = String.Empty
-            Next
-        End Sub
-
-        Private Sub ApplyDefaultStylistToLine(line As CartLine)
-            If line Is Nothing OrElse Not line.IsService OrElse Not String.IsNullOrWhiteSpace(line.StylistName) Then Return
-
-            Dim selected = SelectedStylists.ToList()
-            If selected.Count = 1 Then
-                line.StylistName = selected(0).Name
-            End If
-        End Sub
+            Return AvailableStylists.Where(
+                Function(s) Not assignedElsewhere.Contains(s.Name) OrElse
+                            String.Equals(s.Name, line.StylistName, StringComparison.OrdinalIgnoreCase))
+        End Function
 
         Private Sub AssignStylistToLine(line As CartLine, stylistName As String)
             If line Is Nothing OrElse Not line.IsService Then Return
-            If Not String.IsNullOrWhiteSpace(stylistName) Then
+            If String.IsNullOrWhiteSpace(stylistName) Then Return
+
+            Dim match = AvailableStylists.FirstOrDefault(
+                Function(s) s.Name.Equals(stylistName.Trim(), StringComparison.OrdinalIgnoreCase))
+            If match IsNot Nothing Then
+                line.SelectedStylist = match
+            Else
                 line.StylistName = stylistName.Trim()
-                Return
             End If
-            ApplyDefaultStylistToLine(line)
-        End Sub
-
-        Private Sub ApplySingleStylistDefaultsToCart()
-            If SelectedStylists.Count <> 1 Then Return
-
-            For Each line In Cart.Where(Function(c) c.IsService)
-                ApplyDefaultStylistToLine(line)
-            Next
         End Sub
 
         Private Sub RefreshDiscountOptions()
@@ -348,7 +302,10 @@ Namespace ViewModels
         End Sub
 
         Private Sub OnCartLinePropertyChanged(sender As Object, e As PropertyChangedEventArgs)
-            If e.PropertyName = NameOf(CartLine.StylistName) Then
+            If e.PropertyName = NameOf(CartLine.StylistName) OrElse e.PropertyName = NameOf(CartLine.SelectedStylist) Then
+                If Not _isRefreshingStylistOptions Then
+                    RefreshSelectableStylistsForCart()
+                End If
                 CheckoutCommand.NotifyCanExecuteChanged()
             ElseIf e.PropertyName = NameOf(CartLine.Quantity) Then
                 RecalculateTotals()
@@ -376,8 +333,7 @@ Namespace ViewModels
 
         Public Property CatalogTiles As ObservableCollection(Of CatalogTile)
         Public Property Cart As ObservableCollection(Of CartLine)
-        Public Property StylistOptions As ObservableCollection(Of StaffSelectionOption)
-        Public Property SelectedStylists As ObservableCollection(Of StaffMember)
+        Public Property AvailableStylists As ObservableCollection(Of StaffMember)
         Public Property DiscountOptions As ObservableCollection(Of PosDiscountOption)
         Public Property Categories As ObservableCollection(Of CatalogCategoryNode)
         Public Property CategoryChips As ObservableCollection(Of SelectableChip)
@@ -397,21 +353,21 @@ Namespace ViewModels
             End Set
         End Property
 
-        Public Property CustomerName As String
+        Public Property CustomerFirstName As String
             Get
-                Return _customerName
+                Return _customerFirstName
             End Get
             Set(value As String)
-                SetProperty(_customerName, value)
+                SetProperty(_customerFirstName, value)
             End Set
         End Property
 
-        Public Property SelectedStylistsLabel As String
+        Public Property CustomerLastName As String
             Get
-                Return _selectedStylistsLabel
+                Return _customerLastName
             End Get
             Set(value As String)
-                SetProperty(_selectedStylistsLabel, value)
+                SetProperty(_customerLastName, value)
             End Set
         End Property
 
@@ -467,11 +423,64 @@ Namespace ViewModels
                 Return _paymentMethod
             End Get
             Set(value As String)
-                SetProperty(_paymentMethod, value)
-                OnPropertyChanged(NameOf(ShowChangeCalculator))
-                OnPropertyChanged(NameOf(IsCashSelected))
-                OnPropertyChanged(NameOf(IsGcashSelected))
-                RecalculateTotals()
+                If SetProperty(_paymentMethod, value) Then
+                    If Not String.Equals(value, "GCash", StringComparison.OrdinalIgnoreCase) Then
+                        GcashReferenceNumber = String.Empty
+                        GcashReferenceValidationMessage = String.Empty
+                    End If
+                    OnPropertyChanged(NameOf(ShowChangeCalculator))
+                    OnPropertyChanged(NameOf(ShowGcashPaymentPanel))
+                    OnPropertyChanged(NameOf(IsCashSelected))
+                    OnPropertyChanged(NameOf(IsGcashSelected))
+                    RecalculateTotals()
+                End If
+            End Set
+        End Property
+
+        Public Property GcashReferenceNumber As String
+            Get
+                Return _gcashReferenceNumber
+            End Get
+            Set(value As String)
+                Dim digitsOnly = New String(If(value, String.Empty).Where(Function(c) Char.IsDigit(c)).ToArray())
+                If digitsOnly.Length > 13 Then digitsOnly = digitsOnly.Substring(0, 13)
+                If SetProperty(_gcashReferenceNumber, digitsOnly) Then
+                    UpdateGcashReferenceValidation()
+                    CheckoutCommand.NotifyCanExecuteChanged()
+                End If
+            End Set
+        End Property
+
+        Public Property GcashReferenceValidationMessage As String
+            Get
+                Return _gcashReferenceValidationMessage
+            End Get
+            Private Set(value As String)
+                SetProperty(_gcashReferenceValidationMessage, value)
+                OnPropertyChanged(NameOf(HasGcashReferenceValidationMessage))
+            End Set
+        End Property
+
+        Public ReadOnly Property HasGcashReferenceValidationMessage As Boolean
+            Get
+                Return Not String.IsNullOrWhiteSpace(GcashReferenceValidationMessage)
+            End Get
+        End Property
+
+        Public Property AmountTenderedInput As String
+            Get
+                Return _amountTenderedInput
+            End Get
+            Set(value As String)
+                If SetProperty(_amountTenderedInput, value) Then
+                    Dim parsed As Decimal
+                    If MoneyInputHelper.TryParseAmount(value, parsed) AndAlso parsed <> _amountTendered Then
+                        _amountTendered = parsed
+                        OnPropertyChanged(NameOf(AmountTendered))
+                        ChangeAmount = Math.Max(0D, _amountTendered - Total)
+                        CheckoutCommand.NotifyCanExecuteChanged()
+                    End If
+                End If
             End Set
         End Property
 
@@ -480,11 +489,18 @@ Namespace ViewModels
                 Return _amountTendered
             End Get
             Set(value As Decimal)
-                SetProperty(_amountTendered, value)
-                ChangeAmount = Math.Max(0D, AmountTendered - Total)
-                CheckoutCommand.NotifyCanExecuteChanged()
+                If SetProperty(_amountTendered, value) Then
+                    _amountTenderedInput = MoneyInputHelper.FormatAmount(value)
+                    OnPropertyChanged(NameOf(AmountTenderedInput))
+                    ChangeAmount = Math.Max(0D, _amountTendered - Total)
+                    CheckoutCommand.NotifyCanExecuteChanged()
+                End If
             End Set
         End Property
+
+        Public Sub FormatAmountTenderedInput()
+            AmountTenderedInput = MoneyInputHelper.FormatAmount(_amountTendered)
+        End Sub
 
         Public Property SubTotal As Decimal
             Get
@@ -714,6 +730,12 @@ Namespace ViewModels
         Public ReadOnly Property ShowChangeCalculator As Boolean
             Get
                 Return PaymentMethod = "Cash"
+            End Get
+        End Property
+
+        Public ReadOnly Property ShowGcashPaymentPanel As Boolean
+            Get
+                Return PaymentMethod = "GCash"
             End Get
         End Property
 
@@ -1225,8 +1247,8 @@ Namespace ViewModels
                     .Quantity = s.Quantity
                 }).ToList()
             })
-            ApplyDefaultStylistToLine(Cart.Last())
             WireCartLine(Cart.Last())
+            RefreshSelectableStylistsForCart()
 
             StatusMessage = String.Empty
             RecalculateTotals()
@@ -1240,10 +1262,10 @@ Namespace ViewModels
                 existing.Quantity += 1
             Else
                 Dim line As New CartLine With {.Sku = sku, .Name = name, .UnitPrice = price, .Quantity = 1, .IsService = isService}
-                ApplyDefaultStylistToLine(line)
                 Cart.Add(line)
                 WireCartLine(line)
             End If
+            RefreshSelectableStylistsForCart()
             StatusMessage = String.Empty
             RecalculateTotals()
             ClearCartCommand.NotifyCanExecuteChanged()
@@ -1253,6 +1275,7 @@ Namespace ViewModels
         Private Sub RemoveLine(line As CartLine)
             UnwireCartLine(line)
             Cart.Remove(line)
+            RefreshSelectableStylistsForCart()
             RecalculateTotals()
             ClearCartCommand.NotifyCanExecuteChanged()
             CheckoutCommand.NotifyCanExecuteChanged()
@@ -1285,7 +1308,10 @@ Namespace ViewModels
             SetSelectedDiscountSilently(DiscountOptions.FirstOrDefault())
             DiscountLabel = "Discount"
             AmountTendered = 0D
-            CustomerName = DefaultCustomerName
+            GcashReferenceNumber = String.Empty
+            GcashReferenceValidationMessage = String.Empty
+            CustomerFirstName = DefaultCustomerName
+            CustomerLastName = String.Empty
             _pendingAppointmentId = 0
             StatusMessage = String.Empty
             _customerBirthDate = Nothing
@@ -1296,9 +1322,29 @@ Namespace ViewModels
             CheckoutCommand.NotifyCanExecuteChanged()
         End Sub
 
-        Private Shared Function NormalizeCustomerName(name As String) As String
-            If String.IsNullOrWhiteSpace(name) Then Return DefaultCustomerName
-            Return name.Trim()
+        Private Function BuildCustomerName() As String
+            Dim first = If(CustomerFirstName, String.Empty).Trim()
+            Dim last = If(CustomerLastName, String.Empty).Trim()
+            If String.IsNullOrWhiteSpace(first) AndAlso String.IsNullOrWhiteSpace(last) Then Return DefaultCustomerName
+            Return $"{first} {last}".Trim()
+        End Function
+
+        Private Shared Function SplitCustomerName(fullName As String) As (FirstName As String, LastName As String)
+            If String.IsNullOrWhiteSpace(fullName) Then
+                Return (DefaultCustomerName, String.Empty)
+            End If
+
+            Dim trimmed = fullName.Trim()
+            If trimmed.Equals(DefaultCustomerName, StringComparison.OrdinalIgnoreCase) Then
+                Return (DefaultCustomerName, String.Empty)
+            End If
+
+            Dim spaceIndex = trimmed.IndexOf(" "c)
+            If spaceIndex < 0 Then
+                Return (trimmed, String.Empty)
+            End If
+
+            Return (trimmed.Substring(0, spaceIndex), trimmed.Substring(spaceIndex + 1).Trim())
         End Function
 
         Private Function ApplySeniorPromoWithBirthdatePrompt(Optional showSuccessDialog As Boolean = True) As Boolean
@@ -1411,15 +1457,32 @@ Namespace ViewModels
             CheckoutCommand.NotifyCanExecuteChanged()
         End Sub
 
+        Private Sub UpdateGcashReferenceValidation()
+            If String.IsNullOrEmpty(GcashReferenceNumber) Then
+                GcashReferenceValidationMessage = String.Empty
+            ElseIf GcashReferenceNumber.Length <> 13 Then
+                GcashReferenceValidationMessage = "Reference number must be exactly 13 digits."
+            Else
+                GcashReferenceValidationMessage = String.Empty
+            End If
+        End Sub
+
+        Private Function IsGcashReferenceValid() As Boolean
+            Return CheckoutService.IsValidGcashReference(GcashReferenceNumber)
+        End Function
+
         Private Function CanCheckout() As Boolean
             If Cart.Count = 0 Then Return False
             If PaymentMethod = "Cash" AndAlso (AmountTendered <= 0D OrElse AmountTendered < Total) Then Return False
+            If PaymentMethod = "GCash" Then
+                If Not IsGcashReferenceValid() Then Return False
+                If AmountTendered <= 0D OrElse AmountTendered < Total Then Return False
+            End If
 
             If Cart.Any(Function(c) c.IsService) Then
-                If SelectedStylists.Count = 0 Then Return False
                 For Each line In Cart.Where(Function(c) c.IsService)
                     If String.IsNullOrWhiteSpace(line.StylistName) Then Return False
-                    If Not SelectedStylists.Any(Function(s) s.Name.Equals(line.StylistName, StringComparison.OrdinalIgnoreCase)) Then
+                    If Not AvailableStylists.Any(Function(s) s.Name.Equals(line.StylistName, StringComparison.OrdinalIgnoreCase)) Then
                         Return False
                     End If
                 Next
@@ -1441,10 +1504,21 @@ Namespace ViewModels
                 EnforceSeniorPromoEligibility()
                 RecalculateTotals()
                 If Not CanCheckout() Then
-                    If Cart.Any(Function(c) c.IsService) AndAlso SelectedStylists.Count = 0 Then
-                        StatusMessage = "Select at least one staff member before checkout."
-                    ElseIf Cart.Any(Function(c) c.IsService AndAlso String.IsNullOrWhiteSpace(c.StylistName)) Then
+                    If Cart.Any(Function(c) c.IsService AndAlso String.IsNullOrWhiteSpace(c.StylistName)) Then
                         StatusMessage = "Assign staff to each service before checkout."
+                    ElseIf PaymentMethod = "GCash" AndAlso Not IsGcashReferenceValid() Then
+                        If String.IsNullOrWhiteSpace(GcashReferenceNumber) Then
+                            StatusMessage = "Enter the 13-digit GCash reference number before checkout."
+                        Else
+                            StatusMessage = "GCash reference number must be exactly 13 digits."
+                        End If
+                        GcashReferenceValidationMessage = If(String.IsNullOrWhiteSpace(GcashReferenceNumber),
+                            "Reference number must be exactly 13 digits.",
+                            StatusMessage)
+                    ElseIf PaymentMethod = "GCash" AndAlso AmountTendered <= 0D Then
+                        StatusMessage = "Enter received amount before checkout."
+                    ElseIf PaymentMethod = "GCash" AndAlso AmountTendered < Total Then
+                        StatusMessage = "Received amount is less than total."
                     ElseIf PaymentMethod = "Cash" AndAlso AmountTendered <= 0D Then
                         StatusMessage = "Enter amount tendered before checkout."
                     ElseIf PaymentMethod = "Cash" AndAlso AmountTendered < Total Then
@@ -1483,9 +1557,10 @@ Namespace ViewModels
                     .Cart = Cart.ToList(),
                     .PaymentMethod = PaymentMethod,
                     .CashierName = SessionContext.CurrentUser.FullName,
-                    .CustomerName = NormalizeCustomerName(CustomerName),
+                    .CustomerName = BuildCustomerName(),
                     .PromoCode = PromoCode,
                     .AmountTendered = AmountTendered,
+                    .GcashReferenceNumber = GcashReferenceNumber,
                     .AllowReserveUse = allowReserveUse,
                     .AllowExpiredBatchUse = allowExpiredBatchUse
                 }

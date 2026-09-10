@@ -415,6 +415,8 @@ Namespace Models
         Public Property IsService As Boolean
 
         Private _stylistName As String = String.Empty
+        Private _selectedStylist As StaffMember
+
         Public Property StylistName As String
             Get
                 Return _stylistName
@@ -424,9 +426,68 @@ Namespace Models
             End Set
         End Property
 
+        <JsonIgnore>
+        Public Property SelectedStylist As StaffMember
+            Get
+                Return _selectedStylist
+            End Get
+            Set(value As StaffMember)
+                If SetProperty(_selectedStylist, value) Then
+                    Dim newName = If(value?.Name, String.Empty)
+                    If Not String.Equals(_stylistName, newName, StringComparison.OrdinalIgnoreCase) Then
+                        _stylistName = newName
+                        OnPropertyChanged(NameOf(StylistName))
+                    End If
+                End If
+            End Set
+        End Property
+
+        Public Sub SyncSelectedStylistFromName()
+            If String.IsNullOrWhiteSpace(_stylistName) Then
+                If _selectedStylist IsNot Nothing Then
+                    _selectedStylist = Nothing
+                    OnPropertyChanged(NameOf(SelectedStylist))
+                End If
+                Return
+            End If
+
+            Dim match = _selectableStylists.FirstOrDefault(
+                Function(s) s.Name.Equals(_stylistName, StringComparison.OrdinalIgnoreCase))
+            If match Is Nothing OrElse Object.ReferenceEquals(match, _selectedStylist) Then Return
+
+            _selectedStylist = match
+            OnPropertyChanged(NameOf(SelectedStylist))
+        End Sub
+
         Public Property ConsumableSelections As New List(Of ServiceConsumableLine)
 
         Public Property ConsumableSummary As String = String.Empty
+
+        Private ReadOnly _selectableStylists As New ObservableCollection(Of StaffMember)
+
+        <JsonIgnore>
+        Public ReadOnly Property SelectableStylists As ObservableCollection(Of StaffMember)
+            Get
+                Return _selectableStylists
+            End Get
+        End Property
+
+        Public Sub UpdateSelectableStylists(stylists As IEnumerable(Of StaffMember))
+            Dim desired = If(stylists, Enumerable.Empty(Of StaffMember)()).ToList()
+
+            For index = _selectableStylists.Count - 1 To 0 Step -1
+                Dim existing = _selectableStylists(index)
+                If Not desired.Any(Function(s) s.StaffId = existing.StaffId) Then
+                    _selectableStylists.RemoveAt(index)
+                End If
+            Next
+
+            For Each staff In desired
+                If Not _selectableStylists.Any(Function(s) s.StaffId = staff.StaffId) Then
+                    _selectableStylists.Add(staff)
+                End If
+            Next
+        End Sub
 
         <JsonIgnore>
         Public ReadOnly Property CartDisplayName As String
@@ -466,6 +527,7 @@ Namespace Models
         Public Property PromoCode As String = String.Empty
         Public Property AmountTendered As Decimal
         Public Property ChangeGiven As Decimal
+        Public Property GcashReferenceNumber As String = String.Empty
         Public Property ReceiptNumber As String = String.Empty
         Public Property Lines As New List(Of SaleLineRecord)
     End Class
@@ -487,6 +549,7 @@ Namespace Models
         Public Property Total As Decimal
         Public Property AmountTendered As Decimal
         Public Property ChangeGiven As Decimal
+        Public Property GcashReferenceNumber As String = String.Empty
         Public Property AllLines As New List(Of SaleLineRecord)
         Public Property ServiceLines As New List(Of SaleLineRecord)
         Public Property ProductLines As New List(Of SaleLineRecord)
