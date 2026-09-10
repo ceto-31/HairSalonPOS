@@ -22,7 +22,7 @@
                     </StackPanel>
                     <StackPanel Margin="0,0,0,8">
                         <TextBlock Text="Type" Style="{StaticResource SectionHeader}"/>
-                        <ComboBox ItemsSource="{Binding DiscountTypes}" SelectedItem="{Binding EditType}" Style="{StaticResource ModernComboBox}"/>
+                        <ComboBox ItemsSource="{Binding DiscountTypeOptions}" SelectedItem="{Binding EditType}" Style="{StaticResource ModernComboBox}"/>
                     </StackPanel>
                     <StackPanel Margin="0,0,8,0">
                         <TextBlock Text="Value" Style="{StaticResource SectionHeader}"/>

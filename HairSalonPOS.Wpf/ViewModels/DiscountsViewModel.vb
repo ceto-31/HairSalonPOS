@@ -10,7 +10,7 @@ Namespace ViewModels
         Private ReadOnly _store As InMemoryDataStore = InMemoryDataStore.Instance
         Private _editCode As String = String.Empty
         Private _editDescription As String = String.Empty
-        Private _editType As String = "Percent"
+        Private _editType As String = DiscountTypes.Percentage
         Private _editValue As Decimal
         Private _editSeniorPwd As Boolean
         Private _isEditMode As Boolean
@@ -21,7 +21,7 @@ Namespace ViewModels
         Private _searchText As String = String.Empty
 
         Public Sub New()
-            DiscountTypes = New ObservableCollection(Of String) From {"Percent", "Fixed"}
+            DiscountTypeOptions = New ObservableCollection(Of String)(DiscountTypes.All)
             NewPromoCommand = New RelayCommand(AddressOf BeginAdd)
             EditDiscountCommand = New RelayCommand(Of DiscountItem)(AddressOf BeginEdit)
             SavePromoCommand = New RelayCommand(AddressOf SavePromo)
@@ -34,7 +34,7 @@ Namespace ViewModels
         End Sub
 
         Public Property Discounts As ObservableCollection(Of DiscountItem)
-        Public Property DiscountTypes As ObservableCollection(Of String)
+        Public Property DiscountTypeOptions As ObservableCollection(Of String)
 
         Public Property ShowArchived As Boolean
             Get
@@ -168,7 +168,7 @@ Namespace ViewModels
             _originalCode = String.Empty
             EditCode = String.Empty
             EditDescription = String.Empty
-            EditType = "Percent"
+            EditType = DiscountTypes.Percentage
             EditValue = 0D
             EditSeniorPwd = False
             OnPropertyChanged(NameOf(FormTitle))
@@ -181,7 +181,7 @@ Namespace ViewModels
             _originalCode = item.Code
             EditCode = item.Code
             EditDescription = item.Description
-            EditType = item.DiscountType
+            EditType = DiscountTypes.Normalize(item.DiscountType)
             EditValue = item.Value
             EditSeniorPwd = item.IsSeniorPwd
             OnPropertyChanged(NameOf(FormTitle))
@@ -203,7 +203,7 @@ Namespace ViewModels
                 Dim item As New DiscountItem With {
                     .Code = code,
                     .Description = EditDescription.Trim(),
-                    .DiscountType = EditType,
+                    .DiscountType = DiscountTypes.Normalize(EditType),
                     .Value = EditValue,
                     .IsSeniorPwd = EditSeniorPwd,
                     .IsActive = True
@@ -223,7 +223,7 @@ Namespace ViewModels
                 End If
                 existing.Code = code
                 existing.Description = EditDescription.Trim()
-                existing.DiscountType = EditType
+                existing.DiscountType = DiscountTypes.Normalize(EditType)
                 existing.Value = EditValue
                 existing.IsSeniorPwd = EditSeniorPwd
                 StatusMessage = "Promo updated."
