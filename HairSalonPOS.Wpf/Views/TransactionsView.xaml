@@ -98,13 +98,13 @@
                 <Border Style="{StaticResource SummaryCard}">
                     <StackPanel>
                         <TextBlock Text="Total sales" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding TotalSales, StringFormat=₱{0:N0}}" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalSales, StringFormat=₱{0:N2}}" FontSize="28" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource SummaryCard}" Margin="0">
                     <StackPanel>
                         <TextBlock Text="Avg transaction" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="{Binding AverageSale, StringFormat=₱{0:N0}}" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding AverageSale, StringFormat=₱{0:N2}}" FontSize="28" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
@@ -122,7 +122,7 @@
                             <DataGridTextColumn Header="Cashier" Binding="{Binding CashierName}" Width="90"/>
                             <DataGridTextColumn Header="Stylist" Binding="{Binding StylistName}" Width="90"/>
                             <DataGridTextColumn Header="Payment" Binding="{Binding PaymentMethod}" Width="70"/>
-                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=₱{0:N0}}" Width="90"/>
+                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=₱{0:N2}}" Width="90"/>
                             <DataGridTemplateColumn Header="Actions" Width="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

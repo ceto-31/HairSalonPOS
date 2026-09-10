@@ -392,7 +392,7 @@ Namespace ViewModels
                     StatusMessage = PastDateBookingMessage
                 End If
                 If SetProperty(_editAppointmentDate, normalized) Then
-                    RefreshAvailableBusinessHours(normalized)
+                    RefreshAvailableBusinessHours(normalized, alertOnStaffConflict:=True)
                     OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
                     NotifyAppointmentTimingLabels()
                 End If
@@ -405,7 +405,7 @@ Namespace ViewModels
             End Get
             Set(value As String)
                 If SetProperty(_editService, value) AndAlso IsEditMode Then
-                    RefreshAvailableBusinessHours(EditAppointmentDate)
+                    RefreshAvailableBusinessHours(EditAppointmentDate, alertOnStaffConflict:=True)
                     NotifyAppointmentTimingLabels()
                 End If
             End Set
@@ -417,7 +417,8 @@ Namespace ViewModels
             End Get
             Set(value As StaffMember)
                 If SetProperty(_editStaff, value) AndAlso IsEditMode Then
-                    RefreshAvailableBusinessHours(EditAppointmentDate)
+                    RefreshAvailableBusinessHours(EditAppointmentDate, alertOnStaffConflict:=True)
+                    NotifyAppointmentTimingLabels()
                 End If
             End Set
         End Property
@@ -462,6 +463,7 @@ Namespace ViewModels
                     RefreshMinuteOptions()
                     SyncSelectedBusinessHourFromDropdowns()
                     NotifyAppointmentTimingLabels()
+                    AlertStaffConflictIfNeeded()
                 End If
             End Set
         End Property
@@ -474,6 +476,7 @@ Namespace ViewModels
                 If SetProperty(_editMinute, value) Then
                     SyncSelectedBusinessHourFromDropdowns()
                     NotifyAppointmentTimingLabels()
+                    AlertStaffConflictIfNeeded()
                 End If
             End Set
         End Property
@@ -581,39 +584,43 @@ Namespace ViewModels
                 Function(s) s.IsActive AndAlso s.Name.Equals(EditService.Trim(), StringComparison.OrdinalIgnoreCase))
         End Function
 
-        Private Sub RefreshAvailableBusinessHours(day As Date)
+        Private Sub RefreshAvailableBusinessHours(day As Date, Optional alertOnStaffConflict As Boolean = False)
             Dim preferred = If(_selectedBusinessHour.HasValue, _selectedBusinessHour.Value, New TimeSpan(EditHour, EditMinute, 0))
-            Dim filteredSlots = GetCapacityFilteredSlots(day).ToList()
+            Dim selectableSlots = GetSelectableTimeSlots(day).ToList()
+            Dim capacityFilteredSlots = GetCapacityFilteredSlots(day).ToList()
 
             AvailableBusinessHours.Clear()
-            For Each slot In filteredSlots
+            For Each slot In capacityFilteredSlots
                 AvailableBusinessHours.Add(slot)
             Next
 
             HourOptions.Clear()
-            For Each hourValue In filteredSlots.Select(Function(t) t.Hours).Distinct().OrderBy(Function(h) h)
+            For Each hourValue In selectableSlots.Select(Function(t) t.Hours).Distinct().OrderBy(Function(h) h)
                 HourOptions.Add(hourValue)
             Next
 
-            If AvailableBusinessHours.Contains(preferred) Then
-                _editHour = preferred.Hours
-                _editMinute = preferred.Minutes
-            ElseIf AvailableBusinessHours.Count > 0 Then
-                preferred = AvailableBusinessHours(0)
-                _editHour = preferred.Hours
-                _editMinute = preferred.Minutes
-            End If
+            ' Keep the user's chosen time even when staff or capacity rules reject that slot.
+            _editHour = preferred.Hours
+            _editMinute = preferred.Minutes
+            EnsureHourOption(_editHour)
+            EnsureMinuteOption(_editMinute)
 
             OnPropertyChanged(NameOf(EditHour))
-            RefreshMinuteOptions()
+            RefreshMinuteOptions(selectableSlots)
             OnPropertyChanged(NameOf(EditMinute))
             SyncSelectedBusinessHourFromDropdowns()
             OnPropertyChanged(NameOf(SelectedDayBusinessHoursLabel))
-            UpdateCapacityStatusMessage(day, filteredSlots)
+            UpdateCapacityStatusMessage(day, capacityFilteredSlots)
+            NotifyAppointmentTimingLabels()
+
+            If alertOnStaffConflict Then
+                AlertStaffConflictIfNeeded()
+            End If
         End Sub
 
-        Private Sub RefreshMinuteOptions()
-            Dim minutes = GetCapacityFilteredSlots(EditAppointmentDate).
+        Private Sub RefreshMinuteOptions(Optional selectableSlots As IList(Of TimeSpan) = Nothing)
+            Dim slots = If(selectableSlots, GetSelectableTimeSlots(EditAppointmentDate).ToList())
+            Dim minutes = slots.
                 Where(Function(t) t.Hours = EditHour).
                 Select(Function(t) t.Minutes).
                 Distinct().
@@ -624,14 +631,39 @@ Namespace ViewModels
                 MinuteOptions.Add(minuteValue)
             Next
 
-            If MinuteOptions.Count = 0 Then
-                Return
-            End If
+            EnsureMinuteOption(EditMinute)
+        End Sub
 
-            If Not MinuteOptions.Contains(EditMinute) Then
-                _editMinute = MinuteOptions(0)
-                OnPropertyChanged(NameOf(EditMinute))
-            End If
+        Private Function GetSelectableTimeSlots(day As Date) As IEnumerable(Of TimeSpan)
+            Dim allSlots = BusinessHoursService.GetAvailableTimeSlots(day)
+            Dim duration = ResolveAppointmentDuration()
+            If duration <= 0 Then Return allSlots
+
+            Return allSlots.Where(Function(slot)
+                                      Dim startTime = day.Date.Add(slot)
+                                      Return BusinessHoursService.IsWithinBusinessHours(startTime, startTime.AddMinutes(duration))
+                                  End Function)
+        End Function
+
+        Private Sub AlertStaffConflictIfNeeded()
+            If Not IsEditMode Then Return
+
+            Dim staffName = ResolveSelectedStaffName()
+            If String.IsNullOrWhiteSpace(staffName) Then Return
+
+            Dim duration = ResolveAppointmentDuration()
+            If duration <= 0 Then Return
+
+            Dim startTime = EditAppointmentDate.Date.AddHours(EditHour).AddMinutes(EditMinute)
+            If Not BusinessHoursService.IsWithinBusinessHours(startTime, startTime.AddMinutes(duration)) Then Return
+
+            Dim message = AppointmentCapacityService.GetStaffUnavailableMessage(
+                _store.Appointments, _store.Services, EditAppointmentDate, startTime, duration, staffName,
+                GetEditingAppointmentIdForCapacity())
+            If String.IsNullOrEmpty(message) Then Return
+
+            StatusMessage = message
+            AppDialogService.ShowError(message, "Staff unavailable")
         End Sub
 
         Private Function GetCapacityFilteredSlots(day As Date) As IEnumerable(Of TimeSpan)
@@ -684,12 +716,7 @@ Namespace ViewModels
         End Sub
 
         Private Sub SyncSelectedBusinessHourFromDropdowns()
-            Dim slot = New TimeSpan(EditHour, EditMinute, 0)
-            If AvailableBusinessHours.Contains(slot) Then
-                _selectedBusinessHour = slot
-            Else
-                _selectedBusinessHour = Nothing
-            End If
+            _selectedBusinessHour = New TimeSpan(EditHour, EditMinute, 0)
             OnPropertyChanged(NameOf(SelectedBusinessHour))
         End Sub
 
@@ -958,12 +985,8 @@ Namespace ViewModels
             If String.IsNullOrWhiteSpace(category) Then
                 Return FailValidation("Select a service from the list.")
             End If
-            If AvailableBusinessHours.Count = 0 Then
-                If Not String.IsNullOrWhiteSpace(category) AndAlso BusinessHoursService.GetAvailableTimeSlots(EditAppointmentDate).Any() Then
-                    Return FailValidation(
-                        AppointmentCapacityService.GetDayFullyBookedMessage(category, EditAppointmentDate),
-                        "Fully booked")
-                End If
+            Dim selectableSlots = GetSelectableTimeSlots(EditAppointmentDate).ToList()
+            If selectableSlots.Count = 0 Then
                 If _isAdding AndAlso Not BusinessHoursService.IsBookableDate(EditAppointmentDate) Then
                     Return FailValidation(PastDateBookingMessage, "Cannot book")
                 End If
@@ -992,7 +1015,7 @@ Namespace ViewModels
                 _store.Appointments, _store.Services, EditAppointmentDate, startTime, durationMinutes, category,
                 ResolveSelectedStaffName(), GetEditingAppointmentIdForCapacity())
             If Not String.IsNullOrEmpty(conflict) Then
-                Dim title = If(conflict.IndexOf("unavailable", StringComparison.OrdinalIgnoreCase) >= 0,
+                Dim title = If(conflict.IndexOf("already booked", StringComparison.OrdinalIgnoreCase) >= 0,
                                "Staff unavailable",
                                "Fully booked")
                 Return FailValidation(conflict, title)
@@ -1040,6 +1063,14 @@ Namespace ViewModels
             OnPropertyChanged(NameOf(ViewContactLabel))
             OnPropertyChanged(NameOf(ViewEmailLabel))
             OnPropertyChanged(NameOf(ViewStatusLabel))
+        End Sub
+
+        Private Sub EnsureHourOption(hour As Integer)
+            If Not HourOptions.Contains(hour) Then
+                HourOptions.Add(hour)
+                HourOptions = New ObservableCollection(Of Integer)(HourOptions.OrderBy(Function(h) h))
+                OnPropertyChanged(NameOf(HourOptions))
+            End If
         End Sub
 
         Private Sub EnsureMinuteOption(minute As Integer)

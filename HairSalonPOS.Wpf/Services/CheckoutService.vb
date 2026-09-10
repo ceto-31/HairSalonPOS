@@ -9,6 +9,7 @@ Namespace Services
         Public Property CustomerName As String
         Public Property PromoCode As String
         Public Property AmountTendered As Decimal
+        Public Property GcashReferenceNumber As String
         Public Property AllowReserveUse As Boolean
         Public Property AllowExpiredBatchUse As Boolean
     End Class
@@ -130,6 +131,16 @@ Namespace Services
                 If request.AmountTendered < total Then
                     Throw New InvalidOperationException("Amount tendered is less than total.")
                 End If
+            ElseIf request.PaymentMethod = "GCash" Then
+                If Not IsValidGcashReference(request.GcashReferenceNumber) Then
+                    Throw New InvalidOperationException("GCash reference number must be exactly 13 digits.")
+                End If
+                If request.AmountTendered <= 0D Then
+                    Throw New InvalidOperationException("Enter received amount before checkout.")
+                End If
+                If request.AmountTendered < total Then
+                    Throw New InvalidOperationException("Received amount is less than total.")
+                End If
             End If
 
             For Each need In consumableNeeds.Values
@@ -147,7 +158,12 @@ Namespace Services
 
             Dim saleId = _store.NextSaleId
             _store.NextSaleId += 1
-            Dim change = If(request.PaymentMethod = "Cash", Math.Max(0D, request.AmountTendered - total), 0D)
+            Dim change = If(IsCashOrGcash(request.PaymentMethod),
+                            Math.Max(0D, request.AmountTendered - total),
+                            0D)
+            Dim gcashReference = If(String.Equals(request.PaymentMethod, "GCash", StringComparison.OrdinalIgnoreCase),
+                                    NormalizeGcashReference(request.GcashReferenceNumber),
+                                    String.Empty)
 
             For Each line In cart.Where(Function(c) c.IsService)
                 If String.IsNullOrWhiteSpace(line.StylistName) Then
@@ -183,6 +199,7 @@ Namespace Services
                 .Total = total,
                 .AmountTendered = request.AmountTendered,
                 .ChangeGiven = change,
+                .GcashReferenceNumber = gcashReference,
                 .AllLines = lines,
                 .ServiceLines = lines.Where(Function(l) l.IsService).ToList(),
                 .ProductLines = lines.Where(Function(l) Not l.IsService).ToList()
@@ -205,6 +222,7 @@ Namespace Services
                 .PromoCode = request.PromoCode,
                 .AmountTendered = request.AmountTendered,
                 .ChangeGiven = change,
+                .GcashReferenceNumber = gcashReference,
                 .Lines = lines
             }
 
@@ -299,6 +317,20 @@ Namespace Services
             If discount.IsSeniorPwd Then Return "Senior/PWD"
             If discount.Code.Equals("BDAY", StringComparison.OrdinalIgnoreCase) Then Return "Birthday Promo"
             Return "Promo"
+        End Function
+
+        Private Shared Function IsCashOrGcash(paymentMethod As String) As Boolean
+            Return String.Equals(paymentMethod, "Cash", StringComparison.OrdinalIgnoreCase) OrElse
+                   String.Equals(paymentMethod, "GCash", StringComparison.OrdinalIgnoreCase)
+        End Function
+
+        Private Shared Function NormalizeGcashReference(reference As String) As String
+            Return New String(If(reference, String.Empty).Where(Function(c) Char.IsDigit(c)).ToArray())
+        End Function
+
+        Public Shared Function IsValidGcashReference(reference As String) As Boolean
+            Dim normalized = NormalizeGcashReference(reference)
+            Return normalized.Length = 13
         End Function
     End Class
 End Namespace

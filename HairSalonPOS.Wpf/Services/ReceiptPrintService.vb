@@ -124,6 +124,15 @@ Namespace Services
                     AddLine(doc, $"Amount tendered: {receipt.AmountTendered:N2}", layout.FontSize, False, layout.LineMargin)
                     AddLine(doc, $"Change due: {receipt.ChangeGiven:N2}", layout.FontSize, False, layout.LineMargin)
                 End If
+            ElseIf receipt.PaymentMethod = "GCash" Then
+                AddReceiptLines(doc, ReceiptTextFormatter.WrapText($"Reference No.: {receipt.GcashReferenceNumber}", If(useFixedWidth, width, Integer.MaxValue)), layout.FontSize, False, layout.LineMargin)
+                If useFixedWidth Then
+                    AddAlignedAmountLine(doc, "Received amount:", receipt.AmountTendered.ToString("N2"), layout, layout.FontSize, False)
+                    AddAlignedAmountLine(doc, "Change due:", receipt.ChangeGiven.ToString("N2"), layout, layout.FontSize, False)
+                Else
+                    AddLine(doc, $"Received amount: {receipt.AmountTendered:N2}", layout.FontSize, False, layout.LineMargin)
+                    AddLine(doc, $"Change due: {receipt.ChangeGiven:N2}", layout.FontSize, False, layout.LineMargin)
+                End If
             End If
             AddSeparator(doc, layout)
             If useFixedWidth Then
@@ -175,6 +184,10 @@ Namespace Services
             lines.AddRange(ReceiptTextFormatter.WrapText($"Payment: {receipt.PaymentMethod}", width))
             If receipt.PaymentMethod = "Cash" Then
                 lines.Add(ReceiptTextFormatter.FormatAmountLine("Tendered:", receipt.AmountTendered, width, amountCol))
+                lines.Add(ReceiptTextFormatter.FormatAmountLine("Change:", receipt.ChangeGiven, width, amountCol))
+            ElseIf receipt.PaymentMethod = "GCash" Then
+                lines.AddRange(ReceiptTextFormatter.WrapText($"Ref No.: {receipt.GcashReferenceNumber}", width))
+                lines.Add(ReceiptTextFormatter.FormatAmountLine("Received:", receipt.AmountTendered, width, amountCol))
                 lines.Add(ReceiptTextFormatter.FormatAmountLine("Change:", receipt.ChangeGiven, width, amountCol))
             End If
             lines.Add(New String("-"c, width))

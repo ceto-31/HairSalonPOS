@@ -24,6 +24,7 @@ Namespace Helpers
                 .Total = sale.Total,
                 .AmountTendered = sale.AmountTendered,
                 .ChangeGiven = sale.ChangeGiven,
+                .GcashReferenceNumber = sale.GcashReferenceNumber,
                 .AllLines = If(sale.Lines?.ToList(), New List(Of SaleLineRecord)()),
                 .ServiceLines = If(sale.Lines?.Where(Function(l) l.IsService).ToList(), New List(Of SaleLineRecord)()),
                 .ProductLines = If(sale.Lines?.Where(Function(l) Not l.IsService).ToList(), New List(Of SaleLineRecord)())
@@ -48,6 +49,7 @@ Namespace Helpers
                 .PromoCode = receipt.PromoCode,
                 .AmountTendered = receipt.AmountTendered,
                 .ChangeGiven = receipt.ChangeGiven,
+                .GcashReferenceNumber = receipt.GcashReferenceNumber,
                 .Lines = If(receipt.AllLines?.ToList(), New List(Of SaleLineRecord)())
             }
         End Function
